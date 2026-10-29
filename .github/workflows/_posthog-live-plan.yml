@@ -1,0 +1,118 @@
+name: _posthog-live-plan
+
+on:
+  workflow_call:
+    inputs:
+      stack:
+        description: Names the plan artifact. PostHog has one organization, so this is always org.
+        required: true
+        type: string
+      root:
+        required: true
+        type: string
+      state_bucket:
+        description: Management bucket. PostHog state is not environment workload state.
+        required: true
+        type: string
+      workload_identity_provider:
+        required: true
+        type: string
+      audience:
+        required: true
+        type: string
+    secrets:
+      POSTHOG_PLAN_API_KEY:
+        required: true
+
+# No pull-requests: write — see _gcp-live-plan.yml. The aggregating job in
+# live-plan.yml owns the comment.
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TERRAFORM_VERSION: 1.16.6
+
+jobs:
+  plan:
+    name: plan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The workflow file counts as the stack: a change to how the plan runs
+      # should be proven by a plan.
+      - name: Does this PR touch the stack?
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          changed=$(git diff --name-only \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}")
+          if echo "$changed" | grep -qE "^(${{ inputs.root }}/|\.github/workflows/_posthog-live-plan\.yml$)"; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # A read-only personal key, for the same reason the Cloudflare plan gets
+      # a read-only token: this job runs pull-request code, which can send any
+      # secret the job holds anywhere it likes. PostHog API keys cannot be
+      # minted per run, so the key is standing and its scopes are the limit.
+      - name: Use the read-only PostHog key
+        if: steps.scope.outputs.relevant == 'true'
+        shell: bash
+        env:
+          PLAN_KEY: ${{ secrets.POSTHOG_PLAN_API_KEY }}
+        run: |
+          echo "::add-mask::$PLAN_KEY"
+          echo "POSTHOG_API_KEY=$PLAN_KEY" >> "$GITHUB_ENV"
+
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        if: steps.scope.outputs.relevant == 'true'
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      # No service account: the federated GitHub identity reads this stack's
+      # state prefix directly (state_access.tf in org/gcp/_setup).
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
+        if: steps.scope.outputs.relevant == 'true'
+        with:
+          workload_identity_provider: ${{ inputs.workload_identity_provider }}
+          audience: ${{ inputs.audience }}
+
+      - name: Init
+        if: steps.scope.outputs.relevant == 'true'
+        working-directory: ${{ inputs.root }}
+        run: terraform init -lockfile=readonly -backend-config="bucket=${{ inputs.state_bucket }}"
+
+      # -lock=false: a plan writes no state, so it has no reason to take the
+      # lock. See _gcp-live-plan.yml for the race that taking it caused.
+      - name: Plan
+        id: plan
+        if: steps.scope.outputs.relevant == 'true'
+        working-directory: ${{ inputs.root }}
+        shell: bash
+        env:
+          TF_VAR_organization_id: ${{ vars.POSTHOG_ORGANIZATION_ID }}
+          TF_VAR_administrator_email: ${{ vars.POSTHOG_ADMINISTRATOR_EMAIL }}
+        run: |
+          set -o pipefail
+          terraform plan -no-color -input=false -lock=false -out=tfplan 2>&1 | tee plan.txt
+
+      - name: Upload the plan
+        if: steps.scope.outputs.relevant == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: plan-posthog-${{ inputs.stack }}
+          path: ${{ inputs.root }}/plan.txt
+          retention-days: 5
+          if-no-files-found: error

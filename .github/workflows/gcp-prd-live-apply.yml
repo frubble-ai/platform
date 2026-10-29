@@ -1,0 +1,38 @@
+name: gcp-prd-live-apply
+
+# Triggered on every push so the workflow is visible and its wiring stays
+# exercised by review, with the apply itself behind a switch. prd is planned on
+# every pull request and applied only when someone decides to — a problem shows
+# up early, a change does not happen by merging.
+#
+# The switch is the repository variable TF_APPLY_ENABLE_PRD. Unset, the job
+# reports as skipped; turning prd on is then a setting someone changes
+# deliberately, not a commit that has to pass review to take effect.
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  apply:
+    name: apply prd gcp
+    if: vars.TF_APPLY_ENABLE_PRD == 'true'
+    uses: ./.github/workflows/_gcp-live-apply.yml
+    with:
+      environment: prd
+      gh_environment: prd
+      root: terraform/live/prd/gcp
+      project_id: ${{ vars.GCP_PROJECT_PRD }}
+      state_bucket: ${{ vars.STATE_BUCKET_PRD }}
+      management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      spoke_service_account: ${{ vars.GCP_APPLY_SPOKE_PRD }}
+      service_account: ${{ vars.GCP_APPLY_HUB_PRD }}
+      workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    permissions:
+      contents: read
+      id-token: write

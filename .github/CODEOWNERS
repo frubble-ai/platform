@@ -1,0 +1,8 @@
+# Review is required on everything, and specifically on the two paths where a
+# mistake is not visible in a plan: the workflows that decide which identity
+# CI may request, and the _setup roots that define what those identities can
+# do. A change there is a change to who can change production.
+
+*                               @drn1996
+/.github/workflows/**           @drn1996
+/terraform/live/**/_setup/      @drn1996

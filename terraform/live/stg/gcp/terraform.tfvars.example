@@ -1,0 +1,5 @@
+# Applied by CI only. The values below are passed as GitHub variables, not
+# committed — this file documents the shape.
+
+project_id              = "frubble-stg"
+management_state_bucket = "frubble-mgmt-tfstate"

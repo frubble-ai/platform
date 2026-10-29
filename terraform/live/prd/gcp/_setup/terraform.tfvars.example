@@ -1,0 +1,7 @@
+# Applied by hand with the bootstrap admin identity, after org/gcp/_setup.
+#   terraform init -backend-config="bucket=<management_state_bucket>"
+#   terraform apply -input=false
+
+project_id              = "frubble-prd"
+management_state_bucket = "frubble-mgmt-tfstate"
+management_project_id   = "frubble-mgmt"

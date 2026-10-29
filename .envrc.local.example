@@ -1,0 +1,129 @@
+# Credentials for applying the _setup roots by hand.
+#
+# Copy to .envrc.local, fill in the one placeholder, and load it in any
+# terminal where you are about to run Terraform on a _setup root:
+#
+#   source .envrc.local
+#
+# .envrc.local is git-ignored. This example is not, and must never hold a real
+# value.
+#
+# Why this file exists: environment variables live only in the terminal window
+# that created them. Open a new tab and they are gone, and Terraform falls back
+# to whatever credential the machine has by default — which fails with a 403
+# naming an unrelated service account.
+#
+# Every step below stops on failure rather than continuing. An empty token is
+# worse than a missing one: missing falls back and fails with 403 "you may
+# not", empty sends `Bearer ` and fails with 401 "who are you", and 401 points
+# at nothing.
+#
+# `return`, never `exit`: this file is sourced, and `exit` would close the
+# terminal instead of stopping the script.
+
+BOOTSTRAP_SA="frubble-bootstrap@frubble-mgmt.iam.gserviceaccount.com"
+
+# ---------------------------------------------------------------------------
+# 1. Google — reads and writes the state file in the management bucket
+# ---------------------------------------------------------------------------
+# Not your personal login. The _setup roots are applied as the bootstrap admin,
+# a service account that exists for nothing else, so "who built the foundation"
+# has an answer.
+#
+# A global impersonation setting would make gcloud chain two hops — you, then
+# that account, then the bootstrap admin — and the second hop is not allowed.
+gcloud config unset auth/impersonate_service_account >/dev/null 2>&1
+
+# The scopes are load-bearing, despite gcloud warning that it ignores them for
+# an impersonated account: without them the token works for the API calls but
+# carries no identity, and `userinfo` comes back empty. The project pin in
+# every root reads exactly that identity back and stops the run when it cannot,
+# so a token minted without these fails the plan rather than the auth.
+# stderr goes to a file, not into the token. gcloud prints two warnings on
+# every impersonated call, and folding stderr into the captured output puts
+# "WARNING: This command is using service account impersonation..." in the
+# variable instead of the token — which then fails as a 401 that names nothing.
+echo "minting a Google token as the bootstrap admin..."
+_gcp_err="$(mktemp)"
+_gcp_token="$(gcloud auth print-access-token \
+  --impersonate-service-account="$BOOTSTRAP_SA" \
+  --scopes=https://www.googleapis.com/auth/cloud-platform,openid,https://www.googleapis.com/auth/userinfo.email \
+  2>"$_gcp_err")"
+_gcp_status=$?
+
+if [ "$_gcp_status" -ne 0 ] || [ -z "$_gcp_token" ]; then
+  echo
+  echo "Could not become the bootstrap admin. gcloud said:"
+  sed 's/^/  /' "$_gcp_err"
+  echo
+  echo "The usual cause is that your account lacks serviceAccountTokenCreator"
+  echo "on $BOOTSTRAP_SA. Check who you are with: gcloud auth list"
+  rm -f "$_gcp_err"
+  unset _gcp_token _gcp_err _gcp_status
+  return 1
+fi
+rm -f "$_gcp_err"
+unset _gcp_err _gcp_status
+
+export GOOGLE_OAUTH_ACCESS_TOKEN="$_gcp_token"
+unset _gcp_token
+
+# ---------------------------------------------------------------------------
+# 2. Cloudflare — creates the plan and mint tokens
+# ---------------------------------------------------------------------------
+# The bootstrap token: an ACCOUNT token with `Account API Tokens Write` and
+# nothing else. Created under Manage Account → API Tokens, not under My
+# Profile — My Profile makes user tokens, which belong to a person and cannot
+# manage the account tokens this root creates. It is the one Cloudflare
+# credential never stored in GitHub.
+#
+# Replace the value below. Keep the quotes.
+export CLOUDFLARE_API_TOKEN="PASTE_THE_BOOTSTRAP_TOKEN_HERE"
+
+if [ "$CLOUDFLARE_API_TOKEN" = "PASTE_THE_BOOTSTRAP_TOKEN_HERE" ]; then
+  echo
+  echo "The Cloudflare line in .envrc.local still holds the placeholder."
+  echo "Create it at dash.cloudflare.com → Manage Account → API Tokens,"
+  echo "with Account API Tokens Write and nothing else, and paste it in."
+  return 1
+fi
+
+# ---------------------------------------------------------------------------
+# 3. Prove both credentials before Terraform depends on them
+# ---------------------------------------------------------------------------
+_who="$(curl -s -H "Authorization: Bearer $GOOGLE_OAUTH_ACCESS_TOKEN" \
+  https://www.googleapis.com/oauth2/v3/userinfo \
+  | sed -n 's/.*"email": *"\([^"]*\)".*/\1/p')"
+
+if [ "$_who" != "$BOOTSTRAP_SA" ]; then
+  echo
+  echo "The Google token does not belong to the bootstrap admin."
+  echo "  expected: $BOOTSTRAP_SA"
+  echo "  got:      ${_who:-<nothing — the token is not valid>}"
+  unset _who
+  return 1
+fi
+
+# /accounts, not /user/tokens/verify. The bootstrap token is an account token,
+# and account tokens are refused at every user-level endpoint with "Valid
+# user-level authentication not found" — so the old check reported a working
+# token as broken. This call also names the account, which is the useful half:
+# a token for the wrong account authenticates fine and then changes nothing you
+# expected.
+_cf="$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+  https://api.cloudflare.com/client/v4/accounts \
+  | sed -n 's/.*"name": *"\([^"]*\)".*/\1/p' | head -1)"
+
+if [ -z "$_cf" ]; then
+  echo
+  echo "Cloudflare did not accept the bootstrap token, or it is not an account token."
+  echo "An account token's value starts with cfat_ and is created under"
+  echo "Manage Account → API Tokens — not under My Profile."
+  unset _cf
+  return 1
+fi
+
+echo "google:     $_who"
+echo "cloudflare: account \"$_cf\""
+echo "ready. the Google token lasts one hour; source this file again after that."
+unset _who _cf
