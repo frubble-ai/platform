@@ -1,0 +1,28 @@
+# Copy to terraform.tfvars and fill in. The real file is git-ignored.
+#
+# Applied by hand, with a bootstrap token that is itself an account token:
+# permission `Account API Tokens Write`, scoped to the account, and nothing
+# else. Create it at dash.cloudflare.com → Manage Account → API Tokens, which
+# is where account tokens live — not under My Profile, which creates user
+# tokens belonging to a person.
+#
+# That token never goes into GitHub; it lives with the person who applies this
+# root.
+#
+#   export CLOUDFLARE_API_TOKEN="<the bootstrap account token>"
+#   terraform init -backend-config="bucket=<management_state_bucket>"
+#   terraform apply -input=false
+#
+# Then pipe each token it created into GitHub, once. Piping rather than
+# copying: a value printed to the terminal stays in the scrollback, and one
+# echoed stays in the shell history.
+#
+#   terraform output -raw plan_token | gh secret set CLOUDFLARE_PLAN_TOKEN
+#
+# The mint token is not created here — Cloudflare refuses to mint a token that
+# manages tokens, on both the user and the account API. Make it by hand from
+# the Create Additional Tokens template, same place as the bootstrap token, and
+# put it in CLOUDFLARE_MINT_TOKEN on stg, prd and cloudflare-org.
+
+account_id = "<cloudflare account id>"
+zone_id    = "<cloudflare zone id>"

@@ -1,0 +1,34 @@
+# Rules chosen to catch mistakes, not to argue about style.
+#
+# The default line length is 80, which every workflow here breaks on a single
+# `uses:` line with its SHA pin — a rule that fires on correct code trains
+# people to ignore the tool.
+extends: default
+
+rules:
+  line-length:
+    max: 120
+    # A long URL or a SHA pin cannot be wrapped, so a line that is one word is
+    # allowed to be long. A long line of prose is still flagged.
+    allow-non-breakable-words: true
+    allow-non-breakable-inline-mappings: true
+
+  # GitHub Actions uses `on:`, which YAML 1.1 reads as the boolean true. The
+  # key is correct and required; the warning is about a spec nobody here is
+  # following.
+  truthy:
+    check-keys: false
+
+  # Comments explaining a decision often sit flush with the block they
+  # explain, which reads better than an enforced blank line.
+  comments:
+    require-starting-space: true
+    min-spaces-from-content: 1
+
+  # A document start marker adds nothing to a file that holds one document.
+  document-start: disable
+
+  # Workflows indent list items under their key, which the default rejects.
+  indentation:
+    spaces: 2
+    indent-sequences: consistent

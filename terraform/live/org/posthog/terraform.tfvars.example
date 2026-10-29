@@ -1,0 +1,2 @@
+organization_id     = "<frubble organization UUID, from Settings → Organization → General>"
+administrator_email = "<email of an existing member to make admin>"

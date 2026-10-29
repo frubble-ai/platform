@@ -1,0 +1,99 @@
+name: _gcp-live-apply
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: Stack environment, used for labels and tfvars.
+        required: true
+        type: string
+      gh_environment:
+        description: GitHub environment the job runs in. The apply hub trusts this exact name.
+        required: true
+        type: string
+      root:
+        required: true
+        type: string
+      project_id:
+        required: true
+        type: string
+      state_bucket:
+        required: true
+        type: string
+      management_state_bucket:
+        required: true
+        type: string
+      spoke_service_account:
+        description: Spoke the hub becomes. The hub itself holds no permissions.
+        required: true
+        type: string
+      service_account:
+        required: true
+        type: string
+      workload_identity_provider:
+        required: true
+        type: string
+      audience:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TERRAFORM_VERSION: 1.16.6
+
+jobs:
+  apply:
+    name: apply
+    runs-on: ubuntu-latest
+
+    environment:
+      name: ${{ inputs.gh_environment }}
+      # The environment is used for its secrets, its protection rules and as
+      # the claim the apply hub trusts — not to record a release. Left true,
+      # every merge would file a deployment for infrastructure that may not
+      # have changed at all.
+      deployment: false
+
+    # One apply per environment, and never interrupted. A cancelled apply
+    # leaves the state lock held and the infrastructure half-changed, which
+    # costs more to recover from than waiting costs to avoid.
+    concurrency:
+      group: apply-${{ inputs.environment }}
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
+        with:
+          workload_identity_provider: ${{ inputs.workload_identity_provider }}
+          service_account: ${{ inputs.service_account }}
+          audience: ${{ inputs.audience }}
+
+      - name: Init
+        working-directory: ${{ inputs.root }}
+        run: |
+          terraform init -lockfile=readonly \
+            -backend-config="bucket=${{ inputs.state_bucket }}" \
+            -backend-config="impersonate_service_account=${{ inputs.spoke_service_account }}"
+
+      # No separate plan step. The plan a reviewer approved was made against
+      # the state before the merge, and apply plans again on its own against
+      # the state as it is now; with nothing to change it changes nothing.
+      - name: Apply
+        working-directory: ${{ inputs.root }}
+        env:
+          TF_VAR_project_id: ${{ inputs.project_id }}
+          TF_VAR_management_state_bucket: ${{ inputs.management_state_bucket }}
+          TF_VAR_spoke_service_account: ${{ inputs.spoke_service_account }}
+        run: terraform apply -auto-approve -input=false -lock-timeout=5m -no-color

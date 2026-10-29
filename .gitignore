@@ -1,0 +1,43 @@
+# Terraform state holds every secret in plaintext — never commit it.
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl.bak
+crash.log
+crash.*.log
+
+# Real variable values. Only the .example is tracked.
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
+# Credentials
+*.json
+!package.json
+!.terraform.lock.hcl
+*.pem
+*.key
+.env
+.env.*
+
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.DS_Store
+
+# Saved plans resolve sensitive values in cleartext.
+tfplan
+*.tfplan
+plan.txt
+
+# Local credential shim for terraform runs.
+.envrc.local
+
+# Lock files belong to roots, not modules. A module is never initialised
+# on its own except to validate it.
+terraform/modules/**/.terraform.lock.hcl
+
+# Bootstrap helper, not part of the standard.
+bootstrap.sh

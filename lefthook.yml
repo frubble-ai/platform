@@ -1,0 +1,73 @@
+# The same checks CI runs, run before the code leaves your laptop.
+#
+# Split by cost. Commit-time hooks have to finish in the pause between typing
+# the message and getting the prompt back, so they are formatters and a lint of
+# the message itself. Push-time hooks may take a minute, so that is where
+# validate and the scanners go.
+#
+# Nothing here is a substitute for CI: a hook can be skipped with --no-verify,
+# and `Code Quality Summary` is what branch protection requires. The point is
+# the feedback arriving in seconds rather than after a push and a round trip.
+#
+# Install once, per clone:
+#   brew install lefthook && lefthook install
+
+pre-commit:
+  parallel: true
+  commands:
+    # Writes rather than checks: a formatter that only complains is a round
+    # trip for something the tool can just do.
+    terraform-fmt:
+      glob: "*.tf"
+      run: terraform fmt -recursive terraform/
+      stage_fixed: true
+
+    yamllint:
+      glob: "*.{yml,yaml}"
+      run: yamllint {staged_files}
+
+pre-push:
+  parallel: false
+  commands:
+    # Every root, not only the changed ones. A module edit breaks roots whose
+    # own files were untouched, which is the case a local check should catch —
+    # CI already covers it, and finding out here is cheaper.
+    terraform-validate:
+      run: |
+        set -eu
+        for dir in $(find terraform/live -name versions.tf -exec dirname {} \;); do
+          echo "validate $dir"
+          terraform -chdir="$dir" init -backend=false -input=false >/dev/null
+          terraform -chdir="$dir" validate
+        done
+
+    trivy:
+      run: trivy config terraform/ --severity HIGH,CRITICAL --exit-code 1 --ignorefile .trivyignore.yaml
+
+    # The whole history, not the diff: a secret can arrive through a path no
+    # single diff shows, and a push is the last moment it is still private.
+    gitleaks:
+      run: gitleaks git --redact --verbose
+
+commit-msg:
+  commands:
+    # The PR title is the squash commit message, and the repository uses
+    # Conventional Commits. Checking the subject line here means the convention
+    # is enforced where it is written, not remembered at merge time.
+    conventional:
+      run: |
+        set -eu
+        subject=$(head -1 "{1}")
+        case "$subject" in
+          # A fixup or a merge is not a release note; let them through.
+          fixup!*|squash!*|Merge*|Revert*) exit 0 ;;
+        esac
+        pattern='^(feat|fix|chore|docs|refactor|ci|test|build|perf|revert)(\([a-z0-9/_-]+\))?!?: .+'
+        if ! printf '%s' "$subject" | grep -Eq "$pattern"; then
+          echo "The subject line must be a Conventional Commit:" >&2
+          echo "  type(optional scope): summary" >&2
+          echo "  types: feat fix chore docs refactor ci test build perf revert" >&2
+          echo >&2
+          echo "got: $subject" >&2
+          exit 1
+        fi

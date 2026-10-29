@@ -1,0 +1,15 @@
+zone_id = "<cloudflare zone id>"
+
+# Zone-wide security posture. The defaults in variables.tf are the posture, so
+# this stays commented unless something has to differ — and then the override
+# is a reviewed diff, which is the point of these living here rather than in a
+# _setup root.
+#
+# zone_settings = {
+#   ssl             = "strict"
+#   min_tls_version = "1.2"
+# }
+
+# records = {
+#   "example.site" = { type = "TXT", content = "google-site-verification=..." }
+# }

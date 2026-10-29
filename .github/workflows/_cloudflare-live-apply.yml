@@ -1,0 +1,159 @@
+name: _cloudflare-live-apply
+
+on:
+  workflow_call:
+    inputs:
+      stack:
+        required: true
+        type: string
+      gh_environment:
+        description: GitHub environment the job runs in. The Cloudflare apply identity trusts this exact name.
+        required: true
+        type: string
+      root:
+        required: true
+        type: string
+      state_bucket:
+        required: true
+        type: string
+      workload_identity_provider:
+        required: true
+        type: string
+      audience:
+        required: true
+        type: string
+    secrets:
+      CLOUDFLARE_MINT_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TERRAFORM_VERSION: 1.16.6
+
+jobs:
+  apply:
+    name: apply
+    runs-on: ubuntu-latest
+
+    environment:
+      name: ${{ inputs.gh_environment }}
+      deployment: false
+
+    concurrency:
+      group: apply-cloudflare-${{ inputs.stack }}
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      # Write scope, unlike the plan workflow. Still one hour and still
+      # revoked at the end: the difference between plan and apply is what the
+      # token may do, not how long it lives.
+      - name: Mint a write Cloudflare token
+        id: cf
+        shell: bash
+        env:
+          MINT_TOKEN: ${{ secrets.CLOUDFLARE_MINT_TOKEN }}
+          ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          ZONE_ID: ${{ vars.CLOUDFLARE_ZONE_ID }}
+        run: |
+          set -euo pipefail
+          groups=$(curl -sS -H "Authorization: Bearer $MINT_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/tokens/permission_groups")
+          # Stop on Cloudflare's own error, not on what it leaves behind. A
+          # refused call has no .result, so without this every lookup below
+          # fails with "Cannot iterate over null" and the reason only shows
+          # after the token request, at the bottom of the log.
+          if [ "$(echo "$groups" | jq -r '.success')" != "true" ]; then
+            echo "::error::Cloudflare refused CLOUDFLARE_MINT_TOKEN. It must be an account token" \
+              "with Account API Tokens Write, made under Manage Account → API Tokens;" \
+              "a user token from My Profile is refused here."
+            echo "$groups" | jq '.errors'
+            exit 1
+          fi
+          # A name that matches nothing would leave an empty id in the policy,
+          # and Cloudflare's answer to that names neither the group nor the
+          # field. Failing here names the group.
+          id_of() {
+            id=$(echo "$groups" | jq -r --arg n "$1" '.result[] | select(.name==$n) | .id' | head -1)
+            [ -n "$id" ] || { echo "::error::No Cloudflare permission group named \"$1\"" >&2; return 1; }
+            echo "$id"
+          }
+          tunnel_write=$(id_of 'Cloudflare Tunnel Write')
+          zone_read=$(id_of 'Zone Read')
+          dns_write=$(id_of 'DNS Write')
+          settings_write=$(id_of 'Zone Settings Write')
+
+          body=$(jq -n \
+            --arg name "frubble-apply-${{ inputs.stack }}-${{ github.run_id }}-${{ github.run_attempt }}" \
+            --arg acct "$ACCOUNT_ID" --arg zone "$ZONE_ID" \
+            --arg tunnel_write "$tunnel_write" \
+            --arg zone_read "$zone_read" \
+            --arg dns_write "$dns_write" \
+            --arg settings_write "$settings_write" \
+            '{name: $name,
+              policies: [
+                {effect: "allow",
+                 resources: {("com.cloudflare.api.account." + $acct): "*"},
+                 permission_groups: [{id: $tunnel_write}]},
+                {effect: "allow",
+                 resources: {("com.cloudflare.api.account.zone." + $zone): "*"},
+                 permission_groups: [{id: $zone_read}, {id: $dns_write}, {id: $settings_write}]}
+              ]}')
+
+          created=$(curl -sS -X POST -H "Authorization: Bearer $MINT_TOKEN" \
+            -H "Content-Type: application/json" -d "$body" \
+            "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/tokens")
+
+          if [ "$(echo "$created" | jq -r '.success')" != "true" ]; then
+            echo "::error::Could not mint a Cloudflare token"
+            echo "$created" | jq -r '.errors'
+            exit 1
+          fi
+
+          token=$(echo "$created" | jq -r '.result.value')
+          echo "::add-mask::$token"
+          echo "CLOUDFLARE_API_TOKEN=$token" >> "$GITHUB_ENV"
+          echo "token_id=$(echo "$created" | jq -r '.result.id')" >> "$GITHUB_OUTPUT"
+
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      # No service account: the federated GitHub identity reads this stack's
+      # state prefix directly (state_access.tf in org/gcp/_setup).
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
+        with:
+          workload_identity_provider: ${{ inputs.workload_identity_provider }}
+          audience: ${{ inputs.audience }}
+
+      - name: Init
+        working-directory: ${{ inputs.root }}
+        run: terraform init -lockfile=readonly -backend-config="bucket=${{ inputs.state_bucket }}"
+
+      # No separate plan step: apply plans against the current state on its
+      # own. See _gcp-live-apply.yml.
+      - name: Apply
+        working-directory: ${{ inputs.root }}
+        env:
+          TF_VAR_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          TF_VAR_zone_id: ${{ vars.CLOUDFLARE_ZONE_ID }}
+          TF_VAR_domain: ${{ vars.CLOUDFLARE_DOMAIN }}
+        run: terraform apply -auto-approve -input=false -lock-timeout=5m -no-color
+
+      - name: Revoke the token
+        if: always() && steps.cf.outputs.token_id != ''
+        shell: bash
+        env:
+          MINT_TOKEN: ${{ secrets.CLOUDFLARE_MINT_TOKEN }}
+          ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          curl -sS -X DELETE -H "Authorization: Bearer $MINT_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/tokens/${{ steps.cf.outputs.token_id }}" \
+            | jq -r '.success' | grep -q true && echo "token revoked"

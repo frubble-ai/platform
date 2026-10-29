@@ -1,0 +1,180 @@
+name: stg-cd
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+# cancel-in-progress stays false, which also means a run that is merely queued
+# is replaced by a newer one. That is the behaviour we want: superseding work
+# that has not started costs nothing, interrupting an apply that has started
+# leaves a held lock and half-changed infrastructure.
+concurrency:
+  group: stg-cd
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  gcp:
+    name: apply stg gcp
+    uses: ./.github/workflows/_gcp-live-apply.yml
+    with:
+      environment: stg
+      gh_environment: stg
+      root: terraform/live/stg/gcp
+      project_id: ${{ vars.GCP_PROJECT_STG }}
+      state_bucket: ${{ vars.STATE_BUCKET_STG }}
+      management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      spoke_service_account: ${{ vars.GCP_APPLY_SPOKE_STG }}
+      service_account: ${{ vars.GCP_APPLY_HUB_STG }}
+      workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    permissions:
+      contents: read
+      id-token: write
+
+  # Runs beside the GCP apply, not after it. The two touch different systems
+  # and neither reads the other's output during the run.
+  cloudflare:
+    name: apply stg cloudflare
+    uses: ./.github/workflows/_cloudflare-live-apply.yml
+    with:
+      stack: stg
+      gh_environment: stg
+      root: terraform/live/stg/cloudflare
+      state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    secrets:
+      CLOUDFLARE_MINT_TOKEN: ${{ secrets.CLOUDFLARE_MINT_TOKEN }}
+    permissions:
+      contents: read
+      id-token: write
+
+  # The step that keeps the token out of Terraform. It runs after the GCP
+  # apply because the secret container must exist, and it writes under an
+  # identity that can add a version to that one secret and do nothing else —
+  # not even read back what it wrote.
+  tunnel-token:
+    name: write the tunnel token
+    # Both, not just gcp. The secret container comes from the GCP apply, and
+    # the tunnel whose token this reads is created by the Cloudflare apply —
+    # on a first deploy the lookup would otherwise run before that tunnel
+    # exists and fail, or find the one being replaced and write a stale token.
+    needs: [gcp, cloudflare]
+    runs-on: ubuntu-latest
+    environment:
+      name: stg
+      deployment: false
+    steps:
+      # Tunnel Write, not Read. GET /cfd_tunnel/{id}/token returns the
+      # credential a connector runs with, and Cloudflare requires a write
+      # permission for it — a Read token gets no token back, and this job
+      # would stop before writing the secret. The token lives for this job
+      # and is revoked at the end, like every other per-job token.
+      - name: Mint a Cloudflare token that can read the tunnel's credential
+        id: cf
+        shell: bash
+        env:
+          MINT_TOKEN: ${{ secrets.CLOUDFLARE_MINT_TOKEN }}
+          ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          groups=$(curl -sS -H "Authorization: Bearer $MINT_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/tokens/permission_groups")
+          # Stop on Cloudflare's own error, not on what it leaves behind. A
+          # refused call has no .result, so without this every lookup below
+          # fails with "Cannot iterate over null" and the reason only shows
+          # after the token request, at the bottom of the log.
+          if [ "$(echo "$groups" | jq -r '.success')" != "true" ]; then
+            echo "::error::Cloudflare refused CLOUDFLARE_MINT_TOKEN. It must be an account token" \
+              "with Account API Tokens Write, made under Manage Account → API Tokens;" \
+              "a user token from My Profile is refused here."
+            echo "$groups" | jq '.errors'
+            exit 1
+          fi
+          tunnel_write=$(echo "$groups" | jq -r '.result[] | select(.name=="Cloudflare Tunnel Write") | .id' | head -1)
+          [ -n "$tunnel_write" ] || { echo "::error::no Cloudflare Tunnel Write permission group"; exit 1; }
+
+          body=$(jq -n \
+            --arg name "frubble-tunnel-token-${{ github.run_id }}-${{ github.run_attempt }}" \
+            --arg acct "$ACCOUNT_ID" --arg g "$tunnel_write" \
+            '{name: $name, policies: [{effect: "allow",
+              resources: {("com.cloudflare.api.account." + $acct): "*"},
+              permission_groups: [{id: $g}]}]}')
+
+          created=$(curl -sS -X POST -H "Authorization: Bearer $MINT_TOKEN" \
+            -H "Content-Type: application/json" -d "$body" \
+            "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/tokens")
+          [ "$(echo "$created" | jq -r '.success')" = "true" ] || { echo "::error::mint failed"; exit 1; }
+
+          token=$(echo "$created" | jq -r '.result.value')
+          echo "::add-mask::$token"
+          echo "CF_TOKEN=$token" >> "$GITHUB_ENV"
+          echo "token_id=$(echo "$created" | jq -r '.result.id')" >> "$GITHUB_OUTPUT"
+
+      # Its own hub, not the apply hub. This job runs directly in this file,
+      # so its job_workflow_ref names stg-cd.yml — and the apply hub trusts
+      # only _gcp-live-apply.yml. Requesting the apply hub here fails the
+      # exchange with a 403 that reads like a missing role.
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
+          service_account: ${{ vars.GCP_TUNNEL_TOKEN_HUB_STG }}
+          audience: ${{ vars.GCP_WIF_AUDIENCE }}
+
+      - name: Fetch the token and write a new secret version
+        shell: bash
+        env:
+          ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          WRITER: ${{ vars.GCP_TUNNEL_TOKEN_WRITER_STG }}
+          PROJECT: ${{ vars.GCP_PROJECT_STG }}
+          SECRET: frubble_stg_cloudflare_tunnel-token
+        run: |
+          set -euo pipefail
+          tunnel=$(curl -sS -H "Authorization: Bearer $CF_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/cfd_tunnel?name=frubble-stg&is_deleted=false" \
+            | jq -r '.result[0].id // empty')
+
+          if [ -z "$tunnel" ]; then
+            echo "::error::No tunnel named frubble-stg. Apply terraform/live/stg/cloudflare first."
+            exit 1
+          fi
+
+          # `// empty` and the guard below, for the same reason as the tunnel
+          # lookup above: on a failed call `.result` is null, `jq -r` prints
+          # the string "null", and that would be written as the latest version
+          # of the secret. The VM reads versions/latest at boot, so cloudflared
+          # would then fail with a token error and nothing would point at the
+          # API call that caused it. Masking "null" also hides every later null
+          # in the log.
+          value=$(curl -sS -H "Authorization: Bearer $CF_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/cfd_tunnel/$tunnel/token" \
+            | jq -r 'if .success then (.result // empty) else empty end')
+
+          if [ -z "$value" ]; then
+            echo "::error::Cloudflare did not return a tunnel token for frubble-stg. The secret was left untouched."
+            exit 1
+          fi
+          echo "::add-mask::$value"
+
+          # Through stdin, never an argument: arguments show up in process
+          # listings and in gcloud's own command log.
+          printf '%s' "$value" | gcloud secrets versions add "$SECRET" \
+            --project="$PROJECT" \
+            --impersonate-service-account="$WRITER" \
+            --data-file=-
+
+      - name: Revoke the token
+        if: always() && steps.cf.outputs.token_id != ''
+        shell: bash
+        env:
+          MINT_TOKEN: ${{ secrets.CLOUDFLARE_MINT_TOKEN }}
+          ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          curl -sS -X DELETE -H "Authorization: Bearer $MINT_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/tokens/${{ steps.cf.outputs.token_id }}" \
+            | jq -r '.success' | grep -q true && echo "token revoked"

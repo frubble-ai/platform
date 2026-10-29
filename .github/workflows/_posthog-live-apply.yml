@@ -1,0 +1,91 @@
+name: _posthog-live-apply
+
+on:
+  workflow_call:
+    inputs:
+      stack:
+        required: true
+        type: string
+      gh_environment:
+        description: GitHub environment the job runs in. The state binding for this stack trusts this exact name.
+        required: true
+        type: string
+      root:
+        required: true
+        type: string
+      state_bucket:
+        required: true
+        type: string
+      workload_identity_provider:
+        required: true
+        type: string
+      audience:
+        required: true
+        type: string
+    secrets:
+      # An environment secret on posthog-org. A job that declares an
+      # environment reads that environment's value, so the caller has nothing
+      # to pass; the declaration only names it.
+      POSTHOG_APPLY_API_KEY:
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TERRAFORM_VERSION: 1.16.6
+
+jobs:
+  apply:
+    name: apply
+    runs-on: ubuntu-latest
+
+    environment:
+      name: ${{ inputs.gh_environment }}
+      deployment: false
+
+    concurrency:
+      group: apply-posthog-${{ inputs.stack }}
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      # No minting: PostHog has no API to issue a key per run. The apply key
+      # lives only in the posthog-org environment, so pull-request code never
+      # reaches it.
+      - name: Use the PostHog apply key
+        shell: bash
+        env:
+          APPLY_KEY: ${{ secrets.POSTHOG_APPLY_API_KEY }}
+        run: |
+          echo "::add-mask::$APPLY_KEY"
+          echo "POSTHOG_API_KEY=$APPLY_KEY" >> "$GITHUB_ENV"
+
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      # No service account: the federated GitHub identity reads this stack's
+      # state prefix directly (state_access.tf in org/gcp/_setup).
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
+        with:
+          workload_identity_provider: ${{ inputs.workload_identity_provider }}
+          audience: ${{ inputs.audience }}
+
+      - name: Init
+        working-directory: ${{ inputs.root }}
+        run: terraform init -lockfile=readonly -backend-config="bucket=${{ inputs.state_bucket }}"
+
+      # No separate plan step: apply plans against the current state on its
+      # own. See _gcp-live-apply.yml.
+      - name: Apply
+        working-directory: ${{ inputs.root }}
+        env:
+          TF_VAR_organization_id: ${{ vars.POSTHOG_ORGANIZATION_ID }}
+          TF_VAR_administrator_email: ${{ vars.POSTHOG_ADMINISTRATOR_EMAIL }}
+        run: terraform apply -auto-approve -input=false -lock-timeout=5m -no-color

@@ -1,0 +1,53 @@
+# Weekly update suggestions, one pull request per ecosystem.
+#
+# Everything here is pinned on purpose — actions to a commit SHA, providers to
+# a version range with a committed lock file — and a pinned dependency that
+# nobody revisits is how a repository ends up years behind with no record of
+# the decision. Dependabot turns "we should update" into a pull request that
+# goes through the same plan, review and apply as any other change.
+#
+# One PR per ecosystem rather than per dependency: a provider bump and an
+# action bump are read differently, and a single pull request mixing them gets
+# approved on the easier half.
+version: 2
+
+updates:
+  # Keeps the SHA pins current. Dependabot rewrites the SHA and the version
+  # comment together, so the pin stays a pin.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "chore"
+    labels: ["dependencies"]
+
+  # One entry per root, because each has its own .terraform.lock.hcl and a
+  # provider bump has to update the lock file beside the constraint. A single
+  # directory entry would leave the other roots' locks stale, and init runs
+  # with -lockfile=readonly, so a stale lock fails the plan rather than
+  # silently resolving.
+  - package-ecosystem: terraform
+    directories:
+      - /terraform/live/org/gcp/_setup
+      - /terraform/live/org/cloudflare
+      - /terraform/live/org/cloudflare/_setup
+      - /terraform/live/stg/gcp
+      - /terraform/live/stg/gcp/_setup
+      - /terraform/live/stg/cloudflare
+      - /terraform/live/prd/gcp
+      - /terraform/live/prd/gcp/_setup
+      - /terraform/live/prd/cloudflare
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      providers:
+        patterns: ["*"]
+    commit-message:
+      prefix: "chore"
+    labels: ["dependencies"]

@@ -1,0 +1,140 @@
+# Shared by every GCP plan caller. The hub a caller may request is pinned to
+# this file's path in the identity pool, so a workflow added in a pull request
+# cannot reach a plan identity by copying these steps.
+name: _gcp-live-plan
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: Environment being planned. Also names the plan artifact.
+        required: true
+        type: string
+      root:
+        description: Path of the root to plan, e.g. terraform/live/stg/gcp.
+        required: true
+        type: string
+      project_id:
+        required: true
+        type: string
+      state_bucket:
+        required: true
+        type: string
+      management_state_bucket:
+        required: true
+        type: string
+      spoke_service_account:
+        description: Spoke the hub becomes. The hub itself holds no permissions.
+        required: true
+        type: string
+      service_account:
+        description: Plan hub to impersonate. Read-only, and denied secret values.
+        required: true
+        type: string
+      workload_identity_provider:
+        required: true
+        type: string
+      audience:
+        required: true
+        type: string
+
+# No pull-requests: write. This workflow runs on unreviewed pull-request code
+# and does not comment — the aggregating job in live-plan.yml does, from the
+# artifacts collected here. Five jobs editing one comment in parallel would
+# overwrite each other's sections anyway.
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TERRAFORM_VERSION: 1.16.6
+
+jobs:
+  plan:
+    name: plan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          # The default token stays in .git/config and is readable by every
+          # later step, including anything a dependency runs.
+          persist-credentials: false
+
+      # A plan that is skipped reports as passed to branch protection, so the
+      # job always runs and decides for itself whether there is work. When
+      # there is none it uploads nothing and succeeds; the aggregating job
+      # reads the absence of an artifact as "this stack was not touched".
+      - name: Does this PR touch the stack?
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(git diff --name-only \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}")
+          if echo "$changed" | grep -qE "^(${{ inputs.root }}/|terraform/modules/)"; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+            echo "no change under ${{ inputs.root }}/ or terraform/modules/"
+          fi
+
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        if: steps.scope.outputs.relevant == 'true'
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
+        if: steps.scope.outputs.relevant == 'true'
+        with:
+          workload_identity_provider: ${{ inputs.workload_identity_provider }}
+          service_account: ${{ inputs.service_account }}
+          audience: ${{ inputs.audience }}
+
+      # -lockfile=readonly: init fails rather than silently adding a provider
+      # hash, so a dependency cannot change under a reviewed plan.
+      - name: Init
+        if: steps.scope.outputs.relevant == 'true'
+        working-directory: ${{ inputs.root }}
+        run: |
+          terraform init -lockfile=readonly \
+            -backend-config="bucket=${{ inputs.state_bucket }}" \
+            -backend-config="impersonate_service_account=${{ inputs.spoke_service_account }}"
+
+      # -lock=false: a plan writes no state, so it has no reason to take the
+      # lock, and taking it broke an apply. A pull request's plan can run while
+      # a CD apply of the same stack is in progress. The apply found the lock
+      # held (412); by the time Terraform read who held it, the plan had
+      # released it (404), and that error is not one -lock-timeout retries.
+      - name: Plan
+        id: plan
+        if: steps.scope.outputs.relevant == 'true'
+        working-directory: ${{ inputs.root }}
+        shell: bash
+        env:
+          TF_VAR_project_id: ${{ inputs.project_id }}
+          TF_VAR_management_state_bucket: ${{ inputs.management_state_bucket }}
+          TF_VAR_spoke_service_account: ${{ inputs.spoke_service_account }}
+        run: |
+          # pipefail is load-bearing: without it the step reports tee's exit
+          # status, and a plan that errored shows as a green check.
+          set -o pipefail
+          terraform plan -no-color -input=false -lock=false -out=tfplan 2>&1 | tee plan.txt
+
+      # The plan text travels as an artifact, not as a comment. Naming it
+      # after the stack is what lets the aggregator label each section and
+      # tell a stack that was skipped from one that failed.
+      - name: Upload the plan
+        if: steps.scope.outputs.relevant == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: plan-gcp-${{ inputs.environment }}
+          path: ${{ inputs.root }}/plan.txt
+          retention-days: 5
+          if-no-files-found: error
