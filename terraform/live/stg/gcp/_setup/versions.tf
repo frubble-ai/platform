@@ -4,13 +4,13 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 6.0"
+      version = "~> 8.8"
     }
     # Only for google_project_service_identity, which the stable provider does
     # not expose. Nothing else in this root uses it.
     google-beta = {
       source  = "hashicorp/google-beta"
-      version = "~> 6.0"
+      version = "~> 8.8"
     }
   }
 
