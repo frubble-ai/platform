@@ -133,6 +133,8 @@ jobs:
       audience: ${{ vars.GCP_WIF_AUDIENCE }}
     secrets:
       POSTHOG_PLAN_API_KEY: ${{ secrets.POSTHOG_PLAN_API_KEY }}
+      POSTHOG_MEMBERS: ${{ secrets.POSTHOG_MEMBERS }}
+      POSTHOG_OWNER_EMAIL: ${{ secrets.POSTHOG_OWNER_EMAIL }}
     permissions:
       contents: read
       id-token: write
@@ -193,7 +195,7 @@ jobs:
 
             const results = JSON.parse(process.env.RESULTS)
             const read = key => {
-              const file = path.join('plans', `plan-${key}`, 'plan.txt')
+              const file = path.join('plans', `plan-${key}`, 'summary.txt')
               return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null
             }
 
@@ -215,9 +217,9 @@ jobs:
 
             const render = (s, shown, cut) => {
               if (s.plan === null) {
-                return [`### ${label(s.key)}`, '', '**The plan failed.** Read the job log.', '']
+                return [`### ${label(s.key)}`, '', '**Plan failed.**', '']
               }
-              const notice = cut ? `\n> Output cut. Read the full plan in the job log.` : ''
+              const notice = cut ? '\n> Truncated.' : ''
               // Counted from the full plan, never from the truncated copy.
               // Terraform prints `Plan: …` as its last line, so cutting the
               // body removes exactly the summary a reviewer needs most — and
@@ -225,21 +227,28 @@ jobs:
               const m = s.plan.match(/Plan: (\d+) to add, (\d+) to change, (\d+) to destroy/)
               const summary = m
                 ? `**${m[1]}** to add · **${m[2]}** to change · **${m[3]}** to destroy`
-                : (/No changes/.test(s.plan) ? '**No changes.**' : '_Counts unavailable — see the log._')
+                : (/No changes/.test(s.plan) ? '**No changes.**' : '_Counts unavailable._')
+              // The counts are the heading; the body is the resource lines.
+              const body = shown.split('\n')
+                .filter(l => !/^(Plan: \d+ to add|No changes\.)/.test(l))
+                .join('\n').replace(/^\n+|\n+$/g, '')
+              if (body === '') {
+                return [`### ${label(s.key)}`, '', summary, '']
+              }
               return [
                 `### ${label(s.key)}`,
                 '',
                 summary,
-                notice,
+                ...(notice ? [notice] : []),
                 '',
                 // open: the diff is the thing a reviewer came to read.
                 // Collapsed by default, approving without expanding it is one
                 // click, and the comment stops being a gate and becomes
                 // decoration.
-                '<details open><summary>Full plan</summary>',
+                '<details open><summary>Resources</summary>',
                 '',
                 '```terraform',
-                shown,
+                body,
                 '```',
                 '',
                 '</details>',

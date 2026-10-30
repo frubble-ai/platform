@@ -87,13 +87,36 @@ jobs:
             -backend-config="bucket=${{ inputs.state_bucket }}" \
             -backend-config="impersonate_service_account=${{ inputs.spoke_service_account }}"
 
-      # No separate plan step. The plan a reviewer approved was made against
-      # the state before the merge, and apply plans again on its own against
-      # the state as it is now; with nothing to change it changes nothing.
+      # Re-plan against current state and apply that saved plan. Raw output
+      # to files only.
       - name: Apply
         working-directory: ${{ inputs.root }}
+        shell: bash
         env:
+          PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
           TF_VAR_project_id: ${{ inputs.project_id }}
           TF_VAR_management_state_bucket: ${{ inputs.management_state_bucket }}
           TF_VAR_spoke_service_account: ${{ inputs.spoke_service_account }}
-        run: terraform apply -auto-approve -input=false -lock-timeout=5m -no-color
+        run: |
+          set -euo pipefail
+          scripts="$GITHUB_WORKSPACE/.github/scripts"
+          "$scripts/terraform-quiet.sh" plan.txt \
+            plan -no-color -input=false -lock-timeout=5m -out=tfplan
+          "$scripts/terraform-plan-summary.sh" tfplan
+          "$scripts/terraform-quiet.sh" apply.txt \
+            apply -no-color -input=false -lock-timeout=5m tfplan
+          grep -E '^Apply complete!' apply.txt | "$scripts/redact.sh"
+
+      # Raw output to the plan store.
+      - name: Keep the full output (private)
+        if: always()
+        timeout-minutes: 10
+        working-directory: ${{ inputs.root }}
+        shell: bash
+        env:
+          PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
+          PLAN_STORE_REF: ${{ github.ref_name }}
+          PLAN_STORE_AS: ${{ inputs.spoke_service_account }}
+        run: |
+          "$GITHUB_WORKSPACE/.github/scripts/plan-store-upload.sh" \
+            apply gcp-${{ inputs.environment }} tfplan plan.txt apply.txt

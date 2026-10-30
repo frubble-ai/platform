@@ -43,8 +43,8 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # The workflow file counts as the stack: a change to how the plan runs
-      # should be proven by a plan.
+      # This workflow, its caller and the shared scripts count as the stack:
+      # a change to how the plan runs should be proven by a plan.
       - name: Does this PR touch the stack?
         id: scope
         shell: bash
@@ -56,7 +56,9 @@ jobs:
           changed=$(git diff --name-only \
             "${{ github.event.pull_request.base.sha }}" \
             "${{ github.event.pull_request.head.sha }}")
-          if echo "$changed" | grep -qE "^(${{ inputs.root }}/|terraform/modules/cloudflare/|\.github/workflows/_cloudflare-live-plan\.yml$)"; then
+          workflow='\.github/workflows/(_cloudflare-live-plan|live-plan)\.yml$'
+          modules='terraform/modules/cloudflare/'
+          if echo "$changed" | grep -qE "^(${{ inputs.root }}/|$modules|$workflow|\.github/scripts/)"; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"
@@ -111,18 +113,44 @@ jobs:
         working-directory: ${{ inputs.root }}
         shell: bash
         env:
+          PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
           TF_VAR_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           TF_VAR_zone_id: ${{ vars.CLOUDFLARE_ZONE_ID }}
           TF_VAR_domain: ${{ vars.CLOUDFLARE_DOMAIN }}
+        # Raw output to plan.txt only; summary.txt feeds the log and comment.
         run: |
-          set -o pipefail
-          terraform plan -no-color -input=false -lock=false -out=tfplan 2>&1 | tee plan.txt
+          set -euo pipefail
+          echo "::add-mask::$TF_VAR_account_id"
+          echo "::add-mask::$TF_VAR_zone_id"
+          "$GITHUB_WORKSPACE/.github/scripts/terraform-quiet.sh" plan.txt \
+            plan -no-color -input=false -lock=false -out=tfplan
+          "$GITHUB_WORKSPACE/.github/scripts/terraform-plan-summary.sh" tfplan \
+            | tee summary.txt
 
-      - name: Upload the plan
+      # Raw plan to the plan store (org/gcp/_setup/plan_store.tf), never an artifact.
+      - name: Keep the full plan (private)
+        if: always() && steps.scope.outputs.relevant == 'true'
+        timeout-minutes: 10
+        continue-on-error: true
+        working-directory: ${{ inputs.root }}
+        shell: bash
+        env:
+          PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
+          PLAN_STORE_REF: >-
+            ${{ github.event.pull_request.number
+            && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}
+        run: |
+          if ! "$GITHUB_WORKSPACE/.github/scripts/plan-store-upload.sh" \
+            plan cloudflare-${{ inputs.stack }} tfplan plan.txt; then
+            echo "::warning::Private plan upload failed."
+          fi
+
+      # Named after the stack so the aggregator can label it.
+      - name: Upload the summary
         if: steps.scope.outputs.relevant == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: plan-cloudflare-${{ inputs.stack }}
-          path: ${{ inputs.root }}/plan.txt
+          path: ${{ inputs.root }}/summary.txt
           retention-days: 5
           if-no-files-found: error

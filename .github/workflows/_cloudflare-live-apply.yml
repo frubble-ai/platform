@@ -137,15 +137,40 @@ jobs:
         working-directory: ${{ inputs.root }}
         run: terraform init -lockfile=readonly -backend-config="bucket=${{ inputs.state_bucket }}"
 
-      # No separate plan step: apply plans against the current state on its
-      # own. See _gcp-live-apply.yml.
+      # Re-plan against current state and apply that saved plan. Raw output
+      # to files only.
       - name: Apply
         working-directory: ${{ inputs.root }}
+        shell: bash
         env:
+          PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
           TF_VAR_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           TF_VAR_zone_id: ${{ vars.CLOUDFLARE_ZONE_ID }}
           TF_VAR_domain: ${{ vars.CLOUDFLARE_DOMAIN }}
-        run: terraform apply -auto-approve -input=false -lock-timeout=5m -no-color
+        run: |
+          set -euo pipefail
+          scripts="$GITHUB_WORKSPACE/.github/scripts"
+          echo "::add-mask::$TF_VAR_account_id"
+          echo "::add-mask::$TF_VAR_zone_id"
+          "$scripts/terraform-quiet.sh" plan.txt \
+            plan -no-color -input=false -lock-timeout=5m -out=tfplan
+          "$scripts/terraform-plan-summary.sh" tfplan
+          "$scripts/terraform-quiet.sh" apply.txt \
+            apply -no-color -input=false -lock-timeout=5m tfplan
+          grep -E '^Apply complete!' apply.txt | "$scripts/redact.sh"
+
+      # Raw output to the plan store.
+      - name: Keep the full output (private)
+        if: always()
+        timeout-minutes: 10
+        working-directory: ${{ inputs.root }}
+        shell: bash
+        env:
+          PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
+          PLAN_STORE_REF: ${{ github.ref_name }}
+        run: |
+          "$GITHUB_WORKSPACE/.github/scripts/plan-store-upload.sh" \
+            apply cloudflare-${{ inputs.stack }} tfplan plan.txt apply.txt
 
       - name: Revoke the token
         if: always() && steps.cf.outputs.token_id != ''
