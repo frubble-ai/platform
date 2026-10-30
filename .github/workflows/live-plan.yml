@@ -230,7 +230,7 @@ jobs:
               // The counts are the heading; the body is the resource lines.
               const body = shown.split('\n')
                 .filter(l => !/^(Plan: \d+ to add|No changes\.)/.test(l))
-                .join('\n').trim()
+                .join('\n').replace(/^\n+|\n+$/g, '')
               if (body === '') {
                 return [`### ${label(s.key)}`, '', summary, '']
               }
@@ -238,7 +238,7 @@ jobs:
                 `### ${label(s.key)}`,
                 '',
                 summary,
-                notice,
+                ...(notice ? [notice] : []),
                 '',
                 // open: the diff is the thing a reviewer came to read.
                 // Collapsed by default, approving without expanding it is one

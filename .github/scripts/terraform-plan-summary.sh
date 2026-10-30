@@ -33,7 +33,7 @@ terraform show -json "$plan_file" | jq -r '
       import:  ($rc | map(select(.change.importing != null)) | length),
       outputs: ([ .output_changes // {} | to_entries[] | select(.value.actions != ["no-op"]) ] | length)
     } as $n
-  | ( $shown[] | "  # \(.address): \([.verb, (if .import then "import" else null end)] | map(select(. != null)) | join(", "))" ),
+  | ( $shown[] | "\(.address): \([.verb, (if .import then "import" else null end)] | map(select(. != null)) | join(", "))" ),
     ( if ($shown | length) > 0 then "" else empty end ),
     ( if ($n.import + $n.forget + $n.outputs) > 0
       then ([ (if $n.import > 0 then "\($n.import) to import" else empty end),
