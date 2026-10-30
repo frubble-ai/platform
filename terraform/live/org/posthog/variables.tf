@@ -24,4 +24,12 @@ variable "members" {
     condition     = alltrue([for m in values(var.members) : contains(["member", "admin"], m.level)])
     error_message = "Level must be member or admin. Owner is held by platform@frubble.ai and is not managed here."
   }
+
+  # The owner's own membership is unmanageable (PostHog rejects any change to
+  # one's own level, even a no-op), so naming it here would bring back the
+  # apply failure main.tf's removed block exists to avoid.
+  validation {
+    condition     = alltrue([for m in values(var.members) : lower(trimspace(m.email)) != "platform@frubble.ai"])
+    error_message = "platform@frubble.ai is the owner and is not managed here; remove it from members."
+  }
 }
