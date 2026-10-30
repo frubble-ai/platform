@@ -1,20 +1,7 @@
 #!/usr/bin/env bash
-# Prints a saved Terraform plan as resource addresses, actions and counts,
-# and nothing else: no attribute values, before or after.
-#
-# Used by every root. This repository is public, and so are its Actions logs,
-# artifacts and plan comments, while providers print values they do not mark
-# sensitive (PostHog's organization_member returns email and names as plain
-# attributes). Redacting known fields one by one would leak the next field a
-# provider adds; a summary built from `terraform show -json` has no values to
-# leak. The full plan goes to the private plan store instead.
-#
-# Resource addresses are the one thing printed from the plan, and for_each
-# keys are part of them, so keys must be handles, never emails or ids. As
-# defense in depth the output still goes through redact.sh.
-#
-# The last line keeps Terraform's own "Plan: N to add, N to change, N to
-# destroy." or "No changes." wording, which live-plan.yml reads for the counts.
+# Prints a saved plan as resource addresses and actions, then the counts line
+# ("Plan: N to add, N to change, N to destroy." or "No changes.", which
+# live-plan.yml parses). No attribute values. for_each keys must be handles.
 #
 # Usage: terraform-plan-summary.sh <saved plan file>   (run in the root)
 set -euo pipefail
@@ -46,16 +33,15 @@ terraform show -json "$plan_file" | jq -r '
       import:  ($rc | map(select(.change.importing != null)) | length),
       outputs: ([ .output_changes // {} | to_entries[] | select(.value.actions != ["no-op"]) ] | length)
     } as $n
-  | "Summary: addresses and actions only. Values are withheld because this",
-    "repository, its logs and its comments are public.",
-    "",
-    ( $shown[] | "  # \(.address): \([.verb, (if .import then "import" else null end)] | map(select(. != null)) | join(", "))" ),
+  | ( $shown[] | "  # \(.address): \([.verb, (if .import then "import" else null end)] | map(select(. != null)) | join(", "))" ),
     ( if ($shown | length) > 0 then "" else empty end ),
     ( if ($n.import + $n.forget + $n.outputs) > 0
-      then "Also: \($n.import) to import, \($n.forget) to forget, \($n.outputs) output(s) changed."
+      then ([ (if $n.import > 0 then "\($n.import) to import" else empty end),
+              (if $n.forget > 0 then "\($n.forget) to forget" else empty end),
+              (if $n.outputs > 0 then "\($n.outputs) output(s) changed" else empty end) ] | join(", "))
       else empty end ),
     ( if ($shown | length) == 0 and $n.outputs == 0
-      then "No changes. Your infrastructure matches the configuration."
+      then "No changes."
       else "Plan: \($n.add) to add, \($n.change) to change, \($n.destroy) to destroy."
       end )
 ' | "$here/redact.sh"

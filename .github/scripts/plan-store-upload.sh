@@ -1,27 +1,17 @@
 #!/usr/bin/env bash
-# Copies a run's full Terraform output into the private plan store,
-# gs://$PLAN_STORE_BUCKET/<kind>/<stack>/<ref>/<run id>-<attempt>/
-# (layout and access: terraform/live/org/gcp/_setup/plan_store.tf).
+# Uploads files to gs://$PLAN_STORE_BUCKET/<kind>/<stack>/<ref>/<run id>-<attempt>/
+# as create-only requests (ifGenerationMatch=0). No-op when the bucket is unset.
 #
-# Uploads through the JSON API with ifGenerationMatch=0, so each request is a
-# pure create: the writer holds objectCreator on its own prefix and nothing
-# else, cannot overwrite, and needs no read or list to upload.
-#
-# Usage: plan-store-upload.sh <plan|apply> <stack> <file...>   (missing files are skipped)
-# Env:   PLAN_STORE_BUCKET   bucket; unset means the store is not set up yet
-#        PLAN_STORE_REF      pr-<number> or the branch name
-#        PLAN_STORE_AS       service account to impersonate (optional; the
-#                            GCP jobs authenticate as a hub and write as the spoke)
+# Usage: plan-store-upload.sh <plan|apply> <stack> <file...>
+# Env:   PLAN_STORE_BUCKET, PLAN_STORE_REF (pr-<n> or branch),
+#        PLAN_STORE_AS (service account to impersonate, optional)
 set -euo pipefail
 
 kind=${1:?usage: plan-store-upload.sh <plan|apply> <stack> <file...>}
 stack=${2:?usage: plan-store-upload.sh <plan|apply> <stack> <file...>}
 shift 2
 
-if [ -z "${PLAN_STORE_BUCKET:-}" ]; then
-  echo "::warning::PLAN_STORE_BUCKET is not set, so the full ${kind} output for ${stack} was not kept."
-  exit 0
-fi
+if [ -z "${PLAN_STORE_BUCKET:-}" ]; then exit 0; fi
 
 ref=$(printf '%s' "${PLAN_STORE_REF:?}" | tr -c 'A-Za-z0-9._-' '-')
 prefix="${kind}/${stack}/${ref}/${GITHUB_RUN_ID:?}-${GITHUB_RUN_ATTEMPT:?}"
@@ -41,4 +31,3 @@ for file in "$@"; do
     "https://storage.googleapis.com/upload/storage/v1/b/${PLAN_STORE_BUCKET}/o?uploadType=media&ifGenerationMatch=0&name=${name}"
 done
 
-echo "Full ${kind} output (organization members only): gs://${PLAN_STORE_BUCKET}/${prefix}/" | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}"

@@ -116,10 +116,7 @@ jobs:
           TF_VAR_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           TF_VAR_zone_id: ${{ vars.CLOUDFLARE_ZONE_ID }}
           TF_VAR_domain: ${{ vars.CLOUDFLARE_DOMAIN }}
-        # Terraform's own output goes to plan.txt and never to this log, which
-        # is public: providers print values they do not mark sensitive. The log
-        # and the pull-request comment get summary.txt, built from
-        # `terraform show -json` with addresses, actions and counts only.
+        # Raw output to plan.txt only; summary.txt feeds the log and comment.
         run: |
           set -euo pipefail
           echo "::add-mask::$TF_VAR_account_id"
@@ -129,10 +126,7 @@ jobs:
           "$GITHUB_WORKSPACE/.github/scripts/terraform-plan-summary.sh" tfplan \
             | tee summary.txt
 
-      # The full plan (tfplan and plan.txt) goes to the private plan store,
-      # also when the plan failed, which is when someone needs to read it.
-      # Never to an artifact: any signed-in GitHub user can download the
-      # artifacts of a public repository.
+      # Raw plan to the plan store (org/gcp/_setup/plan_store.tf), never an artifact.
       - name: Keep the full plan (private)
         if: always() && steps.scope.outputs.relevant == 'true'
         working-directory: ${{ inputs.root }}
@@ -146,9 +140,7 @@ jobs:
           "$GITHUB_WORKSPACE/.github/scripts/plan-store-upload.sh" \
             plan cloudflare-${{ inputs.stack }} tfplan plan.txt
 
-      # Only the summary travels as an artifact. Naming it after the stack is
-      # what lets the aggregator label each section and tell a stack that was
-      # skipped from one that failed.
+      # Named after the stack so the aggregator can label it.
       - name: Upload the summary
         if: steps.scope.outputs.relevant == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

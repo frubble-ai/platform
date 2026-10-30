@@ -1,11 +1,5 @@
 #!/usr/bin/env bash
-# Filter: replaces anything shaped like personal data or an account
-# identifier with a placeholder. Defense in depth for text bound for a public
-# log or comment; the text it filters is already meant to hold no values.
-#
-#   email addresses, UUIDs, 32-character hex ids (Cloudflare account, zone and
-#   tunnel ids), and runs of 9 or more digits (GCP project numbers, billing
-#   and other account numbers).
+# Filter: redacts emails, UUIDs, 32-hex ids and 9+ digit numbers.
 set -euo pipefail
 
 # Lookarounds, not boundary characters: a pattern that consumes the character

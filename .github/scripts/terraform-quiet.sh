@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
-# Runs terraform with all of its output going to a file, never to the job
-# log. This repository's Actions logs are public, and Terraform prints values
-# from inside resources that providers do not always mark sensitive.
-#
-# Prints one status line. On failure it also prints Terraform's "Error:"
-# headlines, redacted, so the log still says what broke; the full output is in
-# the private plan store (plan-store-upload.sh).
+# Runs terraform with its output in a file; prints a status line, and the
+# redacted error headlines on failure.
 #
 # Usage: terraform-quiet.sh <log file> <terraform arguments...>
 set -euo pipefail
@@ -15,10 +10,10 @@ shift
 here=$(dirname "$0")
 
 if terraform "$@" > "$log" 2>&1; then
-  echo "terraform $1: ok (output withheld from this public log)"
+  echo "terraform $1: ok"
   exit 0
 fi
 
-echo "::error::terraform $1 failed. Output withheld from this public log; the full log is in the private plan store."
+echo "::error::terraform $1 failed"
 grep -E '^(│ )?Error: ' "$log" | sed 's/^│ //' | "$here/redact.sh" || true
 exit 1

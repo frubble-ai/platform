@@ -137,14 +137,8 @@ jobs:
         working-directory: ${{ inputs.root }}
         run: terraform init -lockfile=readonly -backend-config="bucket=${{ inputs.state_bucket }}"
 
-      # The plan a reviewer approved was made against the state before the
-      # merge, so apply plans again against the state as it is now, saves that
-      # plan, and applies exactly the saved file; with nothing to change it
-      # changes nothing.
-      #
-      # Terraform's own output goes to plan.txt and apply.txt, never to this
-      # log, which is public. The log gets the values-free summary of what is
-      # about to be applied and Terraform's "Apply complete!" counts.
+      # Re-plan against current state and apply that saved plan. Raw output
+      # to files only.
       - name: Apply
         working-directory: ${{ inputs.root }}
         shell: bash
@@ -164,7 +158,7 @@ jobs:
             apply -no-color -input=false -lock-timeout=5m tfplan
           grep -E '^Apply complete!' apply.txt | "$scripts/redact.sh"
 
-      # The full record, kept privately whether the apply worked or not.
+      # Raw output to the plan store.
       - name: Keep the full output (private)
         if: always()
         working-directory: ${{ inputs.root }}

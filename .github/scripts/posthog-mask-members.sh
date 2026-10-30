@@ -1,13 +1,6 @@
 #!/usr/bin/env bash
-# Registers every PostHog member's email and name as a GitHub Actions secret
-# mask, so they print as *** if anything does reach the public job log.
-#
-# Defense in depth only: the PostHog jobs never print Terraform's raw output
-# (see terraform-plan-summary.sh). Masks both sources a value can come from:
-# the members map (TF_VAR_members), and the managed state, which still holds a
-# member who was just removed from the map and is about to be planned away.
-#
-# Run in the root, after terraform init.
+# Masks PostHog member emails and names (from TF_VAR_members and from state).
+# Run in the root after terraform init.
 set -euo pipefail
 
 {
