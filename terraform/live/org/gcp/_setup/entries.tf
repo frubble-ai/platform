@@ -14,7 +14,7 @@ locals {
     cloudflare_apply = ".github/workflows/_cloudflare-live-apply.yml"
     posthog_plan     = ".github/workflows/_posthog-live-plan.yml"
     posthog_apply    = ".github/workflows/_posthog-live-apply.yml"
-    backend_deploy   = ".github/workflows/deploy-stg.yml"
+    backend_deploy   = ".github/workflows/backend-cd.yml"
     stg_cd           = ".github/workflows/stg-cd.yml"
     prd_cd           = ".github/workflows/prd-cd.yml"
   }
@@ -81,5 +81,13 @@ locals {
   }
 
   # The application repository deploys from its own branch, not from dev.
-  backend_deploy_entries = ["${local.backend_repo}|${local.wf.backend_deploy}|stg|refs/heads/stg"]
+  # Its environment is named after the component, backend-stg, because the
+  # environment name is what GitHub lists the deployment under.
+  #
+  # The previous entry stays until backend-cd.yml has deployed from
+  # backend-stg, so neither order of merging breaks a deploy. Drop it then.
+  backend_deploy_entries = [
+    "${local.backend_repo}|${local.wf.backend_deploy}|backend-stg|refs/heads/stg",
+    "${local.backend_repo}|${local.backend_repo}/.github/workflows/deploy-stg.yml|stg|refs/heads/stg",
+  ]
 }

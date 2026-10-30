@@ -51,7 +51,8 @@ Done once, by hand, as the bootstrap service account from `.envrc.local` (copy
    (see `org/posthog/main.tf`).
 
 Environments `stg`, `prd`, `cloudflare-org` and `posthog-org` must exist and accept
-deployments from `dev` only. Their names are part of the trust rules.
+deployments from `dev` only. Their names are part of the trust rules, and so is the
+`backend-stg` environment on `app`, which accepts deployments from `stg` only.
 
 ## Pipelines
 
@@ -59,11 +60,12 @@ deployments from `dev` only. Their names are part of the trust rules.
 | -------------- | -------------- | ----------------------------------------------------- |
 | `live-plan`    | every PR       | plans every stack, one comment with a section each    |
 | `code-quality` | every PR       | fmt, validate, tflint, actionlint, gitleaks, trivy     |
+| `pr-template`  | every PR, edits | conventional title on every PR; every template section filled and checklist answered, except for bots |
 | `stg-cd`       | merge to `dev` | applies stg GCP and Cloudflare, writes the tunnel token |
 | `org-cd`       | merge to `dev` | applies org Cloudflare and PostHog                    |
 | `*-prd-*`      | every push     | switched off                                           |
 
-Required checks: `Plan stg / plan`, `Plan prd / plan`, `Code Quality Summary`.
+Required checks: `Plan stg / plan`, `Plan prd / plan`, `Code Quality Summary`, `pr template`.
 
 ## Human access
 
