@@ -81,5 +81,7 @@ locals {
   }
 
   # The application repository deploys from its own branch, not from dev.
-  backend_deploy_entries = ["${local.backend_repo}|${local.wf.backend_deploy}|stg|refs/heads/stg"]
+  # Its environment is named after the component, backend-stg, because the
+  # environment name is what GitHub lists the deployment under.
+  backend_deploy_entries = ["${local.backend_repo}|${local.wf.backend_deploy}|backend-stg|refs/heads/stg"]
 }

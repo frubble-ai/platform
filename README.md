@@ -51,7 +51,8 @@ Done once, by hand, as the bootstrap service account from `.envrc.local` (copy
    (see `org/posthog/main.tf`).
 
 Environments `stg`, `prd`, `cloudflare-org` and `posthog-org` must exist and accept
-deployments from `dev` only. Their names are part of the trust rules.
+deployments from `dev` only. Their names are part of the trust rules, and so is the
+`backend-stg` environment on `app`, which accepts deployments from `stg` only.
 
 ## Pipelines
 
