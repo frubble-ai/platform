@@ -60,7 +60,7 @@ deployments from `dev` only. Their names are part of the trust rules, and so is 
 | -------------- | -------------- | ----------------------------------------------------- |
 | `live-plan`    | every PR       | plans every stack, one comment with a section each    |
 | `code-quality` | every PR       | fmt, validate, tflint, actionlint, gitleaks, trivy     |
-| `pr-template`  | every PR, edits | fails unless every section of the PR template is filled |
+| `pr-template`  | every PR, edits | conventional title on every PR; every template section filled and checklist answered, except for bots |
 | `stg-cd`       | merge to `dev` | applies stg GCP and Cloudflare, writes the tunnel token |
 | `org-cd`       | merge to `dev` | applies org Cloudflare and PostHog                    |
 | `*-prd-*`      | every push     | switched off                                           |

@@ -52,6 +52,13 @@ jobs:
               elif not sections[heading]:
                   problems.append(f"section empty: {heading}")
 
+          # The template ships its checklist unticked, so a body copied as-is would
+          # pass the emptiness check. Every item must be ticked or marked n/a.
+          for heading in [h for h in sections if "checklist" in h.lower()]:
+              for line in sections[heading].splitlines():
+                  if re.match(r"\s*- \[ \]", line) and not re.search(r"\b(n/a|not applicable)\b", line, re.I):
+                      problems.append(f"checklist item not ticked or marked n/a: {line.strip()}")
+
           for p in problems:
               print(f"::error::{p}")
           if problems:
