@@ -28,8 +28,10 @@ on:
       # to pass; the declaration only names it.
       POSTHOG_APPLY_API_KEY:
         required: true
-      # A secret so the step env header masks it.
+      # Secrets so the step env header masks them.
       POSTHOG_MEMBERS:
+        required: true
+      POSTHOG_OWNER_EMAIL:
         required: true
 
 permissions:
@@ -92,6 +94,7 @@ jobs:
         env:
           TF_VAR_organization_id: ${{ vars.POSTHOG_ORGANIZATION_ID }}
           TF_VAR_members: ${{ secrets.POSTHOG_MEMBERS }}
+          TF_VAR_owner_email: ${{ secrets.POSTHOG_OWNER_EMAIL }}
         run: |
           set -euo pipefail
           scripts="$GITHUB_WORKSPACE/.github/scripts"

@@ -15,8 +15,8 @@ resource "posthog_project" "frubble" {
   timezone = "UTC"
 }
 
-# The administrator's membership is not managed here. platform@frubble.ai is
-# the organization owner from sign-up, and PostHog refuses any change to one's
+# The owner account's membership is not managed here. It is the organization
+# owner from sign-up, and PostHog refuses any change to one's
 # own level ("You can't change your own access level"), even a no-op, so the
 # resource could never apply with platform's own key. Dropped from state only;
 # the membership itself stays as it is.
@@ -29,15 +29,17 @@ removed {
 }
 
 # ---------- the people ----------
-# Humans are members at the level `var.members` gives them. The owner,
-# platform@frubble.ai, is deliberately not among them (see `removed` above).
+# Humans are members at the level `var.members` gives them. The owner account
+# is deliberately not among them (see `removed` above).
 #
 # The provider has no invite resource: posthog_organization_member only adopts
 # someone who has already joined. So a person reaches this map in two steps:
-#   1. Invite them from PostHog → Settings → Members, as platform@, and wait
-#      for them to accept.
-#   2. Add them to the POSTHOG_MEMBERS repository secret under a short
-#      handle, e.g. "danilo": {"email": "...", "level": "member"}, and merge.
+#   1. Invite them from PostHog → Settings → Members, as the owner account,
+#      and wait for them to accept.
+#   2. Add them to the POSTHOG_MEMBERS repository secret (a JSON object) under
+#      a short handle, e.g.
+#      {"daniel":{"email":"...","level":"admin"},"alex":{"email":"...","level":"member"}}
+#      and merge.
 #      The import below adopts the existing membership instead of changing
 #      it, and from then on their level is whatever the map says.
 # Someone in the map who has not joined fails the plan at the user lookup,

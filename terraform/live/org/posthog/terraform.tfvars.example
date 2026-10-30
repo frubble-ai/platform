@@ -1,9 +1,11 @@
 organization_id = "<frubble organization UUID, from Settings → Organization → General>"
 
-# Human members who have already joined, keyed by a short handle (never an
-# email: the handle appears in plan output). Level is member or admin; the
-# owner, platform@frubble.ai, is not listed. CI reads this from the
-# POSTHOG_MEMBERS secret instead.
+# The owner account, never managed here; members may not name it.
+owner_email = "<owner account email>"
+
+# Human members who have already joined, keyed by a short handle (lowercase,
+# never an email: the handle appears in plan output). Level is member or admin.
+# CI reads both values from the POSTHOG_OWNER_EMAIL and POSTHOG_MEMBERS secrets.
 members = {
   daniel = { email = "<email they joined with>", level = "admin" }
 }
