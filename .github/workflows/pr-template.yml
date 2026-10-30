@@ -17,14 +17,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          persist-credentials: false
-
       - name: Check the title is a conventional commit
         uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # From the base branch, never the pull request: a pull request that edits
+      # the template must not weaken what it is checked against.
+      - name: Fetch the template from the base branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          curl -sSf -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github.raw+json" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/contents/.github/pull_request_template.md?ref=$BASE_REF" \
+            -o "$RUNNER_TEMP/pull_request_template.md"
 
       # No action does this: the ones that exist only check that a body is
       # non-empty or contains a string. Bots never fill a template, so only
@@ -33,31 +40,43 @@ jobs:
       - name: Check every section of the template is filled
         if: github.event.pull_request.user.type != 'Bot'
         env:
+          TEMPLATE: ${{ runner.temp }}/pull_request_template.md
           PR_BODY: ${{ github.event.pull_request.body }}
         shell: python
         run: |
           import os, re, sys
 
-          template = open(".github/pull_request_template.md", encoding="utf-8").read()
           strip = lambda s: re.sub(r"<!--.*?-->", "", s, flags=re.S)
+          template = strip(open(os.environ["TEMPLATE"], encoding="utf-8").read())
           body = strip(os.environ.get("PR_BODY") or "")
 
-          parts = re.split(r"^(## .+)$", body, flags=re.M)
-          sections = {parts[i].strip(): parts[i + 1].strip() for i in range(1, len(parts), 2)}
+          def sections(text):
+              parts = re.split(r"^(## .+)$", text, flags=re.M)
+              return {parts[i].strip(): parts[i + 1].strip() for i in range(1, len(parts), 2)}
+
+          expected, given = sections(template), sections(body)
+          item = re.compile(r"^\s*[-*] \[( |x|X)\] (.*\S)", re.M)
+          na = re.compile(r"\b(n/a|not applicable)\b", re.I)
 
           problems = []
-          for heading in re.findall(r"^## .+$", template, flags=re.M):
-              if heading not in sections:
+          for heading, content in expected.items():
+              if heading not in given:
                   problems.append(f"section missing: {heading}")
-              elif not sections[heading]:
+                  continue
+              if not given[heading]:
                   problems.append(f"section empty: {heading}")
-
-          # The template ships its checklist unticked, so a body copied as-is would
-          # pass the emptiness check. Every item must be ticked or marked n/a.
-          for heading in [h for h in sections if "checklist" in h.lower()]:
-              for line in sections[heading].splitlines():
-                  if re.match(r"\s*- \[ \]", line) and not re.search(r"\b(n/a|not applicable)\b", line, re.I):
-                      problems.append(f"checklist item not ticked or marked n/a: {line.strip()}")
+                  continue
+              # Every checklist item of the template, by its text, ticked or
+              # marked n/a. The template ships them unticked, and a copied
+              # body must not pass on presence alone.
+              lines = [(m.group(1), m.group(2).strip()) for m in item.finditer(given[heading])]
+              for m in item.finditer(content):
+                  text = m.group(2).strip()
+                  found = next(((box, line) for box, line in lines if line.startswith(text)), None)
+                  if found is None:
+                      problems.append(f"checklist item missing: {text}")
+                  elif found[0] == " " and not na.search(found[1]):
+                      problems.append(f"checklist item not ticked or marked n/a: {text}")
 
           for p in problems:
               print(f"::error::{p}")
