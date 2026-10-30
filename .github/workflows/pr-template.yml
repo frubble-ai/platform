@@ -29,8 +29,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
-          curl -sSf -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github.raw+json" \
-            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/contents/.github/pull_request_template.md?ref=$BASE_REF" \
+          curl -sSf -G --data-urlencode "ref=$BASE_REF" \
+            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github.raw+json" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/contents/.github/pull_request_template.md" \
             -o "$RUNNER_TEMP/pull_request_template.md"
 
       # No action does this: the ones that exist only check that a body is
@@ -66,17 +67,17 @@ jobs:
               if not given[heading]:
                   problems.append(f"section empty: {heading}")
                   continue
-              # Every checklist item of the template, by its text, ticked or
-              # marked n/a. The template ships them unticked, and a copied
-              # body must not pass on presence alone.
+              # No checklist item may stay unticked unless marked n/a, and every
+              # item of the template must be there, by its text. The template
+              # ships them unticked, so a copied body must not pass on presence.
               lines = [(m.group(1), m.group(2).strip()) for m in item.finditer(given[heading])]
+              for box, line in lines:
+                  if box == " " and not na.search(line):
+                      problems.append(f"checklist item not ticked or marked n/a: {line}")
               for m in item.finditer(content):
                   text = m.group(2).strip()
-                  found = next(((box, line) for box, line in lines if line.startswith(text)), None)
-                  if found is None:
+                  if not any(line.startswith(text) for _, line in lines):
                       problems.append(f"checklist item missing: {text}")
-                  elif found[0] == " " and not na.search(found[1]):
-                      problems.append(f"checklist item not ticked or marked n/a: {text}")
 
           for p in problems:
               print(f"::error::{p}")
