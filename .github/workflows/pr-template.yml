@@ -60,6 +60,12 @@ jobs:
           na = re.compile(r"\b(n/a|not applicable)\b", re.I)
 
           problems = []
+          # No checklist item anywhere in the body may stay unticked unless
+          # marked n/a, including ones the author adds.
+          for m in item.finditer(body):
+              if m.group(1) == " " and not na.search(m.group(2)):
+                  problems.append(f"checklist item not ticked or marked n/a: {m.group(2).strip()}")
+
           for heading, content in expected.items():
               if heading not in given:
                   problems.append(f"section missing: {heading}")
@@ -67,16 +73,13 @@ jobs:
               if not given[heading]:
                   problems.append(f"section empty: {heading}")
                   continue
-              # No checklist item may stay unticked unless marked n/a, and every
-              # item of the template must be there, by its text. The template
-              # ships them unticked, so a copied body must not pass on presence.
-              lines = [(m.group(1), m.group(2).strip()) for m in item.finditer(given[heading])]
-              for box, line in lines:
-                  if box == " " and not na.search(line):
-                      problems.append(f"checklist item not ticked or marked n/a: {line}")
+              # Every item of the template must be there, by its text, with
+              # anything around it. The template ships them unticked, so a
+              # copied body must not pass on presence alone.
+              lines = [m.group(2) for m in item.finditer(given[heading])]
               for m in item.finditer(content):
                   text = m.group(2).strip()
-                  if not any(line.startswith(text) for _, line in lines):
+                  if not any(text in line for line in lines):
                       problems.append(f"checklist item missing: {text}")
 
           for p in problems:
