@@ -83,5 +83,11 @@ locals {
   # The application repository deploys from its own branch, not from dev.
   # Its environment is named after the component, backend-stg, because the
   # environment name is what GitHub lists the deployment under.
-  backend_deploy_entries = ["${local.backend_repo}|${local.wf.backend_deploy}|backend-stg|refs/heads/stg"]
+  #
+  # The previous entry stays until backend-cd.yml has deployed from
+  # backend-stg, so neither order of merging breaks a deploy. Drop it then.
+  backend_deploy_entries = [
+    "${local.backend_repo}|${local.wf.backend_deploy}|backend-stg|refs/heads/stg",
+    "${local.backend_repo}|.github/workflows/deploy-stg.yml|stg|refs/heads/stg",
+  ]
 }
