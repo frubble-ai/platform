@@ -13,7 +13,7 @@
 # environment on dev. That environment requires a reviewer, so a merged
 # change still waits for a person before it touches anything.
 #
-# Neither has a spoke. Everything else federates to a powerless hub and then
+# Neither is a hub. Everything else federates to a powerless hub and then
 # becomes a spoke in the project it changes, because what CI may do belongs
 # with that project. These two act on the management project itself, so the
 # split would add a hop and separate nothing.
@@ -38,16 +38,35 @@ locals {
   setup_state_prefixes = toset(["org/gcp/setup/", "stg/gcp/setup/", "prd/gcp/setup/"])
 }
 
-module "setup_plan" {
-  source = "../../../../modules/gcp/wif-hub"
+# Not a hub. A hub is powerless and becomes a spoke in the project it
+# changes; this account reads the management project itself and nothing
+# else, so it holds its reads directly, like the deploy accounts in hubs.tf
+# hold their own. Who may become it is an authoritative binding: this file is
+# the only owner of that list, and a member added anywhere else is a diff.
+resource "google_service_account" "setup_plan" {
+  account_id   = "frubble-setup-plan"
+  project      = var.management_project_id
+  display_name = "Terraform plan for the _setup roots. Read-only, no secret values."
+  description  = "Terraform plan for the _setup roots. Read-only, no secret values."
+}
 
-  project_id  = var.management_project_id
-  name        = "frubble-setup-plan"
-  description = "Terraform plan for the _setup roots. Read-only, no secret values."
+resource "google_service_account_iam_binding" "setup_plan_federated" {
+  service_account_id = google_service_account.setup_plan.name
+  role               = "roles/iam.workloadIdentityUser"
+  members = [
+    for entry in local.setup_plan_entries :
+    "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.plan_entry/${entry}"
+  ]
+}
 
-  pool_name      = google_iam_workload_identity_pool.github.name
-  attribute      = "plan_entry"
-  allowed_values = local.setup_plan_entries
+# Created through the hub module at first; the move keeps the account.
+moved {
+  from = module.setup_plan.google_service_account.hub
+  to   = google_service_account.setup_plan
+}
+
+locals {
+  setup_plan_member = "serviceAccount:${google_service_account.setup_plan.email}"
 }
 
 resource "google_project_iam_member" "setup_plan_reads_org_policies" {
@@ -55,7 +74,7 @@ resource "google_project_iam_member" "setup_plan_reads_org_policies" {
 
   project = each.value.project
   role    = each.value.role
-  member  = module.setup_plan.member
+  member  = local.setup_plan_member
 
   depends_on = [module.environment_project]
 }
@@ -102,7 +121,7 @@ resource "google_project_iam_member" "setup_plan_reads" {
 
   project = each.value
   role    = google_project_iam_custom_role.setup_plan_reader[each.key].id
-  member  = module.setup_plan.member
+  member  = local.setup_plan_member
 }
 
 # Read the three _setup states, and nothing else in the bucket. No lock
@@ -116,7 +135,7 @@ resource "google_storage_bucket_iam_member" "setup_plan_reads_state" {
 
   bucket = module.management_state.name
   role   = "roles/storage.objectViewer"
-  member = module.setup_plan.member
+  member = local.setup_plan_member
 
   condition {
     title       = "only ${trimsuffix(each.value, "/")}"
@@ -128,20 +147,21 @@ resource "google_storage_bucket_iam_member" "setup_plan_reads_state" {
 resource "google_storage_bucket_iam_member" "setup_plan_lists_state" {
   bucket = module.management_state.name
   role   = "roles/storage.legacyBucketReader"
-  member = module.setup_plan.member
+  member = local.setup_plan_member
 }
 
+# Decrypt only: the plan writes no state, so it never encrypts.
 resource "google_kms_crypto_key_iam_member" "setup_plan_state_key" {
   crypto_key_id = module.management_state.kms_key_id
-  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
-  member        = module.setup_plan.member
+  role          = "roles/cloudkms.cryptoKeyDecrypter"
+  member        = local.setup_plan_member
 }
 
 # Its own prefix of the plan store, create-only, like every other plan.
 resource "google_storage_bucket_iam_member" "setup_plan_writes_plan_store" {
   bucket = module.plan_store.name
   role   = "roles/storage.objectCreator"
-  member = module.setup_plan.member
+  member = local.setup_plan_member
 
   condition {
     title       = "own plan/setup-* only"
@@ -151,11 +171,15 @@ resource "google_storage_bucket_iam_member" "setup_plan_writes_plan_store" {
 }
 
 # The bootstrap admin is created by hand before the first apply, so it is
-# named here, not managed. What is managed is the one federated path to it.
-# Additive: the people who hold tokenCreator on it keep that, which is what
-# makes the first apply and an emergency apply possible.
-resource "google_service_account_iam_member" "setup_apply_becomes_bootstrap" {
+# named here, not managed. What is managed is the complete list of federated
+# paths to it, which is this one. A different role from the tokenCreator the
+# people hold on it, so they keep that, which is what makes the first apply
+# and an emergency apply possible.
+resource "google_service_account_iam_binding" "setup_apply_becomes_bootstrap" {
   service_account_id = "projects/${var.management_project_id}/serviceAccounts/${local.bootstrap_service_account}"
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.apply_entry/${one(local.setup_apply_entries)}"
+  members = [
+    for entry in local.setup_apply_entries :
+    "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.apply_entry/${entry}"
+  ]
 }

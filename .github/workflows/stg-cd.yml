@@ -35,28 +35,49 @@ jobs:
       actions: read
       contents: read
     steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Decided from the push, not from whether a run can be seen yet: the
+      # other run may register after this job starts, and silence must not
+      # read as "not triggered". The path list mirrors setup-cd.yml's.
       - name: Wait for setup-cd on this commit
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
+          BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
+          paths='^(terraform/live/[^/]+/gcp/_setup/|terraform/modules/gcp/(developer-access|plan-store|project|project-pin|state-bucket|wif-hub|wif-spoke)/|\.github/workflows/(_setup-apply|setup-cd)\.yml$)'
+          if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            if ! git diff --name-only "$BEFORE" "$SHA" | grep -qE "$paths"; then
+              echo "this push touched no _setup path; nothing to wait for"
+              exit 0
+            fi
+            echo "this push touched a _setup path; setup-cd must run for $SHA"
+          else
+            echo "no previous commit to diff against; checking for a setup-cd run"
+          fi
           latest() {
             gh api "repos/$REPO/actions/workflows/setup-cd.yml/runs?head_sha=$SHA&per_page=1" \
               --jq '.workflow_runs[0] // empty | "\(.status) \(.conclusion // "-") \(.html_url)"'
           }
-          # Both runs come from the same push, but the other one may be
-          # registered a few seconds after this job starts.
           run=""
-          for _ in $(seq 1 9); do
+          for _ in $(seq 1 30); do
             run=$(latest)
             [ -n "$run" ] && break
             sleep 10
           done
           if [ -z "$run" ]; then
-            echo "setup-cd was not triggered for $SHA; nothing to wait for"
+            if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+              echo "::error::a _setup path changed but no setup-cd run exists for $SHA after five minutes"
+              exit 1
+            fi
+            echo "no setup-cd run for $SHA; nothing to wait for"
             exit 0
           fi
           while :; do

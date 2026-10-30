@@ -29,14 +29,18 @@ module.exports = async ({ github, context, core }) => {
 
   const results = JSON.parse(process.env.RESULTS)
 
-  // The full plan.txt in the private plan store, at the path the plan jobs
-  // of this same run uploaded to. Google serves the link only to a browser
-  // signed in with read permission on the object, so it is safe in a public
-  // comment and useless to anyone outside the developer group.
+  // The full plan.txt in the private plan store, at the prefix the plan job
+  // recorded beside its summary. Read, not rebuilt: on a re-run of failed
+  // jobs the ones that passed keep their files under the earlier attempt,
+  // and this job's attempt is one higher. Google serves the link only to a
+  // browser signed in with read permission on the object, so it is safe in
+  // a public comment and useless to anyone outside the developer group.
   const bucket = process.env.PLAN_STORE_BUCKET
-  const fullPlan = key => bucket
-    ? `https://storage.cloud.google.com/${bucket}/plan/${key}/pr-${context.issue.number}/${context.runId}-${process.env.GITHUB_RUN_ATTEMPT}/plan.txt`
-    : null
+  const fullPlan = key => {
+    const file = path.join('plans', `plan-${key}`, 'prefix.txt')
+    if (!bucket || !fs.existsSync(file)) return null
+    return `https://storage.cloud.google.com/${bucket}/${fs.readFileSync(file, 'utf8').trim()}/plan.txt`
+  }
   const linked = key => fullPlan(key) ? `[${label(key)}](${fullPlan(key)})` : label(key)
   const read = key => {
     const file = path.join('plans', `plan-${key}`, 'summary.txt')

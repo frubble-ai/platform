@@ -89,12 +89,12 @@ output "plan_store_bucket" {
 
 output "setup_plan_identity" {
   description = "Identity the _setup plans run as. Set as GCP_SETUP_PLAN_IDENTITY."
-  value       = module.setup_plan.email
+  value       = google_service_account.setup_plan.email
 }
 
 output "setup_plan_principal" {
   description = "The same, as deny policies name it. The environment roots deny it every secret value."
-  value       = "principal://iam.googleapis.com/projects/-/serviceAccounts/${module.setup_plan.email}"
+  value       = "principal://iam.googleapis.com/projects/-/serviceAccounts/${google_service_account.setup_plan.email}"
 }
 
 output "bootstrap_service_account" {

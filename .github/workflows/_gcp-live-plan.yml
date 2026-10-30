@@ -152,6 +152,7 @@ jobs:
           PLAN_STORE_REF: >-
             ${{ github.event.pull_request.number
             && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}
+          PLAN_STORE_PREFIX_FILE: prefix.txt
           PLAN_STORE_AS: ${{ inputs.spoke_service_account }}
         run: |
           if ! "$GITHUB_WORKSPACE/.github/scripts/plan-store-upload.sh" \
@@ -165,6 +166,8 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: plan-gcp-${{ inputs.environment }}
-          path: ${{ inputs.root }}/summary.txt
+          path: |
+            ${{ inputs.root }}/summary.txt
+            ${{ inputs.root }}/prefix.txt
           retention-days: 5
           if-no-files-found: error

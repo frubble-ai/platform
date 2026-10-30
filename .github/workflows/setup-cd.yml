@@ -6,9 +6,18 @@ name: setup-cd
 on:
   push:
     branches: [dev]
+    # The modules listed are the ones a _setup root sources. Any other module
+    # change applies nowhere here and must not hold a reviewer, or a stg-cd
+    # waiting on this run. stg-cd.yml mirrors this list; change both.
     paths:
       - terraform/live/*/gcp/_setup/**
-      - terraform/modules/**
+      - terraform/modules/gcp/developer-access/**
+      - terraform/modules/gcp/plan-store/**
+      - terraform/modules/gcp/project/**
+      - terraform/modules/gcp/project-pin/**
+      - terraform/modules/gcp/state-bucket/**
+      - terraform/modules/gcp/wif-hub/**
+      - terraform/modules/gcp/wif-spoke/**
       - .github/workflows/_setup-apply.yml
       - .github/workflows/setup-cd.yml
   workflow_dispatch:

@@ -71,13 +71,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # The rule must also bar self-review, or the person who pushed to
+          # dev approves their own apply as the pool's owner.
           reviewers=$(gh api "repos/${{ github.repository }}/environments/${{ inputs.gh_environment }}" \
-            --jq '[.protection_rules[] | select(.type == "required_reviewers") | .reviewers[]] | length')
+            --jq '[.protection_rules[] | select(.type == "required_reviewers" and .prevent_self_review == true) | .reviewers[]] | length')
           if [ "$reviewers" = "0" ]; then
-            echo "::error::environment ${{ inputs.gh_environment }} requires no reviewer; refusing to apply a _setup root"
+            echo "::error::environment ${{ inputs.gh_environment }} has no required-reviewer rule that bars self-review; refusing to apply a _setup root"
             exit 1
           fi
-          echo "environment ${{ inputs.gh_environment }} requires $reviewers reviewer(s)"
+          echo "environment ${{ inputs.gh_environment }} requires $reviewers reviewer(s), self-review barred"
 
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
