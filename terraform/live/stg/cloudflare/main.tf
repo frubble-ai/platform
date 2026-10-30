@@ -1,7 +1,4 @@
 locals {
-  # One level under the apex (api-stg.<domain>): Universal SSL covers the apex
-  # and one wildcard level only, so api.stg.<domain> would need Advanced
-  # Certificate Manager.
   hostname = "api-${var.environment}.${var.domain}"
 }
 
