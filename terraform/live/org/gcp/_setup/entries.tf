@@ -14,7 +14,7 @@ locals {
     cloudflare_apply = ".github/workflows/_cloudflare-live-apply.yml"
     posthog_plan     = ".github/workflows/_posthog-live-plan.yml"
     posthog_apply    = ".github/workflows/_posthog-live-apply.yml"
-    backend_deploy   = ".github/workflows/deploy-stg.yml"
+    backend_deploy   = ".github/workflows/backend-cd.yml"
     stg_cd           = ".github/workflows/stg-cd.yml"
     prd_cd           = ".github/workflows/prd-cd.yml"
   }
