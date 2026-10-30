@@ -101,9 +101,10 @@ jobs:
             -backend-config="bucket=${{ inputs.management_state_bucket }}"
 
       # The _setup inputs come from repository variables, none of them secret;
-      # a root ignores the ones it does not declare. The two repository names
-      # come from the run itself, so the trust entries can never name a
-      # repository other than the one that applied them.
+      # a root ignores the ones it does not declare. This repository's own
+      # name comes from the run itself, so a trust entry can never name a
+      # platform repository other than the one that applied it; the
+      # application's name is a repository variable.
       - name: Plan
         id: plan
         if: steps.scope.outputs.relevant == 'true'

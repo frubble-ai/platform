@@ -18,8 +18,65 @@ permissions:
   id-token: write
 
 jobs:
+  # A push that touches a _setup root starts setup-cd beside this run, and
+  # setup-cd then waits in the `setup` environment for a reviewer. The GCP
+  # apply below reads _setup outputs through remote state, so applying it
+  # against the old _setup state would miss a new output or use a stale one.
+  # This waits for setup-cd's run on this same commit, when there is one, and
+  # fails if it did not succeed. A push outside the _setup roots starts no
+  # setup-cd run, and there is nothing to wait for. If the reviewer takes
+  # longer than the timeout, this fails and the run is re-run by hand once
+  # setup-cd has succeeded. A prd-cd must carry the same job.
+  setup-first:
+    name: wait for setup-cd
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Wait for setup-cd on this commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          latest() {
+            gh api "repos/$REPO/actions/workflows/setup-cd.yml/runs?head_sha=$SHA&per_page=1" \
+              --jq '.workflow_runs[0] // empty | "\(.status) \(.conclusion // "-") \(.html_url)"'
+          }
+          # Both runs come from the same push, but the other one may be
+          # registered a few seconds after this job starts.
+          run=""
+          for _ in $(seq 1 9); do
+            run=$(latest)
+            [ -n "$run" ] && break
+            sleep 10
+          done
+          if [ -z "$run" ]; then
+            echo "setup-cd was not triggered for $SHA; nothing to wait for"
+            exit 0
+          fi
+          while :; do
+            read -r status conclusion url <<<"$run"
+            if [ "$status" = "completed" ]; then
+              if [ "$conclusion" = "success" ]; then
+                echo "setup-cd succeeded: $url"
+                exit 0
+              fi
+              echo "::error::setup-cd did not succeed ($conclusion): $url. Re-run this workflow once it has."
+              exit 1
+            fi
+            echo "setup-cd is $status, waiting: $url"
+            sleep 30
+            run=$(latest)
+          done
+
   gcp:
     name: apply stg gcp
+    needs: setup-first
     uses: ./.github/workflows/_gcp-live-apply.yml
     with:
       environment: stg

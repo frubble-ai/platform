@@ -211,6 +211,12 @@ jobs:
       contents: read
       pull-requests: write
     steps:
+      # For the script below. No credentials: this job writes through the
+      # github-script token, never through git.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
       # A stack that was not touched uploaded nothing, so a missing artifact
       # is the signal that there is nothing to report for it.
       #
@@ -219,12 +225,6 @@ jobs:
       # already passes. What continue-on-error would add is hiding a real
       # download failure — and then the script sees no plans, reads that as
       # "nothing in scope", and deletes the comment while the job goes green.
-      # For the script below. No credentials: this job writes through the
-      # github-script token, never through git.
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          persist-credentials: false
-
       - name: Collect the plans
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
