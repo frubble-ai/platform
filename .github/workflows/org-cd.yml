@@ -47,6 +47,7 @@ jobs:
       audience: ${{ vars.GCP_WIF_AUDIENCE }}
     secrets:
       POSTHOG_APPLY_API_KEY: ${{ secrets.POSTHOG_APPLY_API_KEY }}
+      POSTHOG_MEMBERS: ${{ secrets.POSTHOG_MEMBERS }}
     permissions:
       contents: read
       id-token: write

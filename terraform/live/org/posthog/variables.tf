@@ -10,8 +10,10 @@ variable "members" {
     joined (main.tf explains why). Level is member or admin; owner stays with
     platform@frubble.ai, which this map never names.
 
-    Supplied by CI from the POSTHOG_MEMBERS repository variable as JSON, never
-    written in this repository: it is public, and so are its plan comments.
+    Supplied by CI from the POSTHOG_MEMBERS repository secret as JSON, never
+    written in this repository: it is public, and so are its logs and plan
+    comments. A secret, not a variable, because GitHub prints a step's
+    environment in the log and masks only secrets there.
   EOT
   type = map(object({
     email = string

@@ -23,6 +23,11 @@ on:
     secrets:
       POSTHOG_PLAN_API_KEY:
         required: true
+      # A secret, not a variable, although it is a list of addresses rather
+      # than a credential: GitHub prints a step's env in the public log before
+      # any ::add-mask:: in the step runs, and only secrets are masked there.
+      POSTHOG_MEMBERS:
+        required: true
 
 # No pull-requests: write — see _gcp-live-plan.yml. The aggregating job in
 # live-plan.yml owns the comment.
@@ -104,7 +109,7 @@ jobs:
         shell: bash
         env:
           TF_VAR_organization_id: ${{ vars.POSTHOG_ORGANIZATION_ID }}
-          TF_VAR_members: ${{ vars.POSTHOG_MEMBERS }}
+          TF_VAR_members: ${{ secrets.POSTHOG_MEMBERS }}
         # Terraform's own output goes to plan.txt and never to this log, which
         # is public: providers print values they do not mark sensitive. The log
         # and the pull-request comment get summary.txt, built from

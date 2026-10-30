@@ -36,7 +36,7 @@ removed {
 # someone who has already joined. So a person reaches this map in two steps:
 #   1. Invite them from PostHog → Settings → Members, as platform@, and wait
 #      for them to accept.
-#   2. Add them to the POSTHOG_MEMBERS repository variable under a short
+#   2. Add them to the POSTHOG_MEMBERS repository secret under a short
 #      handle, e.g. "danilo": {"email": "...", "level": "member"}, and merge.
 #      The import below adopts the existing membership instead of changing
 #      it, and from then on their level is whatever the map says.
