@@ -57,29 +57,35 @@ resource "google_project_iam_member" "setup_plan_reads" {
   depends_on = [module.environment_project]
 }
 
-# Reading a deny policy needs iam.denypolicies.get, which no predefined role
-# grants below the organization: denyReviewer binds there or not at all, and
-# the bootstrap admin holds no organization IAM. So the two read permissions
-# go in a custom role, defined in each project because a project role cannot
-# be bound outside the project that defines it. Read-only; it reveals who is
-# denied what, which this repository already states.
-resource "google_project_iam_custom_role" "deny_policy_reader" {
+# What roles/viewer misses for a read-only refresh of these roots. Reading a
+# deny policy needs iam.denypolicies.get, which no predefined role grants
+# below the organization: denyReviewer binds there or not at all, and the
+# bootstrap admin holds no organization IAM. Reading a bucket's IAM policy
+# needs storage.buckets.getIamPolicy, which viewer leaves out. Both go in a
+# custom role, defined in each project because a project role cannot be bound
+# outside the project that defines it. Read-only; it reveals who is denied
+# and who is granted what, which this repository already states.
+resource "google_project_iam_custom_role" "setup_plan_reader" {
   for_each = local.setup_plan_projects
 
   project     = each.value
-  role_id     = "frubbleDenyPolicyReader"
-  title       = "Frubble deny policy reader"
-  description = "Read the project's deny policies. Held by the _setup plan identity so refresh works without granting write."
-  permissions = ["iam.denypolicies.get", "iam.denypolicies.list"]
+  role_id     = "frubbleSetupPlanReader"
+  title       = "Frubble _setup plan reader"
+  description = "The reads roles/viewer misses for a plan of the _setup roots: deny policies and bucket IAM."
+  permissions = [
+    "iam.denypolicies.get",
+    "iam.denypolicies.list",
+    "storage.buckets.getIamPolicy",
+  ]
 
   depends_on = [module.environment_project]
 }
 
-resource "google_project_iam_member" "setup_plan_reads_deny_policies" {
+resource "google_project_iam_member" "setup_plan_reads_the_rest" {
   for_each = local.setup_plan_projects
 
   project = each.value
-  role    = google_project_iam_custom_role.deny_policy_reader[each.key].id
+  role    = google_project_iam_custom_role.setup_plan_reader[each.key].id
   member  = module.setup_plan.member
 }
 
