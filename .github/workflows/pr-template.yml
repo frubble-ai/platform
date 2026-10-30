@@ -1,13 +1,15 @@
 name: pr-template
 
-# A pull request whose body skips the template, or leaves a section empty,
-# fails here. `edited` is in the trigger so fixing the body re-runs it.
+# The title must be a conventional commit, since it becomes the squash
+# commit message, and the body must fill every section of the template.
+# `edited` is in the trigger so fixing either re-runs the check.
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   check:
@@ -19,10 +21,16 @@ jobs:
         with:
           persist-credentials: false
 
-      # Title and body arrive through env, never interpolated into the script.
-      - name: Compare the body with the template
+      - name: Check the title is a conventional commit
+        uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
         env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # No action does this: the ones that exist only check that a body is
+      # non-empty or contains a string. The body arrives through env, never
+      # interpolated into the script.
+      - name: Check every section of the template is filled
+        env:
           PR_BODY: ${{ github.event.pull_request.body }}
         shell: python
         run: |
@@ -31,14 +39,11 @@ jobs:
           template = open(".github/pull_request_template.md", encoding="utf-8").read()
           strip = lambda s: re.sub(r"<!--.*?-->", "", s, flags=re.S)
           body = strip(os.environ.get("PR_BODY") or "")
-          title = os.environ.get("PR_TITLE") or ""
 
           parts = re.split(r"^(## .+)$", body, flags=re.M)
           sections = {parts[i].strip(): parts[i + 1].strip() for i in range(1, len(parts), 2)}
 
           problems = []
-          if not re.match(r"^(feat|fix|chore|docs|refactor|ci)(\([^)]+\))?!?: \S", title):
-              problems.append(f"title is not a conventional commit: {title!r}")
           for heading in re.findall(r"^## .+$", template, flags=re.M):
               if heading not in sections:
                   problems.append(f"section missing: {heading}")
