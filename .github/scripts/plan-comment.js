@@ -52,7 +52,9 @@ module.exports = async ({ github, context, core }) => {
   // A stack with nothing to do gets one entry in a closing line,
   // not a section: a reviewer opens the comment for the diffs, and
   // six headings saying "No changes" push them out of view.
-  const quiet = s => s.plan !== null && /No changes/.test(s.plan)
+  // Exact: a resource address can contain the words "No changes" in a
+  // for_each key, and a plan with changes must never be filed as quiet.
+  const quiet = s => s.plan !== null && s.plan.trim() === 'No changes.'
   const loud = sections.filter(s => !quiet(s))
   const quietNames = sections.filter(quiet).map(s => label(s.key))
   const footer = quietNames.length ? [`No changes: ${quietNames.join(', ')}.`, ''] : []
@@ -69,7 +71,7 @@ module.exports = async ({ github, context, core }) => {
     const m = s.plan.match(/Plan: (\d+) to add, (\d+) to change, (\d+) to destroy/)
     const summary = m
       ? `**${m[1]}** to add · **${m[2]}** to change · **${m[3]}** to destroy`
-      : (/No changes/.test(s.plan) ? '**No changes.**' : '_Counts unavailable._')
+      : (quiet(s) ? '**No changes.**' : '_Counts unavailable._')
     // The counts are the heading; the body is the resource lines.
     const body = shown.split('\n')
       .filter(l => !/^(Plan: \d+ to add|No changes\.)/.test(l))
