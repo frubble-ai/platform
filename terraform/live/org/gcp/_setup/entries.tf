@@ -88,6 +88,6 @@ locals {
   # backend-stg, so neither order of merging breaks a deploy. Drop it then.
   backend_deploy_entries = [
     "${local.backend_repo}|${local.wf.backend_deploy}|backend-stg|refs/heads/stg",
-    "${local.backend_repo}|.github/workflows/deploy-stg.yml|stg|refs/heads/stg",
+    "${local.backend_repo}|${local.backend_repo}/.github/workflows/deploy-stg.yml|stg|refs/heads/stg",
   ]
 }
