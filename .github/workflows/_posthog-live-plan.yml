@@ -43,8 +43,8 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # The workflow file counts as the stack: a change to how the plan runs
-      # should be proven by a plan.
+      # The workflow file and its scripts count as the stack: a change to how
+      # the plan runs should be proven by a plan.
       - name: Does this PR touch the stack?
         id: scope
         shell: bash
@@ -56,7 +56,9 @@ jobs:
           changed=$(git diff --name-only \
             "${{ github.event.pull_request.base.sha }}" \
             "${{ github.event.pull_request.head.sha }}")
-          if echo "$changed" | grep -qE "^(${{ inputs.root }}/|\.github/workflows/_posthog-live-plan\.yml$)"; then
+          scripts='\.github/scripts/(terraform-plan-summary|posthog-mask-members)\.sh$'
+          workflow='\.github/workflows/_posthog-live-plan\.yml$'
+          if echo "$changed" | grep -qE "^(${{ inputs.root }}/|$workflow|$scripts)"; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"
@@ -104,25 +106,25 @@ jobs:
         env:
           TF_VAR_organization_id: ${{ vars.POSTHOG_ORGANIZATION_ID }}
           TF_VAR_members: ${{ vars.POSTHOG_MEMBERS }}
-        # The provider's organization_member.email is computed and not marked
-        # sensitive, so an import or level change prints the member's address
-        # even though var.members is sensitive. This repository is public, so
-        # are its Actions logs, and plan.txt becomes the plan comment: mask
-        # every member address in the log before Terraform runs, then redact
-        # it, and any email attribute, from plan.txt before it is uploaded.
+        # organization_member returns email, first_name and last_name as plain
+        # computed attributes, and this repository, its Actions logs and its
+        # plan comments are public. So Terraform's raw output goes to a file
+        # that is never printed or uploaded; the log and plan.txt (the comment)
+        # get a summary of addresses, actions and counts with no values. On a
+        # failure only Terraform's error headlines are shown.
         run: |
           set -euo pipefail
-          members=${TF_VAR_members:-}
-          emails=$(jq -r '.[].email' <<< "${members:-"{}"}")
-          while IFS= read -r email; do
-            if [ -n "$email" ]; then echo "::add-mask::$email"; fi
-          done <<< "$emails"
-          terraform plan -no-color -input=false -lock=false -out=tfplan 2>&1 | tee plan.txt
-          sed -i -E 's/^([[:space:]]*[-+~]?[[:space:]]*"?email"?[[:space:]]*=[[:space:]]*).*$/\1(redacted)/' plan.txt
-          while IFS= read -r email; do
-            if [ -n "$email" ]; then EMAIL="$email" perl -pi -e 's/\Q$ENV{EMAIL}\E/(redacted)/gi' plan.txt; fi
-          done <<< "$emails"
+          "$GITHUB_WORKSPACE/.github/scripts/posthog-mask-members.sh"
+          if ! terraform plan -no-color -input=false -lock=false -out=tfplan > raw-plan.log 2>&1; then
+            echo "::error::terraform plan failed. Full output withheld (public log); reproduce locally."
+            grep -E '^(│ )?Error: ' raw-plan.log | sed 's/^│ //' || true
+            exit 1
+          fi
+          "$GITHUB_WORKSPACE/.github/scripts/terraform-plan-summary.sh" tfplan | tee plan.txt
+          rm -f raw-plan.log
 
+      # Only the sanitized summary. Never the raw plan or tfplan: artifacts of
+      # a public repository can be downloaded by anyone signed in to GitHub.
       - name: Upload the plan
         if: steps.scope.outputs.relevant == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

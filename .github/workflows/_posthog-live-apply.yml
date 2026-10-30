@@ -81,20 +81,29 @@ jobs:
         working-directory: ${{ inputs.root }}
         run: terraform init -lockfile=readonly -backend-config="bucket=${{ inputs.state_bucket }}"
 
-      # No separate plan step: apply plans against the current state on its
-      # own. See _gcp-live-apply.yml.
+      # Plan and apply in one step, against a plan file this job just wrote,
+      # so what is applied is exactly what the summary shows.
+      #
+      # organization_member returns email, first_name and last_name as plain
+      # computed attributes, and this repository's Actions logs are public. So
+      # Terraform's raw output goes to a file that is never printed or
+      # uploaded; the log gets the values-free summary and Terraform's
+      # "Apply complete!" counts. On a failure only the error headlines show.
       - name: Apply
         working-directory: ${{ inputs.root }}
         env:
           TF_VAR_organization_id: ${{ vars.POSTHOG_ORGANIZATION_ID }}
           TF_VAR_members: ${{ vars.POSTHOG_MEMBERS }}
-        # organization_member.email is computed and not sensitive, so the apply
-        # output can print a member's address, and this repository's Actions
-        # logs are public. Mask every member address before Terraform runs.
         run: |
           set -euo pipefail
-          members=${TF_VAR_members:-}
-          while IFS= read -r email; do
-            if [ -n "$email" ]; then echo "::add-mask::$email"; fi
-          done < <(jq -r '.[].email' <<< "${members:-"{}"}")
-          terraform apply -auto-approve -input=false -lock-timeout=5m -no-color
+          "$GITHUB_WORKSPACE/.github/scripts/posthog-mask-members.sh"
+          fail() {
+            echo "::error::terraform $1 failed. Full output withheld (public log); reproduce locally."
+            grep -E '^(│ )?Error: ' raw.log | sed 's/^│ //' || true
+            exit 1
+          }
+          terraform plan -no-color -input=false -lock-timeout=5m -out=tfplan > raw.log 2>&1 || fail plan
+          "$GITHUB_WORKSPACE/.github/scripts/terraform-plan-summary.sh" tfplan
+          terraform apply -no-color -input=false -lock-timeout=5m tfplan > raw.log 2>&1 || fail apply
+          grep -E '^Apply complete!' raw.log
+          rm -f raw.log tfplan
