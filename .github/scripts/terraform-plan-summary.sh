@@ -22,8 +22,8 @@ terraform show -json "$plan_file" | jq -r '
       end;
 
   [ .resource_changes[]? | select(.mode == "managed") ] as $rc
-  | [ $rc[] | {address, verb: verb, import: (.change.importing != null)}
-      | select(.verb != null or .import) ] as $shown
+  | [ $rc[] | {address, verb: verb, import: (.change.importing != null), from: .previous_address}
+      | select(.verb != null or .import or .from != null) ] as $shown
   | ($rc | map(.change.actions) ) as $acts
   | {
       add:     ($acts | map(select(. == ["create"] or (sort == ["create", "delete"]))) | length),
@@ -31,12 +31,16 @@ terraform show -json "$plan_file" | jq -r '
       destroy: ($acts | map(select(. == ["delete"] or (sort == ["create", "delete"]))) | length),
       forget:  ($acts | map(select(. == ["forget"])) | length),
       import:  ($rc | map(select(.change.importing != null)) | length),
+      move:    ($rc | map(select(.previous_address != null)) | length),
       outputs: ([ .output_changes // {} | to_entries[] | select(.value.actions != ["no-op"]) ] | length)
     } as $n
-  | ( $shown[] | "\(.address): \([.verb, (if .import then "import" else null end)] | map(select(. != null)) | join(", "))" ),
+  | ( $shown[]
+      | "\(.address): \([.verb, (if .import then "import" else null end),
+          (if .from != null then "moved from \(.from)" else null end)] | map(select(. != null)) | join(", "))" ),
     ( if ($shown | length) > 0 then "" else empty end ),
-    ( if ($n.import + $n.forget + $n.outputs) > 0
+    ( if ($n.import + $n.move + $n.forget + $n.outputs) > 0
       then ([ (if $n.import > 0 then "\($n.import) to import" else empty end),
+              (if $n.move > 0 then "\($n.move) to move" else empty end),
               (if $n.forget > 0 then "\($n.forget) to forget" else empty end),
               (if $n.outputs > 0 then "\($n.outputs) output(s) changed" else empty end) ] | join(", "))
       else empty end ),
