@@ -103,7 +103,7 @@ jobs:
         shell: bash
         env:
           TF_VAR_organization_id: ${{ vars.POSTHOG_ORGANIZATION_ID }}
-          TF_VAR_administrator_email: ${{ vars.POSTHOG_ADMINISTRATOR_EMAIL }}
+          TF_VAR_members: ${{ vars.POSTHOG_MEMBERS }}
         run: |
           set -o pipefail
           terraform plan -no-color -input=false -lock=false -out=tfplan 2>&1 | tee plan.txt

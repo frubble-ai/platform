@@ -3,11 +3,25 @@ variable "organization_id" {
   type        = string
 }
 
-variable "administrator_email" {
+variable "members" {
   description = <<-EOT
-    The person who administers the organization. They must already be a
-    member: PostHog cannot invite through the API, so the invitation is sent
-    by hand and this root only raises the accepted member to admin.
+    Human members of the organization and their level, keyed by a short handle:
+    { daniel = { email = "...", level = "admin" } }. Each must already have
+    joined (main.tf explains why). Level is member or admin; owner stays with
+    platform@frubble.ai, which this map never names.
+
+    Supplied by CI from the POSTHOG_MEMBERS repository variable as JSON, never
+    written in this repository: it is public, and so are its plan comments.
   EOT
-  type        = string
+  type = map(object({
+    email = string
+    level = string
+  }))
+  default   = {}
+  sensitive = true
+
+  validation {
+    condition     = alltrue([for m in values(var.members) : contains(["member", "admin"], m.level)])
+    error_message = "Level must be member or admin. Owner is held by platform@frubble.ai and is not managed here."
+  }
 }
