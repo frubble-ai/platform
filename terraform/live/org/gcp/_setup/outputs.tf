@@ -59,3 +59,8 @@ output "tunnel_token_hubs" {
 output "backend_deploy_hub" {
   value = module.backend_deploy_hub.email
 }
+
+output "plan_store_bucket" {
+  description = "Private bucket for full plan and apply output. Set as the PLAN_STORE_BUCKET repository variable."
+  value       = module.plan_store.name
+}
