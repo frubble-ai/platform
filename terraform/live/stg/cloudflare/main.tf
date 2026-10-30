@@ -1,9 +1,8 @@
 locals {
-  # Flat, not api.stg.frubble.<domain>. Universal SSL covers the apex and one
-  # wildcard level only, so a three-level host has no edge certificate on the
-  # Free plan and fails the handshake before any of this matters. Hyphens are
-  # free; Advanced Certificate Manager is not.
-  hostname = "api-${var.environment}-frubble.${var.domain}"
+  # One level under the apex (api-stg.<domain>): Universal SSL covers the apex
+  # and one wildcard level only, so api.stg.<domain> would need Advanced
+  # Certificate Manager.
+  hostname = "api-${var.environment}.${var.domain}"
 }
 
 module "tunnel" {
