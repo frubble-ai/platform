@@ -17,15 +17,12 @@ if [ -z "${PLAN_STORE_BUCKET:-}" ]; then exit 0; fi
 ref=$(printf '%s' "${PLAN_STORE_REF:?}" | tr -c 'A-Za-z0-9._-' '-')
 prefix="${kind}/${stack}/${ref}/${GITHUB_RUN_ID:?}-${GITHUB_RUN_ATTEMPT:?}"
 
-# The prefix, for whoever links to these files. Recorded here because the
-# attempt in it is this job's, and a later job in a re-run has a higher one.
-if [ -n "${PLAN_STORE_PREFIX_FILE:-}" ]; then printf '%s\n' "$prefix" > "$PLAN_STORE_PREFIX_FILE"; fi
-
 token_args=()
 if [ -n "${PLAN_STORE_AS:-}" ]; then token_args=(--impersonate-service-account="$PLAN_STORE_AS"); fi
 token=$(timeout 60 gcloud auth print-access-token "${token_args[@]}" 2> /dev/null)
 echo "::add-mask::$token"
 
+plan_uploaded=false
 for file in "$@"; do
   [ -f "$file" ] || continue
   name=$(jq -rn --arg s "${prefix}/$(basename "$file")" '$s | @uri')
@@ -35,5 +32,14 @@ for file in "$@"; do
     -H "Content-Type: application/octet-stream" \
     --data-binary "@$file" \
     "https://storage.googleapis.com/upload/storage/v1/b/${PLAN_STORE_BUCKET}/o?uploadType=media&ifGenerationMatch=0&name=${name}"
+  [ "$(basename "$file")" = plan.txt ] && plan_uploaded=true
 done
+
+# The prefix, for whoever links to plan.txt. Written last, and only once that
+# file is in the store, so a failed upload leaves no link to a missing plan.
+# Recorded here because the attempt in it is this job's, and a later job in
+# a re-run has a higher one.
+if [ -n "${PLAN_STORE_PREFIX_FILE:-}" ] && [ "$plan_uploaded" = true ]; then
+  printf '%s\n' "$prefix" > "$PLAN_STORE_PREFIX_FILE"
+fi
 

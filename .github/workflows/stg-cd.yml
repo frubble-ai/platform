@@ -54,7 +54,11 @@ jobs:
           set -euo pipefail
           paths='^(terraform/live/[^/]+/gcp/_setup/|terraform/modules/gcp/(developer-access|plan-store|project|project-pin|state-bucket|wif-hub|wif-spoke)/|\.github/workflows/(_setup-apply|setup-cd)\.yml$)'
           if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
-            if ! git diff --name-only "$BEFORE" "$SHA" | grep -qE "$paths"; then
+            # Captured first: in a pipeline, grep -q stopping at its first
+            # match can hand git diff a SIGPIPE, and a failing git diff would
+            # read as "no match". Either way the gate would fail open.
+            changed=$(git diff --name-only "$BEFORE" "$SHA")
+            if ! grep -qE "$paths" <<<"$changed"; then
               echo "this push touched no _setup path; nothing to wait for"
               exit 0
             fi
