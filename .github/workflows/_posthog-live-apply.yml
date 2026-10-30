@@ -88,4 +88,13 @@ jobs:
         env:
           TF_VAR_organization_id: ${{ vars.POSTHOG_ORGANIZATION_ID }}
           TF_VAR_members: ${{ vars.POSTHOG_MEMBERS }}
-        run: terraform apply -auto-approve -input=false -lock-timeout=5m -no-color
+        # organization_member.email is computed and not sensitive, so the apply
+        # output can print a member's address, and this repository's Actions
+        # logs are public. Mask every member address before Terraform runs.
+        run: |
+          set -euo pipefail
+          members=${TF_VAR_members:-}
+          while IFS= read -r email; do
+            if [ -n "$email" ]; then echo "::add-mask::$email"; fi
+          done < <(jq -r '.[].email' <<< "${members:-"{}"}")
+          terraform apply -auto-approve -input=false -lock-timeout=5m -no-color

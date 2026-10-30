@@ -104,9 +104,24 @@ jobs:
         env:
           TF_VAR_organization_id: ${{ vars.POSTHOG_ORGANIZATION_ID }}
           TF_VAR_members: ${{ vars.POSTHOG_MEMBERS }}
+        # The provider's organization_member.email is computed and not marked
+        # sensitive, so an import or level change prints the member's address
+        # even though var.members is sensitive. This repository is public, so
+        # are its Actions logs, and plan.txt becomes the plan comment: mask
+        # every member address in the log before Terraform runs, then redact
+        # it, and any email attribute, from plan.txt before it is uploaded.
         run: |
-          set -o pipefail
+          set -euo pipefail
+          members=${TF_VAR_members:-}
+          emails=$(jq -r '.[].email' <<< "${members:-"{}"}")
+          while IFS= read -r email; do
+            if [ -n "$email" ]; then echo "::add-mask::$email"; fi
+          done <<< "$emails"
           terraform plan -no-color -input=false -lock=false -out=tfplan 2>&1 | tee plan.txt
+          sed -i -E 's/^([[:space:]]*[-+~]?[[:space:]]*"?email"?[[:space:]]*=[[:space:]]*).*$/\1(redacted)/' plan.txt
+          while IFS= read -r email; do
+            if [ -n "$email" ]; then EMAIL="$email" perl -pi -e 's/\Q$ENV{EMAIL}\E/(redacted)/gi' plan.txt; fi
+          done <<< "$emails"
 
       - name: Upload the plan
         if: steps.scope.outputs.relevant == 'true'
