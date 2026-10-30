@@ -43,8 +43,8 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # The workflow file and its scripts count as the stack: a change to how
-      # the plan runs should be proven by a plan.
+      # The workflow file and the shared scripts count as the stack: a change
+      # to how the plan runs should be proven by a plan.
       - name: Does this PR touch the stack?
         id: scope
         shell: bash
@@ -56,9 +56,8 @@ jobs:
           changed=$(git diff --name-only \
             "${{ github.event.pull_request.base.sha }}" \
             "${{ github.event.pull_request.head.sha }}")
-          scripts='\.github/scripts/(terraform-plan-summary|posthog-mask-members)\.sh$'
           workflow='\.github/workflows/_posthog-live-plan\.yml$'
-          if echo "$changed" | grep -qE "^(${{ inputs.root }}/|$workflow|$scripts)"; then
+          if echo "$changed" | grep -qE "^(${{ inputs.root }}/|$workflow|\.github/scripts/)"; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"
@@ -106,30 +105,44 @@ jobs:
         env:
           TF_VAR_organization_id: ${{ vars.POSTHOG_ORGANIZATION_ID }}
           TF_VAR_members: ${{ vars.POSTHOG_MEMBERS }}
-        # organization_member returns email, first_name and last_name as plain
-        # computed attributes, and this repository, its Actions logs and its
-        # plan comments are public. So Terraform's raw output goes to a file
-        # that is never printed or uploaded; the log and plan.txt (the comment)
-        # get a summary of addresses, actions and counts with no values. On a
-        # failure only Terraform's error headlines are shown.
+        # Terraform's own output goes to plan.txt and never to this log, which
+        # is public: providers print values they do not mark sensitive. The log
+        # and the pull-request comment get summary.txt, built from
+        # `terraform show -json` with addresses, actions and counts only.
         run: |
           set -euo pipefail
+          echo "::add-mask::$TF_VAR_organization_id"
           "$GITHUB_WORKSPACE/.github/scripts/posthog-mask-members.sh"
-          if ! terraform plan -no-color -input=false -lock=false -out=tfplan > raw-plan.log 2>&1; then
-            echo "::error::terraform plan failed. Full output withheld (public log); reproduce locally."
-            grep -E '^(│ )?Error: ' raw-plan.log | sed 's/^│ //' || true
-            exit 1
-          fi
-          "$GITHUB_WORKSPACE/.github/scripts/terraform-plan-summary.sh" tfplan | tee plan.txt
-          rm -f raw-plan.log
+          "$GITHUB_WORKSPACE/.github/scripts/terraform-quiet.sh" plan.txt \
+            plan -no-color -input=false -lock=false -out=tfplan
+          "$GITHUB_WORKSPACE/.github/scripts/terraform-plan-summary.sh" tfplan \
+            | tee summary.txt
 
-      # Only the sanitized summary. Never the raw plan or tfplan: artifacts of
-      # a public repository can be downloaded by anyone signed in to GitHub.
-      - name: Upload the plan
+      # The full plan (tfplan and plan.txt) goes to the private plan store,
+      # also when the plan failed, which is when someone needs to read it.
+      # Never to an artifact: any signed-in GitHub user can download the
+      # artifacts of a public repository.
+      - name: Keep the full plan (private)
+        if: always() && steps.scope.outputs.relevant == 'true'
+        working-directory: ${{ inputs.root }}
+        shell: bash
+        env:
+          PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
+          PLAN_STORE_REF: >-
+            ${{ github.event.pull_request.number
+            && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}
+        run: |
+          "$GITHUB_WORKSPACE/.github/scripts/plan-store-upload.sh" \
+            plan posthog-${{ inputs.stack }} tfplan plan.txt
+
+      # Only the summary travels as an artifact. Naming it after the stack is
+      # what lets the aggregator label each section and tell a stack that was
+      # skipped from one that failed.
+      - name: Upload the summary
         if: steps.scope.outputs.relevant == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: plan-posthog-${{ inputs.stack }}
-          path: ${{ inputs.root }}/plan.txt
+          path: ${{ inputs.root }}/summary.txt
           retention-days: 5
           if-no-files-found: error

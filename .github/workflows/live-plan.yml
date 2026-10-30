@@ -166,6 +166,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           RESULTS: ${{ toJSON(needs) }}
+          PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
         with:
           script: |
             const fs = require('fs')
@@ -193,7 +194,7 @@ jobs:
 
             const results = JSON.parse(process.env.RESULTS)
             const read = key => {
-              const file = path.join('plans', `plan-${key}`, 'plan.txt')
+              const file = path.join('plans', `plan-${key}`, 'summary.txt')
               return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null
             }
 
@@ -215,9 +216,14 @@ jobs:
 
             const render = (s, shown, cut) => {
               if (s.plan === null) {
-                return [`### ${label(s.key)}`, '', '**The plan failed.** Read the job log.', '']
+                return [
+                  `### ${label(s.key)}`, '',
+                  '**The plan failed.** The job log has the error headlines; ' +
+                  'the full output is in the private plan store.',
+                  '',
+                ]
               }
-              const notice = cut ? `\n> Output cut. Read the full plan in the job log.` : ''
+              const notice = cut ? `\n> Summary cut. The full plan is in the private plan store.` : ''
               // Counted from the full plan, never from the truncated copy.
               // Terraform prints `Plan: …` as its last line, so cutting the
               // body removes exactly the summary a reviewer needs most — and
@@ -236,7 +242,7 @@ jobs:
                 // Collapsed by default, approving without expanding it is one
                 // click, and the comment stops being a gate and becomes
                 // decoration.
-                '<details open><summary>Full plan</summary>',
+                '<details open><summary>Summary</summary>',
                 '',
                 '```terraform',
                 shown,
@@ -247,7 +253,16 @@ jobs:
               ]
             }
 
-            const assemble = each => [MARKER, '## Terraform plan', '']
+            // This repository is public, so the comment carries summaries
+            // only. Where the full plans are, for those who may read them.
+            const bucket = process.env.PLAN_STORE_BUCKET
+            const run = `${context.runId}-${process.env.GITHUB_RUN_ATTEMPT}`
+            const where = bucket
+              ? 'Values are withheld. Full plans (organization members only): ' +
+                `\`gs://${bucket}/plan/<stack>/pr-${context.issue.number}/${run}/\``
+              : 'Values are withheld. The private plan store is not set up yet, so full plans were not kept.'
+
+            const assemble = each => [MARKER, '## Terraform plan', '', where, '']
               .concat(...sections.map(each))
               .join('\n')
 

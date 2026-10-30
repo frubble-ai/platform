@@ -137,15 +137,44 @@ jobs:
         working-directory: ${{ inputs.root }}
         run: terraform init -lockfile=readonly -backend-config="bucket=${{ inputs.state_bucket }}"
 
-      # No separate plan step: apply plans against the current state on its
-      # own. See _gcp-live-apply.yml.
+      # The plan a reviewer approved was made against the state before the
+      # merge, so apply plans again against the state as it is now, saves that
+      # plan, and applies exactly the saved file; with nothing to change it
+      # changes nothing.
+      #
+      # Terraform's own output goes to plan.txt and apply.txt, never to this
+      # log, which is public. The log gets the values-free summary of what is
+      # about to be applied and Terraform's "Apply complete!" counts.
       - name: Apply
         working-directory: ${{ inputs.root }}
+        shell: bash
         env:
           TF_VAR_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           TF_VAR_zone_id: ${{ vars.CLOUDFLARE_ZONE_ID }}
           TF_VAR_domain: ${{ vars.CLOUDFLARE_DOMAIN }}
-        run: terraform apply -auto-approve -input=false -lock-timeout=5m -no-color
+        run: |
+          set -euo pipefail
+          scripts="$GITHUB_WORKSPACE/.github/scripts"
+          echo "::add-mask::$TF_VAR_account_id"
+          echo "::add-mask::$TF_VAR_zone_id"
+          "$scripts/terraform-quiet.sh" plan.txt \
+            plan -no-color -input=false -lock-timeout=5m -out=tfplan
+          "$scripts/terraform-plan-summary.sh" tfplan
+          "$scripts/terraform-quiet.sh" apply.txt \
+            apply -no-color -input=false -lock-timeout=5m tfplan
+          grep -E '^Apply complete!' apply.txt | "$scripts/redact.sh"
+
+      # The full record, kept privately whether the apply worked or not.
+      - name: Keep the full output (private)
+        if: always()
+        working-directory: ${{ inputs.root }}
+        shell: bash
+        env:
+          PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
+          PLAN_STORE_REF: ${{ github.ref_name }}
+        run: |
+          "$GITHUB_WORKSPACE/.github/scripts/plan-store-upload.sh" \
+            apply cloudflare-${{ inputs.stack }} tfplan plan.txt apply.txt
 
       - name: Revoke the token
         if: always() && steps.cf.outputs.token_id != ''

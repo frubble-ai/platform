@@ -81,29 +81,40 @@ jobs:
         working-directory: ${{ inputs.root }}
         run: terraform init -lockfile=readonly -backend-config="bucket=${{ inputs.state_bucket }}"
 
-      # Plan and apply in one step, against a plan file this job just wrote,
-      # so what is applied is exactly what the summary shows.
+      # The plan a reviewer approved was made against the state before the
+      # merge, so apply plans again against the state as it is now, saves that
+      # plan, and applies exactly the saved file; with nothing to change it
+      # changes nothing.
       #
-      # organization_member returns email, first_name and last_name as plain
-      # computed attributes, and this repository's Actions logs are public. So
-      # Terraform's raw output goes to a file that is never printed or
-      # uploaded; the log gets the values-free summary and Terraform's
-      # "Apply complete!" counts. On a failure only the error headlines show.
+      # Terraform's own output goes to plan.txt and apply.txt, never to this
+      # log, which is public. The log gets the values-free summary of what is
+      # about to be applied and Terraform's "Apply complete!" counts.
       - name: Apply
         working-directory: ${{ inputs.root }}
+        shell: bash
         env:
           TF_VAR_organization_id: ${{ vars.POSTHOG_ORGANIZATION_ID }}
           TF_VAR_members: ${{ vars.POSTHOG_MEMBERS }}
         run: |
           set -euo pipefail
-          "$GITHUB_WORKSPACE/.github/scripts/posthog-mask-members.sh"
-          fail() {
-            echo "::error::terraform $1 failed. Full output withheld (public log); reproduce locally."
-            grep -E '^(│ )?Error: ' raw.log | sed 's/^│ //' || true
-            exit 1
-          }
-          terraform plan -no-color -input=false -lock-timeout=5m -out=tfplan > raw.log 2>&1 || fail plan
-          "$GITHUB_WORKSPACE/.github/scripts/terraform-plan-summary.sh" tfplan
-          terraform apply -no-color -input=false -lock-timeout=5m tfplan > raw.log 2>&1 || fail apply
-          grep -E '^Apply complete!' raw.log
-          rm -f raw.log tfplan
+          scripts="$GITHUB_WORKSPACE/.github/scripts"
+          echo "::add-mask::$TF_VAR_organization_id"
+          "$scripts/posthog-mask-members.sh"
+          "$scripts/terraform-quiet.sh" plan.txt \
+            plan -no-color -input=false -lock-timeout=5m -out=tfplan
+          "$scripts/terraform-plan-summary.sh" tfplan
+          "$scripts/terraform-quiet.sh" apply.txt \
+            apply -no-color -input=false -lock-timeout=5m tfplan
+          grep -E '^Apply complete!' apply.txt | "$scripts/redact.sh"
+
+      # The full record, kept privately whether the apply worked or not.
+      - name: Keep the full output (private)
+        if: always()
+        working-directory: ${{ inputs.root }}
+        shell: bash
+        env:
+          PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
+          PLAN_STORE_REF: ${{ github.ref_name }}
+        run: |
+          "$GITHUB_WORKSPACE/.github/scripts/plan-store-upload.sh" \
+            apply posthog-${{ inputs.stack }} tfplan plan.txt apply.txt
