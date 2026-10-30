@@ -27,9 +27,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # No action does this: the ones that exist only check that a body is
-      # non-empty or contains a string. The body arrives through env, never
+      # non-empty or contains a string. Bots never fill a template, so only
+      # their title is checked. The body arrives through env, never
       # interpolated into the script.
       - name: Check every section of the template is filled
+        if: github.event.pull_request.user.type != 'Bot'
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         shell: python
