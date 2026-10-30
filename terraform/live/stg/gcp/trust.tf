@@ -26,6 +26,11 @@ locals {
   ] : []
 }
 
+# Both bindings existed before this root owned them: org/gcp/_setup forgot
+# them without destroying, so nothing was untrusted in between. No import is
+# needed. Creating a member that is already in the policy changes nothing and
+# records it in this state, and the next plan is clean. Checked on the stg
+# tunnel-token hub before this was merged.
 resource "google_service_account_iam_member" "tunnel_token_trust" {
   for_each = toset(local.tunnel_token_entries)
 
@@ -40,21 +45,4 @@ resource "google_service_account_iam_member" "backend_deploy_trust" {
   service_account_id = local.setup.backend_deploy_hub_name
   role               = "roles/iam.workloadIdentityUser"
   member             = "principalSet://iam.googleapis.com/${local.pool}/attribute.apply_entry/${each.value}"
-}
-
-# These bindings existed before this root owned them: org/gcp/_setup forgot
-# them without destroying, so nothing was ever untrusted in between. Once
-# imported, the blocks are no-ops and can go in a later tidy-up.
-import {
-  for_each = toset(local.tunnel_token_entries)
-
-  to = google_service_account_iam_member.tunnel_token_trust[each.key]
-  id = "${local.setup.tunnel_token_hub_name} roles/iam.workloadIdentityUser principalSet://iam.googleapis.com/${local.pool}/attribute.apply_entry/${each.value}"
-}
-
-import {
-  for_each = toset(local.backend_deploy_entries)
-
-  to = google_service_account_iam_member.backend_deploy_trust[each.key]
-  id = "${local.setup.backend_deploy_hub_name} roles/iam.workloadIdentityUser principalSet://iam.googleapis.com/${local.pool}/attribute.apply_entry/${each.value}"
 }

@@ -93,8 +93,13 @@ removed {
   }
 }
 
-# What an environment's apply spoke may do to its hubs: read and set the IAM
-# policy, which is where the trust rule lives. Not serviceAccountAdmin, which
+# What an environment's apply spoke may do to its hubs: read and set the whole
+# IAM policy of each hub account. setIamPolicy cannot be narrowed to one
+# binding, so this is more than the trust rule: the holder could also grant
+# itself token creation on the hub. What bounds it is the hub, not the role —
+# a hub holds no permissions, and this environment's hubs can only become this
+# environment's deploy spoke and tunnel-token writer, both of which the apply
+# spoke already outranks inside the project. Not serviceAccountAdmin, which
 # would also let it delete the account or change what it is. Defined in this
 # project because a custom role can only be bound on resources of the project
 # that defines it, and the hubs are here. Bound per hub by the environment's
@@ -103,7 +108,7 @@ resource "google_project_iam_custom_role" "hub_trust_editor" {
   project     = var.management_project_id
   role_id     = "frubbleHubTrustEditor"
   title       = "Frubble hub trust editor"
-  description = "Read and set the IAM policy of one hub service account."
+  description = "Read and set the whole IAM policy of one hub service account. Bounded by the hub holding nothing itself."
   permissions = [
     "iam.serviceAccounts.get",
     "iam.serviceAccounts.getIamPolicy",
