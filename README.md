@@ -33,16 +33,22 @@ stored as GitHub secrets.
 
 ## Bootstrap
 
-Done once, by hand, as the bootstrap service account from `.envrc.local` (copy
-`.envrc.local.example`).
+The `_setup` roots are applied by hand exactly once, as the bootstrap service account
+from `.envrc.local` (copy `.envrc.local.example`). After that they are planned on every
+pull request (`Plan * setup`) and applied on merge by `setup-cd`, which waits in the
+`setup` environment for a reviewer. The hand path stays for that first apply and for an
+emergency.
 
 1. Create the management project and the developer Google Group.
 2. Apply `org/gcp/_setup` without a backend, then migrate its state into the bucket it
    created.
 3. Apply `org/cloudflare/_setup`, `stg/gcp/_setup`, `prd/gcp/_setup`, each with its own
    `terraform.tfvars` from the example.
-4. Copy the outputs into GitHub repository variables (including `PLAN_STORE_BUCKET`
-   from `plan_store_bucket`) and the six secrets: `CLOUDFLARE_PLAN_TOKEN`,
+4. Copy the outputs into GitHub repository variables (including `PLAN_STORE_BUCKET`,
+   `GCP_SETUP_PLAN_IDENTITY` and `GCP_BOOTSTRAP_SERVICE_ACCOUNT`), the `_setup` inputs as
+   `TF_SETUP_ORG_ID`, `TF_SETUP_BILLING_ACCOUNT`, `TF_SETUP_DEVELOPER_GROUP`,
+   `TF_SETUP_ADMINISTRATOR`, `GCP_MANAGEMENT_PROJECT` and `BACKEND_REPOSITORY`, and the six
+   secrets: `CLOUDFLARE_PLAN_TOKEN`,
    `POSTHOG_PLAN_API_KEY`, `POSTHOG_OWNER_EMAIL` and `POSTHOG_MEMBERS` on the repo;
    `CLOUDFLARE_MINT_TOKEN` and `POSTHOG_APPLY_API_KEY` on their environments.
 5. Add real secret values with `gcloud secrets versions add … --data-file=-`.
@@ -53,9 +59,10 @@ Done once, by hand, as the bootstrap service account from `.envrc.local` (copy
    `{"daniel":{"email":"...","level":"admin"},"alex":{"email":"...","level":"member"}}`
    (see `org/posthog/main.tf`).
 
-Environments `stg`, `prd`, `cloudflare-org` and `posthog-org` must exist and accept
-deployments from `dev` only. Their names are part of the trust rules, and so is the
-`backend-stg` environment on `app`, which accepts deployments from `stg` only.
+Environments `stg`, `prd`, `cloudflare-org`, `posthog-org` and `setup` must exist and
+accept deployments from `dev` only; `setup` also requires a reviewer. Their names are part
+of the trust rules, and so is the `backend-stg` environment on `app`, which accepts
+deployments from `stg` only.
 
 ## Pipelines
 
@@ -66,9 +73,10 @@ deployments from `dev` only. Their names are part of the trust rules, and so is 
 | `pr-template`  | every PR, edits | conventional title on every PR; every template section filled and checklist answered, except for bots |
 | `stg-cd`       | merge to `dev` | applies stg GCP and Cloudflare, writes the tunnel token |
 | `org-cd`       | merge to `dev` | applies org Cloudflare and PostHog                    |
+| `setup-cd`     | merge to `dev` | applies the three GCP `_setup` roots, once a reviewer approves the run |
 | `*-prd-*`      | every push     | switched off                                           |
 
-Required checks: `Plan stg / plan`, `Plan prd / plan`, `Code Quality Summary`, `pr template`.
+Required checks: `Plan stg / plan`, `Plan prd / plan`, `Plan org setup / plan`, `Plan stg setup / plan`, `Plan prd setup / plan`, `Code Quality Summary`, `pr template`.
 
 ## Human access
 

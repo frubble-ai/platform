@@ -14,6 +14,8 @@ locals {
     cloudflare_apply = ".github/workflows/_cloudflare-live-apply.yml"
     posthog_plan     = ".github/workflows/_posthog-live-plan.yml"
     posthog_apply    = ".github/workflows/_posthog-live-apply.yml"
+    setup_plan       = ".github/workflows/_setup-plan.yml"
+    setup_apply      = ".github/workflows/_setup-apply.yml"
   }
 
   # job_workflow_ref's path component is owner/repo/path, and the provider
@@ -57,6 +59,17 @@ locals {
   ]
 
   posthog_apply_entries = ["${local.platform_repo}|${local.wf.posthog_apply}|posthog-org|refs/heads/dev"]
+
+  # The _setup roots themselves. Plan is reached from pull requests like every
+  # other plan, and only a read-only identity sits behind it. Apply is pinned
+  # to its workflow file, the `setup` GitHub environment and dev: the
+  # environment is where a person approves the run before it starts.
+  setup_plan_entries = [
+    "${local.platform_repo}|${local.wf.setup_plan}|pull-request",
+    "${local.platform_repo}|${local.wf.setup_plan}|refs/heads/dev",
+  ]
+
+  setup_apply_entries = ["${local.platform_repo}|${local.wf.setup_apply}|setup|refs/heads/dev"]
 
   # Not here: the entries for the tunnel-token hubs and the backend deploy
   # hub. Each of those is reached by one environment's deploy, so its rule

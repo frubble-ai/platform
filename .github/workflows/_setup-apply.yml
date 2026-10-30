@@ -1,0 +1,124 @@
+# Applies one _setup root as the bootstrap admin, the identity a person uses
+# for the same job by hand. The pool trusts that identity only from this file,
+# in the `setup` GitHub environment, on dev — and the environment requires a
+# reviewer, so a merged change waits for a person before this starts.
+name: _setup-apply
+
+on:
+  workflow_call:
+    inputs:
+      stack:
+        description: Which _setup root — org, stg or prd. Names the plan-store prefix.
+        required: true
+        type: string
+      gh_environment:
+        description: GitHub environment the job runs in. The trust entry names it exactly.
+        required: true
+        type: string
+      root:
+        required: true
+        type: string
+      project_id:
+        required: true
+        type: string
+      management_project_id:
+        required: true
+        type: string
+      management_state_bucket:
+        required: true
+        type: string
+      service_account:
+        description: The bootstrap admin.
+        required: true
+        type: string
+      workload_identity_provider:
+        required: true
+        type: string
+      audience:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TERRAFORM_VERSION: 1.16.6
+
+jobs:
+  apply:
+    name: apply
+    runs-on: ubuntu-latest
+
+    environment:
+      name: ${{ inputs.gh_environment }}
+      # Used for its reviewer and as the claim the pool trusts, not to record
+      # a release: see _gcp-live-apply.yml.
+      deployment: false
+
+    concurrency:
+      group: apply-setup-${{ inputs.stack }}
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
+        with:
+          workload_identity_provider: ${{ inputs.workload_identity_provider }}
+          service_account: ${{ inputs.service_account }}
+          audience: ${{ inputs.audience }}
+
+      - name: Init
+        working-directory: ${{ inputs.root }}
+        run: |
+          terraform init -lockfile=readonly \
+            -backend-config="bucket=${{ inputs.management_state_bucket }}"
+
+      # Re-plan against current state and apply that saved plan. The inputs
+      # are the same repository variables the plan used.
+      - name: Apply
+        working-directory: ${{ inputs.root }}
+        shell: bash
+        env:
+          PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
+          TF_VAR_project_id: ${{ inputs.project_id }}
+          TF_VAR_environment: ${{ inputs.stack }}
+          TF_VAR_management_project_id: ${{ inputs.management_project_id }}
+          TF_VAR_management_state_bucket: ${{ inputs.management_state_bucket }}
+          TF_VAR_org_id: ${{ vars.TF_SETUP_ORG_ID }}
+          TF_VAR_billing_account: ${{ vars.TF_SETUP_BILLING_ACCOUNT }}
+          TF_VAR_developer_group: ${{ vars.TF_SETUP_DEVELOPER_GROUP }}
+          TF_VAR_administrator: ${{ vars.TF_SETUP_ADMINISTRATOR }}
+          TF_VAR_environment_projects: '{"stg":"${{ vars.GCP_PROJECT_STG }}","prd":"${{ vars.GCP_PROJECT_PRD }}"}'
+          TF_VAR_github_owner: ${{ github.repository_owner }}
+          TF_VAR_platform_repository: ${{ github.event.repository.name }}
+          TF_VAR_backend_repository: ${{ vars.BACKEND_REPOSITORY }}
+        run: |
+          set -euo pipefail
+          scripts="$GITHUB_WORKSPACE/.github/scripts"
+          "$scripts/terraform-quiet.sh" plan.txt \
+            plan -no-color -input=false -lock-timeout=5m -out=tfplan
+          "$scripts/terraform-plan-summary.sh" tfplan
+          "$scripts/terraform-quiet.sh" apply.txt \
+            apply -no-color -input=false -lock-timeout=5m tfplan
+          grep -E '^Apply complete!' apply.txt | "$scripts/redact.sh"
+
+      - name: Keep the full output (private)
+        if: always()
+        timeout-minutes: 10
+        working-directory: ${{ inputs.root }}
+        shell: bash
+        env:
+          PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
+          PLAN_STORE_REF: ${{ github.ref_name }}
+        run: |
+          "$GITHUB_WORKSPACE/.github/scripts/plan-store-upload.sh" \
+            apply setup-${{ inputs.stack }} tfplan plan.txt apply.txt

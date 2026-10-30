@@ -75,8 +75,9 @@ moved {
 }
 
 # Their trust bindings leave this state without being destroyed. The
-# environment roots import them (trust.tf there), so at no point is a deploy
-# identity untrusted.
+# environment roots create the same bindings (trust.tf there), which leaves
+# each hub's policy as it is because the member is already in it, so at no
+# point is a deploy identity untrusted.
 removed {
   from = module.backend_deploy_hub.google_service_account_iam_member.federated
 

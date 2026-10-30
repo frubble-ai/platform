@@ -86,3 +86,18 @@ output "plan_store_bucket" {
   description = "Private bucket for full plan and apply output. Set as the PLAN_STORE_BUCKET repository variable."
   value       = module.plan_store.name
 }
+
+output "setup_plan_identity" {
+  description = "Identity the _setup plans run as. Set as GCP_SETUP_PLAN_IDENTITY."
+  value       = module.setup_plan.email
+}
+
+output "setup_plan_principal" {
+  description = "The same, as deny policies name it. The environment roots deny it every secret value."
+  value       = "principal://iam.googleapis.com/projects/-/serviceAccounts/${module.setup_plan.email}"
+}
+
+output "bootstrap_service_account" {
+  description = "Identity the _setup applies run as, by hand or from CI. Set as GCP_BOOTSTRAP_SERVICE_ACCOUNT."
+  value       = local.bootstrap_service_account
+}

@@ -30,6 +30,9 @@ resource "google_iam_deny_policy" "no_secret_values" {
       denied_principals = [
         module.plan_spoke.principal,
         module.tunnel_token_writer.principal,
+        # Plans this project's _setup root from pull requests, with viewer on
+        # the project. Viewer carries no secret access; this makes sure of it.
+        local.org.setup_plan_principal,
       ]
       denied_permissions = ["secretmanager.googleapis.com/versions.access"]
     }

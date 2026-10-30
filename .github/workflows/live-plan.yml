@@ -141,11 +141,70 @@ jobs:
       contents: read
       id-token: write
 
+  # The _setup roots, read-only through an identity of their own
+  # (org/gcp/_setup/setup_pipeline.tf).
+  setup-org:
+    name: Plan org setup
+    uses: ./.github/workflows/_setup-plan.yml
+    concurrency:
+      group: plan-setup-org-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: false
+    with:
+      stack: org
+      root: terraform/live/org/gcp/_setup
+      project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
+      management_project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
+      management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      service_account: ${{ vars.GCP_SETUP_PLAN_IDENTITY }}
+      workload_identity_provider: ${{ vars.GCP_PLAN_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    permissions:
+      contents: read
+      id-token: write
+
+  setup-stg:
+    name: Plan stg setup
+    uses: ./.github/workflows/_setup-plan.yml
+    concurrency:
+      group: plan-setup-stg-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: false
+    with:
+      stack: stg
+      root: terraform/live/stg/gcp/_setup
+      project_id: ${{ vars.GCP_PROJECT_STG }}
+      management_project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
+      management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      service_account: ${{ vars.GCP_SETUP_PLAN_IDENTITY }}
+      workload_identity_provider: ${{ vars.GCP_PLAN_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    permissions:
+      contents: read
+      id-token: write
+
+  setup-prd:
+    name: Plan prd setup
+    uses: ./.github/workflows/_setup-plan.yml
+    concurrency:
+      group: plan-setup-prd-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: false
+    with:
+      stack: prd
+      root: terraform/live/prd/gcp/_setup
+      project_id: ${{ vars.GCP_PROJECT_PRD }}
+      management_project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
+      management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      service_account: ${{ vars.GCP_SETUP_PLAN_IDENTITY }}
+      workload_identity_provider: ${{ vars.GCP_PLAN_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    permissions:
+      contents: read
+      id-token: write
+
   # The only job that may write to the pull request. It runs even when a plan
   # failed, so a red stack is named in the comment instead of silently absent.
   plan-comment:
     name: Plan comment
-    needs: [gcp-stg, gcp-prd, cloudflare-org, cloudflare-stg, cloudflare-prd, posthog-org]
+    needs: [gcp-stg, gcp-prd, cloudflare-org, cloudflare-stg, cloudflare-prd, posthog-org, setup-org, setup-stg, setup-prd]
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
@@ -184,11 +243,13 @@ jobs:
             const BUDGET = 55000
 
             // Also the authoritative list of stacks, and the order they are
-            // read in: environments first, then the edge, then the SaaS roots.
+            // read in: environments first, then the edge, the SaaS roots, then
+            // the _setup roots.
             const STACKS = [
               'gcp-stg', 'gcp-prd',
               'cloudflare-org', 'cloudflare-stg', 'cloudflare-prd',
               'posthog-org',
+              'setup-org', 'setup-stg', 'setup-prd',
             ]
             const label = key => {
               const [provider, env] = key.split('-')
