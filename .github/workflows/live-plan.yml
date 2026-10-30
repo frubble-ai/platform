@@ -278,6 +278,14 @@ jobs:
               core.info('no stack in scope — the comment should not exist')
             }
 
+            // A stack with nothing to do gets one entry in a closing line,
+            // not a section: a reviewer opens the comment for the diffs, and
+            // six headings saying "No changes" push them out of view.
+            const quiet = s => s.plan !== null && /No changes/.test(s.plan)
+            const loud = sections.filter(s => !quiet(s))
+            const quietNames = sections.filter(quiet).map(s => label(s.key))
+            const footer = quietNames.length ? [`No changes: ${quietNames.join(', ')}.`, ''] : []
+
             const render = (s, shown, cut) => {
               if (s.plan === null) {
                 return [`### ${label(s.key)}`, '', '**Plan failed.**', '']
@@ -320,7 +328,8 @@ jobs:
             }
 
             const assemble = each => [MARKER, '## Terraform plan', '']
-              .concat(...sections.map(each))
+              .concat(...loud.map(each))
+              .concat(footer)
               .join('\n')
 
             // What the comment costs before a line of plan text goes into it:
@@ -339,7 +348,7 @@ jobs:
             // unused share flow to the ones that are too long. Splitting the
             // budget evenly would truncate a large plan while a one-line
             // "No changes." section sat on an unused 11k.
-            const planned = sections.filter(s => s.plan !== null)
+            const planned = loud.filter(s => s.plan !== null)
             const order = planned.map((s, i) => i)
               .sort((a, b) => planned[a].plan.length - planned[b].plan.length)
             let left = Math.max(BUDGET - overhead, 0)
