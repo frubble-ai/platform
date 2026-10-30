@@ -48,8 +48,8 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # The workflow file and the shared scripts count as the stack: a change
-      # to how the plan runs should be proven by a plan.
+      # This workflow, its caller and the shared scripts count as the stack:
+      # a change to how the plan runs should be proven by a plan.
       - name: Does this PR touch the stack?
         id: scope
         shell: bash
@@ -61,7 +61,7 @@ jobs:
           changed=$(git diff --name-only \
             "${{ github.event.pull_request.base.sha }}" \
             "${{ github.event.pull_request.head.sha }}")
-          workflow='\.github/workflows/_posthog-live-plan\.yml$'
+          workflow='\.github/workflows/(_posthog-live-plan|live-plan)\.yml$'
           if echo "$changed" | grep -qE "^(${{ inputs.root }}/|$workflow|\.github/scripts/)"; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
@@ -125,6 +125,7 @@ jobs:
       # Raw plan to the plan store (org/gcp/_setup/plan_store.tf), never an artifact.
       - name: Keep the full plan (private)
         if: always() && steps.scope.outputs.relevant == 'true'
+        timeout-minutes: 5
         working-directory: ${{ inputs.root }}
         shell: bash
         env:

@@ -77,11 +77,12 @@ jobs:
           changed=$(git diff --name-only \
             "${{ github.event.pull_request.base.sha }}" \
             "${{ github.event.pull_request.head.sha }}")
-          if echo "$changed" | grep -qE "^(${{ inputs.root }}/|terraform/modules/|\.github/scripts/)"; then
+          workflow='\.github/workflows/(_gcp-live-plan|live-plan)\.yml$'
+          if echo "$changed" | grep -qE "^(${{ inputs.root }}/|terraform/modules/|$workflow|\.github/scripts/)"; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"
-            echo "no change under ${{ inputs.root }}/, terraform/modules/ or .github/scripts/"
+            echo "no change under ${{ inputs.root }}/, terraform/modules/, .github/scripts/ or the plan workflows"
           fi
 
       - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
@@ -133,6 +134,7 @@ jobs:
       # Raw plan to the plan store (org/gcp/_setup/plan_store.tf), never an artifact.
       - name: Keep the full plan (private)
         if: always() && steps.scope.outputs.relevant == 'true'
+        timeout-minutes: 5
         working-directory: ${{ inputs.root }}
         shell: bash
         env:

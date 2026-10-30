@@ -18,13 +18,14 @@ prefix="${kind}/${stack}/${ref}/${GITHUB_RUN_ID:?}-${GITHUB_RUN_ATTEMPT:?}"
 
 token_args=()
 if [ -n "${PLAN_STORE_AS:-}" ]; then token_args=(--impersonate-service-account="$PLAN_STORE_AS"); fi
-token=$(gcloud auth print-access-token "${token_args[@]}" 2> /dev/null)
+token=$(timeout 60 gcloud auth print-access-token "${token_args[@]}" 2> /dev/null)
 echo "::add-mask::$token"
 
 for file in "$@"; do
   [ -f "$file" ] || continue
   name=$(jq -rn --arg s "${prefix}/$(basename "$file")" '$s | @uri')
   curl -sS --fail-with-body -o /dev/null -X POST \
+    --connect-timeout 20 --max-time 120 \
     -H "Authorization: Bearer $token" \
     -H "Content-Type: application/octet-stream" \
     --data-binary "@$file" \

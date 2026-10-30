@@ -111,6 +111,7 @@ jobs:
       # Raw output to the plan store.
       - name: Keep the full output (private)
         if: always()
+        timeout-minutes: 5
         working-directory: ${{ inputs.root }}
         shell: bash
         env:
