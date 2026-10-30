@@ -125,7 +125,8 @@ jobs:
       # Raw plan to the plan store (org/gcp/_setup/plan_store.tf), never an artifact.
       - name: Keep the full plan (private)
         if: always() && steps.scope.outputs.relevant == 'true'
-        timeout-minutes: 5
+        timeout-minutes: 10
+        continue-on-error: true
         working-directory: ${{ inputs.root }}
         shell: bash
         env:
@@ -134,8 +135,10 @@ jobs:
             ${{ github.event.pull_request.number
             && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}
         run: |
-          "$GITHUB_WORKSPACE/.github/scripts/plan-store-upload.sh" \
-            plan posthog-${{ inputs.stack }} tfplan plan.txt
+          if ! "$GITHUB_WORKSPACE/.github/scripts/plan-store-upload.sh" \
+            plan posthog-${{ inputs.stack }} tfplan plan.txt; then
+            echo "::warning::Private plan upload failed."
+          fi
 
       # Named after the stack so the aggregator can label it.
       - name: Upload the summary
