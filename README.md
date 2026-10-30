@@ -38,11 +38,14 @@ Done once, by hand, as the bootstrap service account from `.envrc.local` (copy
    created.
 3. Apply `org/cloudflare/_setup`, `stg/gcp/_setup`, `prd/gcp/_setup`, each with its own
    `terraform.tfvars` from the example.
-4. Copy the outputs into GitHub repository variables and the four secrets:
-   `CLOUDFLARE_PLAN_TOKEN`, `POSTHOG_PLAN_API_KEY` on the repo;
-   `CLOUDFLARE_MINT_TOKEN` and `POSTHOG_APPLY_API_KEY` on their environments.
+4. Copy the outputs into GitHub repository variables (including `PLAN_STORE_BUCKET`
+   from `plan_store_bucket`) and the five secrets: `CLOUDFLARE_PLAN_TOKEN`,
+   `POSTHOG_PLAN_API_KEY` and `POSTHOG_MEMBERS` on the repo; `CLOUDFLARE_MINT_TOKEN`
+   and `POSTHOG_APPLY_API_KEY` on their environments.
 5. Add real secret values with `gcloud secrets versions add … --data-file=-`.
-6. Sign up at PostHog, invite the administrator, create the two personal API keys.
+6. Sign up at PostHog as platform@frubble.ai (the owner, never managed by Terraform),
+   create the two personal API keys, invite the human members, and list them in
+   `POSTHOG_MEMBERS` once they have joined (see `org/posthog/main.tf`).
 
 Environments `stg`, `prd`, `cloudflare-org` and `posthog-org` must exist and accept
 deployments from `dev` only. Their names are part of the trust rules.
