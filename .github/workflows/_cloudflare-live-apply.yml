@@ -143,6 +143,7 @@ jobs:
         working-directory: ${{ inputs.root }}
         shell: bash
         env:
+          PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
           TF_VAR_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           TF_VAR_zone_id: ${{ vars.CLOUDFLARE_ZONE_ID }}
           TF_VAR_domain: ${{ vars.CLOUDFLARE_DOMAIN }}

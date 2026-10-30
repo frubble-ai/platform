@@ -118,6 +118,7 @@ jobs:
         working-directory: ${{ inputs.root }}
         shell: bash
         env:
+          PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
           TF_VAR_project_id: ${{ inputs.project_id }}
           TF_VAR_management_state_bucket: ${{ inputs.management_state_bucket }}
           TF_VAR_spoke_service_account: ${{ inputs.spoke_service_account }}

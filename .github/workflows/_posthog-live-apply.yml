@@ -92,6 +92,7 @@ jobs:
         working-directory: ${{ inputs.root }}
         shell: bash
         env:
+          PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
           TF_VAR_organization_id: ${{ vars.POSTHOG_ORGANIZATION_ID }}
           TF_VAR_members: ${{ secrets.POSTHOG_MEMBERS }}
           TF_VAR_owner_email: ${{ secrets.POSTHOG_OWNER_EMAIL }}

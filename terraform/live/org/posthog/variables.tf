@@ -11,6 +11,11 @@ variable "owner_email" {
   EOT
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = length(trimspace(var.owner_email)) > 0
+    error_message = "owner_email is empty. Set the POSTHOG_OWNER_EMAIL secret (or owner_email in a local tfvars)."
+  }
 }
 
 variable "members" {
