@@ -13,7 +13,7 @@ terraform/
     org/cloudflare            DNS shared by every environment
     org/posthog               the PostHog project
     stg/gcp/_setup            stg state bucket, spokes, deny policies
-    stg/gcp                   the stg instance, registry and secrets
+    stg/gcp                   the stg instance, registry, secrets, and the trust rules of its deploy identities
     stg/cloudflare            stg tunnel and DNS
     prd/…                     the same, not yet applied
   modules/                    shared code, no state
@@ -25,8 +25,11 @@ One root per scope and provider, one state each.
 
 GitHub OIDC → identity pool → **hub** service account (no permissions) → impersonates the
 **spoke** in the target project. Trust rules match the repo, the workflow file, the
-environment and the branch exactly. Cloudflare and PostHog have no federation, so they use
-tokens stored as GitHub secrets.
+environment and the branch exactly. The rules for CI's own plan and apply hubs live in
+`org/gcp/_setup`; the rules for an environment's deploy identities (the app deploy, the
+tunnel-token writer) live in that environment's workload root, so a renamed workflow is a
+planned, CI-applied change. Cloudflare and PostHog have no federation, so they use tokens
+stored as GitHub secrets.
 
 ## Bootstrap
 
