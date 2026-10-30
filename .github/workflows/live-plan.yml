@@ -52,6 +52,7 @@ jobs:
       group: plan-gcp-prd-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: false
     with:
+      enabled: ${{ vars.TF_PLAN_ENABLE_PRD == 'true' }}
       environment: prd
       root: terraform/live/prd/gcp
       project_id: ${{ vars.GCP_PROJECT_PRD }}
@@ -108,6 +109,7 @@ jobs:
       group: plan-cloudflare-prd-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: false
     with:
+      enabled: ${{ vars.TF_PLAN_ENABLE_PRD == 'true' }}
       stack: prd
       root: terraform/live/prd/cloudflare
       state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}

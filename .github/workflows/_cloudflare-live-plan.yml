@@ -3,6 +3,10 @@ name: _cloudflare-live-plan
 on:
   workflow_call:
     inputs:
+      enabled:
+        required: false
+        type: boolean
+        default: true
       stack:
         description: org, stg or prd — names the plan artifact and the state prefix.
         required: true
@@ -50,6 +54,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [ "${{ inputs.enabled }}" != "true" ]; then
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+            echo "plan disabled"
+            exit 0
+          fi
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
