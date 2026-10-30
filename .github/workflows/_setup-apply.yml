@@ -111,9 +111,13 @@ jobs:
             apply -no-color -input=false -lock-timeout=5m tfplan
           grep -E '^Apply complete!' apply.txt | "$scripts/redact.sh"
 
+      # The apply has already succeeded or failed on its own; a failed upload
+      # of its record must not fail the job, or the roots that need this one
+      # are skipped for a reason that has nothing to do with them.
       - name: Keep the full output (private)
         if: always()
         timeout-minutes: 10
+        continue-on-error: true
         working-directory: ${{ inputs.root }}
         shell: bash
         env:

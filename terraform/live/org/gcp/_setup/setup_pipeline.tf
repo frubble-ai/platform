@@ -89,11 +89,12 @@ resource "google_project_iam_member" "setup_plan_reads_the_rest" {
   member  = module.setup_plan.member
 }
 
-# Read the three _setup states and write only their locks: the same split as
-# every other plan identity (state_access.tf). This is the one plan identity
-# that may read a _setup state at all, and it is what planning those roots
-# from a pull request costs: the states name identities and bindings, never a
-# secret value.
+# Read the three _setup states, and nothing else in the bucket. No lock
+# write: the plan runs with -lock=false, so the grant would only let
+# pull-request code forge or delete a lock an apply depends on. This is the
+# one plan identity that may read a _setup state at all, and it is what
+# planning those roots from a pull request costs: the states name identities
+# and bindings, never a secret value.
 resource "google_storage_bucket_iam_member" "setup_plan_reads_state" {
   for_each = local.setup_state_prefixes
 
@@ -105,20 +106,6 @@ resource "google_storage_bucket_iam_member" "setup_plan_reads_state" {
     title       = "only ${trimsuffix(each.value, "/")}"
     description = "Read objects under ${each.value}."
     expression  = "resource.name.startsWith('projects/_/buckets/${module.management_state.name}/objects/${each.value}')"
-  }
-}
-
-resource "google_storage_bucket_iam_member" "setup_plan_writes_lock" {
-  for_each = local.setup_state_prefixes
-
-  bucket = module.management_state.name
-  role   = "roles/storage.objectAdmin"
-  member = module.setup_plan.member
-
-  condition {
-    title       = "${trimsuffix(each.value, "/")} lock only"
-    description = "The .tflock object under ${each.value}, and nothing else."
-    expression  = "resource.name.startsWith('projects/_/buckets/${module.management_state.name}/objects/${each.value}') && resource.name.endsWith('.tflock')"
   }
 }
 
