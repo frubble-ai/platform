@@ -33,11 +33,12 @@ stored as GitHub secrets.
 
 ## Bootstrap
 
-The `_setup` roots are applied by hand exactly once, as the bootstrap service account
-from `.envrc.local` (copy `.envrc.local.example`). After that they are planned on every
-pull request (`Plan * setup`) and applied on merge by `setup-cd`, which waits in the
+The three GCP `_setup` roots are applied by hand exactly once, as the bootstrap service
+account from `.envrc.local` (copy `.envrc.local.example`). After that they are planned on
+every pull request (`Plan * setup`) and applied on merge by `setup-cd`, which waits in the
 `setup` environment for a reviewer. The hand path stays for that first apply and for an
-emergency.
+emergency. `org/cloudflare/_setup` stays by hand: it needs the Cloudflare bootstrap token,
+which is never stored in GitHub.
 
 1. Create the management project and the developer Google Group.
 2. Apply `org/gcp/_setup` without a backend, then migrate its state into the bucket it

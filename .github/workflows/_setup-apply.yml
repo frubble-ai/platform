@@ -61,6 +61,24 @@ jobs:
       cancel-in-progress: false
 
     steps:
+      # The path to the bootstrap admin is pinned in code; the person who must
+      # approve is a repository setting the code never reads. Read it. Without
+      # the rule, a merge to dev would apply every _setup root as the pool's
+      # owner with nobody in the loop, so the job refuses rather than assumes.
+      - name: Check the environment requires a reviewer
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          reviewers=$(gh api "repos/${{ github.repository }}/environments/${{ inputs.gh_environment }}" \
+            --jq '[.protection_rules[] | select(.type == "required_reviewers") | .reviewers[]] | length')
+          if [ "$reviewers" = "0" ]; then
+            echo "::error::environment ${{ inputs.gh_environment }} requires no reviewer; refusing to apply a _setup root"
+            exit 1
+          fi
+          echo "environment ${{ inputs.gh_environment }} requires $reviewers reviewer(s)"
+
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false

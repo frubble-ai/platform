@@ -105,3 +105,16 @@ resource "google_storage_bucket" "state" {
 
   depends_on = [google_kms_crypto_key_iam_member.gcs_agent]
 }
+
+# Google adds convenience bindings to every bucket: project owners and editors
+# get legacy object owner, project viewers get legacy object reader, and
+# uniform access keeps them. That last one turns roles/viewer on the project
+# into a read of every object here, around every prefix condition in this
+# repository. An authoritative binding with no members removes it. The bucket
+# and owner bindings stay: owners and editors are the bootstrap admin, whose
+# project roles reach objects directly in any case.
+resource "google_storage_bucket_iam_binding" "no_project_viewer_objects" {
+  bucket  = google_storage_bucket.state.name
+  role    = "roles/storage.legacyObjectReader"
+  members = []
+}

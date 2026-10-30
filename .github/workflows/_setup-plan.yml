@@ -8,10 +8,6 @@ name: _setup-plan
 on:
   workflow_call:
     inputs:
-      enabled:
-        required: false
-        type: boolean
-        default: true
       stack:
         description: Which _setup root — org, stg or prd. Names the plan artifact and the plan-store prefix.
         required: true
@@ -66,11 +62,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ "${{ inputs.enabled }}" != "true" ]; then
-            echo "relevant=false" >> "$GITHUB_OUTPUT"
-            echo "plan disabled"
-            exit 0
-          fi
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
             exit 0

@@ -28,6 +28,16 @@ module.exports = async ({ github, context, core }) => {
   }
 
   const results = JSON.parse(process.env.RESULTS)
+
+  // The full plan.txt in the private plan store, at the path the plan jobs
+  // of this same run uploaded to. Google serves the link only to a browser
+  // signed in with read permission on the object, so it is safe in a public
+  // comment and useless to anyone outside the developer group.
+  const bucket = process.env.PLAN_STORE_BUCKET
+  const fullPlan = key => bucket
+    ? `https://storage.cloud.google.com/${bucket}/plan/${key}/pr-${context.issue.number}/${context.runId}-${process.env.GITHUB_RUN_ATTEMPT}/plan.txt`
+    : null
+  const linked = key => fullPlan(key) ? `[${label(key)}](${fullPlan(key)})` : label(key)
   const read = key => {
     const file = path.join('plans', `plan-${key}`, 'summary.txt')
     return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null
@@ -56,7 +66,7 @@ module.exports = async ({ github, context, core }) => {
   // for_each key, and a plan with changes must never be filed as quiet.
   const quiet = s => s.plan !== null && s.plan.trim() === 'No changes.'
   const loud = sections.filter(s => !quiet(s))
-  const quietNames = sections.filter(quiet).map(s => label(s.key))
+  const quietNames = sections.filter(quiet).map(s => linked(s.key))
   const footer = quietNames.length ? [`No changes: ${quietNames.join(', ')}.`, ''] : []
 
   const render = (s, shown, cut) => {
@@ -69,9 +79,10 @@ module.exports = async ({ github, context, core }) => {
     // body removes exactly the summary a reviewer needs most — and
     // a large plan is the case where the cut happens.
     const m = s.plan.match(/Plan: (\d+) to add, (\d+) to change, (\d+) to destroy/)
-    const summary = m
+    const counts = m
       ? `**${m[1]}** to add · **${m[2]}** to change · **${m[3]}** to destroy`
       : (quiet(s) ? '**No changes.**' : '_Counts unavailable._')
+    const summary = fullPlan(s.key) ? `${counts} · [full plan](${fullPlan(s.key)})` : counts
     // The counts are the heading; the body is the resource lines.
     const body = shown.split('\n')
       .filter(l => !/^(Plan: \d+ to add|No changes\.)/.test(l))

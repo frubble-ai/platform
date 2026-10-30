@@ -21,10 +21,13 @@
 locals {
   bootstrap_service_account = "frubble-bootstrap@${var.management_project_id}.iam.gserviceaccount.com"
 
-  # Every project a _setup root reads. roles/viewer alone misses org policies,
-  # which refresh reads; deny policies are covered at the organization below.
+  # Every project a _setup root reads. Not roles/viewer: every bucket carries
+  # Google's convenience binding that hands project viewers legacyObjectReader,
+  # so viewer on the management project would read every state file and
+  # every tfplan, prefix conditions or not. The reads refresh needs are listed
+  # in setup_plan_reader below instead; org policies have a role of their own.
   setup_plan_projects = merge({ org = var.management_project_id }, var.environment_projects)
-  setup_plan_roles    = ["roles/viewer", "roles/orgpolicy.policyViewer"]
+  setup_plan_roles    = ["roles/orgpolicy.policyViewer"]
   setup_plan_grants = {
     for pair in setproduct(keys(local.setup_plan_projects), local.setup_plan_roles) :
     "${pair[0]}|${pair[1]}" => { project = local.setup_plan_projects[pair[0]], role = pair[1] }
@@ -47,7 +50,7 @@ module "setup_plan" {
   allowed_values = local.setup_plan_entries
 }
 
-resource "google_project_iam_member" "setup_plan_reads" {
+resource "google_project_iam_member" "setup_plan_reads_org_policies" {
   for_each = local.setup_plan_grants
 
   project = each.value.project
@@ -57,31 +60,45 @@ resource "google_project_iam_member" "setup_plan_reads" {
   depends_on = [module.environment_project]
 }
 
-# What roles/viewer misses for a read-only refresh of these roots. Reading a
-# deny policy needs iam.denypolicies.get, which no predefined role grants
-# below the organization: denyReviewer binds there or not at all, and the
-# bootstrap admin holds no organization IAM. Reading a bucket's IAM policy
-# needs storage.buckets.getIamPolicy, which viewer leaves out. Both go in a
-# custom role, defined in each project because a project role cannot be bound
-# outside the project that defines it. Read-only; it reveals who is denied
-# and who is granted what, which this repository already states.
+# Exactly the reads a refresh of the three roots performs, and nothing that
+# touches an object. A custom role rather than roles/viewer so this identity
+# is never a project viewer, which is the member Google's convenience bindings
+# grant object access to on every bucket. Deny policies are here because no
+# predefined role grants their read below the organization, and the bootstrap
+# admin holds no organization IAM. Defined in each project because a project
+# role cannot be bound outside the project that defines it.
 resource "google_project_iam_custom_role" "setup_plan_reader" {
   for_each = local.setup_plan_projects
 
   project     = each.value
   role_id     = "frubbleSetupPlanReader"
   title       = "Frubble _setup plan reader"
-  description = "The reads roles/viewer misses for a plan of the _setup roots: deny policies and bucket IAM."
+  description = "The reads a plan of the _setup roots performs. No object access."
   permissions = [
+    "resourcemanager.projects.get",
+    "resourcemanager.projects.getIamPolicy",
+    "billing.resourceAssociations.list",
+    "serviceusage.services.get",
+    "serviceusage.services.list",
+    "storage.buckets.get",
+    "storage.buckets.getIamPolicy",
+    "cloudkms.keyRings.get",
+    "cloudkms.cryptoKeys.get",
+    "cloudkms.cryptoKeys.getIamPolicy",
+    "cloudkms.cryptoKeyVersions.list",
+    "iam.serviceAccounts.get",
+    "iam.serviceAccounts.getIamPolicy",
+    "iam.workloadIdentityPools.get",
+    "iam.workloadIdentityPoolProviders.get",
+    "iam.roles.get",
     "iam.denypolicies.get",
     "iam.denypolicies.list",
-    "storage.buckets.getIamPolicy",
   ]
 
   depends_on = [module.environment_project]
 }
 
-resource "google_project_iam_member" "setup_plan_reads_the_rest" {
+resource "google_project_iam_member" "setup_plan_reads" {
   for_each = local.setup_plan_projects
 
   project = each.value
