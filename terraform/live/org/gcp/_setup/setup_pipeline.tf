@@ -77,7 +77,6 @@ resource "google_project_iam_custom_role" "setup_plan_reader" {
   permissions = [
     "resourcemanager.projects.get",
     "resourcemanager.projects.getIamPolicy",
-    "billing.resourceAssociations.list",
     "serviceusage.services.get",
     "serviceusage.services.list",
     "storage.buckets.get",
