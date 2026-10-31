@@ -61,29 +61,19 @@ jobs:
       cancel-in-progress: false
 
     steps:
-      # The path to the bootstrap admin is pinned in code; the person who must
-      # approve is a repository setting the code never reads. Read it. Without
-      # the rule, a merge to dev would apply every _setup root as the pool's
-      # owner with nobody in the loop, so the job refuses rather than assumes.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      # Reads the environment's reviewer rule and refuses to run without one
+      # that bars self-review (scripts/terraform/require-environment-reviewer.sh).
       - name: Check the environment requires a reviewer
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          # The rule must also bar self-review, or the person who pushed to
-          # dev approves their own apply as the pool's owner.
-          reviewers=$(gh api "repos/${{ github.repository }}/environments/${{ inputs.gh_environment }}" \
-            --jq '[.protection_rules[] | select(.type == "required_reviewers" and .prevent_self_review == true) | .reviewers[]] | length')
-          if [ "$reviewers" = "0" ]; then
-            echo "::error::environment ${{ inputs.gh_environment }} has no required-reviewer rule that bars self-review; refusing to apply a _setup root"
-            exit 1
-          fi
-          echo "environment ${{ inputs.gh_environment }} requires $reviewers reviewer(s), self-review barred"
-
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          persist-credentials: false
+          REPO: ${{ github.repository }}
+          ENVIRONMENT: ${{ inputs.gh_environment }}
+        run: "$GITHUB_WORKSPACE/.github/scripts/terraform/require-environment-reviewer.sh"
 
       - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
         with:

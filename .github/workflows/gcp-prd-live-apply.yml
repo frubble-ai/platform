@@ -13,9 +13,12 @@ on:
     branches: [dev]
   workflow_dispatch:
 
+# actions: read is for the wait on setup-cd inside _gcp-live-apply.yml; a
+# called workflow can hold no token permission its caller did not pass.
 permissions:
   contents: read
   id-token: write
+  actions: read
 
 jobs:
   apply:
@@ -36,3 +39,4 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      actions: read

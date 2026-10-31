@@ -86,12 +86,14 @@ jobs:
           changed=$(git diff --name-only \
             "${{ github.event.pull_request.base.sha }}" \
             "${{ github.event.pull_request.head.sha }}")
+          # pull-request/ holds the comment renderer: a change to it must
+          # produce at least one plan for the comment job to render.
           workflow='\.github/workflows/(_gcp-live-plan|live-plan)\.yml$'
-          if echo "$changed" | grep -qE "^(${{ inputs.root }}/|terraform/modules/|$workflow|\.github/scripts/terraform/)"; then
+          if grep -qE "^(${{ inputs.root }}/|terraform/modules/|$workflow|\.github/scripts/(terraform|pull-request)/)" <<<"$changed"; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"
-            echo "no change under ${{ inputs.root }}/, terraform/modules/, .github/scripts/terraform/ or the plan workflows"
+            echo "no change under ${{ inputs.root }}/, terraform/modules/, .github/scripts/{terraform,pull-request}/ or the plan workflows"
           fi
 
       - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3

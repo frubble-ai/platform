@@ -100,7 +100,7 @@ jobs:
           set -euo pipefail
           scripts="$GITHUB_WORKSPACE/.github/scripts/terraform"
           echo "::add-mask::$TF_VAR_organization_id"
-          "$scripts/posthog-mask-members.sh"
+          "$GITHUB_WORKSPACE/.github/scripts/posthog/posthog-mask-members.sh"
           "$scripts/terraform-quiet.sh" plan.txt \
             plan -no-color -input=false -lock-timeout=5m -out=tfplan
           "$scripts/terraform-plan-summary.sh" tfplan
