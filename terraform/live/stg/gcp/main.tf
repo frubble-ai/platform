@@ -6,6 +6,9 @@ module "registry" {
   location    = var.region
   description = "Container images for frubble (${var.environment})"
   labels      = merge(local.labels, { component = "registry" })
+
+  # Enough to roll back past a bad week of deploys.
+  keep_recent_versions = 30
 }
 
 # The container only. Terraform never learns the value: the deploy job fetches
@@ -50,6 +53,71 @@ module "api" {
   artifact_registry_location = module.registry.location
 }
 
+# ---------- the API on Cloud Run, behind a Google load balancer ----------
+module "api_service" {
+  source = "../../../modules/gcp/cloud-run-service"
+
+  project_id            = var.project_id
+  name                  = "${local.name}-api"
+  region                = var.region
+  service_account_email = local.setup.api_service_account
+  image                 = var.api_bootstrap_image
+  env                   = { APP_ENV = var.environment }
+  deletion_protection   = var.environment == "prd"
+  labels                = merge(local.labels, { component = "api" })
+}
+
+module "armor" {
+  source = "../../../modules/gcp/cloud-armor"
+
+  project_id  = var.project_id
+  name        = "${local.name}-lb"
+  description = "WAF for the ${var.environment} load balancer"
+
+  rate_limit = {
+    host             = var.api_hostname
+    count            = 300
+    interval_seconds = 300
+  }
+
+  # Preview first: matches are logged, not blocked, until the logs show no
+  # false positives. Each rule is a monthly line item.
+  waf_rules = {
+    "sqli-v33-stable" = { priority = 20 }
+    "xss-v33-stable"  = { priority = 30 }
+  }
+}
+
+module "load_balancer" {
+  source = "../../../modules/gcp/https-load-balancer"
+
+  project_id      = var.project_id
+  name            = local.name
+  default_backend = "api"
+  security_policy = module.armor.self_link
+  labels          = merge(local.labels, { component = "lb" })
+
+  backends = {
+    api = {
+      service = module.api_service.name
+      region  = var.region
+      host    = var.api_hostname
+    }
+  }
+}
+
+module "alerts" {
+  source = "../../../modules/gcp/alerts"
+
+  project_id    = var.project_id
+  name          = local.name
+  email         = var.alert_email
+  service_name  = module.api_service.name
+  url_map_name  = module.load_balancer.url_map_name
+  max_instances = module.api_service.max_instances
+  labels        = merge(local.labels, { component = "alerts" })
+}
+
 # ---------- what the application's deploy identity may touch ----------
 # Scoped to this registry and this instance. The deploy can publish an image
 # and restart the box; it cannot create a second instance to run something
@@ -79,5 +147,14 @@ resource "google_iap_tunnel_instance_iam_member" "deploy_tunnels" {
   zone     = var.zone
   instance = module.api.instance_name
   role     = "roles/iap.tunnelResourceAccessor"
+  member   = "serviceAccount:${local.setup.deploy_spoke}"
+}
+
+# A deploy creates a revision with a new image and nothing else.
+resource "google_cloud_run_v2_service_iam_member" "deploy_rolls_out_api" {
+  project  = var.project_id
+  location = var.region
+  name     = module.api_service.name
+  role     = "roles/run.developer"
   member   = "serviceAccount:${local.setup.deploy_spoke}"
 }

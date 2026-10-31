@@ -30,3 +30,21 @@ variable "spoke_service_account" {
   description = "Spoke this run acts as. The plan workflow passes the read-only spoke, the apply workflow the write one, so the same root is harmless or not depending only on which identity CI hands it."
   type        = string
 }
+
+variable "api_hostname" {
+  description = "Public hostname of the API. The load balancer's certificate, its host rule and the rate limit all use it."
+  type        = string
+  default     = "api.stg.frubble.ai"
+}
+
+variable "api_bootstrap_image" {
+  description = "Image the service runs until the first deploy replaces it."
+  type        = string
+  default     = "gcr.io/google-samples/hello-app:1.0"
+}
+
+variable "alert_email" {
+  description = "Address that receives the alerts."
+  type        = string
+  default     = "platform@frubble.ai"
+}

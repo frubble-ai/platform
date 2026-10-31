@@ -24,6 +24,12 @@ variable "keep_recent_versions" {
   description = "How many image versions survive cleanup. Images are rebuilt on every deploy, so an unbounded registry grows without anyone noticing until it leaves the free tier."
 }
 
+variable "immutable_tags" {
+  type        = bool
+  default     = true
+  description = "Refuse to move a tag once pushed. CI tags images by commit, so this only bites a push that repeats one."
+}
+
 variable "labels" {
   type        = map(string)
   default     = {}

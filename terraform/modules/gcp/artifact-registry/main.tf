@@ -6,6 +6,12 @@ resource "google_artifact_registry_repository" "this" {
   description   = var.description
   labels        = var.labels
 
+  # A tag names one image forever: a deploy of commit X is the same bytes on
+  # every run, and a re-run reuses the push instead of repeating it.
+  docker_config {
+    immutable_tags = var.immutable_tags
+  }
+
   cleanup_policies {
     id     = "keep-recent"
     action = "KEEP"
