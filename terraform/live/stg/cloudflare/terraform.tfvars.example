@@ -1,3 +1,2 @@
-account_id               = "<cloudflare account id>"
 zone_id                  = "<cloudflare zone id>"
 domain                   = "example.site"

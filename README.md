@@ -2,7 +2,7 @@
 
 Terraform for [`app`](https://github.com/frubble-ai/app): the API as a Cloud Run service behind
 a Google load balancer with Cloud Armor, and the keyless identities CI uses. The Cloudflare
-Tunnel and the GCE instance it fronted still exist while the hostname moves; they go once it has.
+Tunnel is gone; the GCE instance it fronted still exists, serving nothing, until its cleanup change.
 
 ## Layout
 
@@ -14,8 +14,8 @@ terraform/
     org/cloudflare            DNS shared by every environment
     org/posthog               the PostHog project
     stg/gcp/_setup            stg state bucket, spokes, deny policies
-    stg/gcp                   the stg API service, load balancer, WAF, alerts, registry, and the trust rules of its deploy identities (plus the instance and tunnel secret, until the cutover)
-    stg/cloudflare            stg tunnel and DNS
+    stg/gcp                   the stg API service, load balancer, WAF, alerts, registry, and the trust rules of its deploy identities (plus the instance and tunnel secret, until their cleanup)
+    stg/cloudflare            the stg API's DNS: its A record and its certificate authorization
     prd/…                     the same, not yet applied
   modules/                    shared code, no state. gcp/cloud-run-service, gcp/https-load-balancer, gcp/cloud-armor and gcp/alerts are the API's stack
 ```
@@ -23,13 +23,14 @@ terraform/
 One root per scope and provider, one state each.
 
 The GCP workload root outputs two values for the Cloudflare root, which cross by repository
-variable the way `_setup` outputs do. `certificate_dns_authorization` is read now, as
+variable the way `_setup` outputs do. `certificate_dns_authorization` as
 `GCP_CERT_DNS_AUTH_NAME_<ENV>` and `GCP_CERT_DNS_AUTH_TARGET_<ENV>`: the Cloudflare root
 publishes that CNAME, DNS-only, and Certificate Manager issues the load balancer's certificate
-against it before the hostname moves; the record is permanent, since renewals reuse it. Until
-the variables are set the root creates no record. `load_balancer_ip` is for the cutover, when
-the hostname's A record is published, DNS-only too: proxied, every client would arrive from
-Cloudflare's addresses and Cloud Armor's per-IP limit would be one budget for all of them. The
+against it; the record is permanent, since renewals reuse it. `load_balancer_ip` as
+`GCP_LB_IP_<ENV>`: the hostname's A record, DNS-only too, since proxied every client would
+arrive from Cloudflare's addresses and Cloud Armor's per-IP limit would be one budget for all
+of them. Until a variable is set the root creates its record not at all. For a new environment
+the order is the authorization first, the certificate active, then the A record. The
 Cloud Run service starts on a placeholder image; the application's deploy replaces it and
 Terraform ignores the image from then on.
 
@@ -104,7 +105,7 @@ only.
 | `live-plan`    | every PR       | plans every stack, one comment with a section each    |
 | `code-quality` | every PR       | fmt, validate, tflint, actionlint, gitleaks, trivy     |
 | `pr-template`  | every PR, edits | conventional title on every PR; every template section filled and checklist answered, except for bots |
-| `stg-cd`       | merge to `dev` | applies stg GCP and Cloudflare, writes the tunnel token |
+| `stg-cd`       | merge to `dev` | applies stg GCP and Cloudflare                          |
 | `org-cd`       | merge to `dev` | applies org Cloudflare and PostHog                    |
 | `setup-cd`     | merge to `dev` | applies the three GCP `_setup` roots, once a reviewer approves the run |
 | `*-prd-*`      | every push     | switched off                                           |
