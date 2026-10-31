@@ -1,23 +1,20 @@
 locals {
-  hostname = "api-${var.environment}.${var.domain}"
+  hostname = "api.${var.environment}.${var.domain}"
 }
 
-module "tunnel" {
-  source = "../../../modules/cloudflare/tunnel"
-
-  account_id = var.account_id
-  name       = "frubble-${var.environment}"
-  hostname   = local.hostname
-  app_port   = var.app_port
-}
-
-module "dns" {
+# The API's public name, straight to the load balancer and DNS-only, so Cloud
+# Armor's per-IP limit sees each client's own address. Created once the GCP
+# root's load_balancer_ip output is in the repository variable.
+module "api" {
   source = "../../../modules/cloudflare/dns-record"
+  count  = var.origin_ip == "" ? 0 : 1
 
   zone_id  = var.zone_id
   hostname = local.hostname
-  target   = module.tunnel.cname_target
-  comment  = "frubble ${var.environment} — managed by terraform"
+  type     = "A"
+  target   = var.origin_ip
+  proxied  = false
+  comment  = "frubble ${var.environment} api — managed by terraform"
 }
 
 # Proves control of the API's hostname to Certificate Manager, which issues

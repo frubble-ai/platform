@@ -1,27 +1,20 @@
 locals {
-  # Flat, not api.stg.frubble.<domain>. Universal SSL covers the apex and one
-  # wildcard level only, so a three-level host has no edge certificate on the
-  # Free plan and fails the handshake before any of this matters. Hyphens are
-  # free; Advanced Certificate Manager is not.
-  hostname = "api-${var.environment}-frubble.${var.domain}"
+  hostname = "api.${var.domain}"
 }
 
-module "tunnel" {
-  source = "../../../modules/cloudflare/tunnel"
-
-  account_id = var.account_id
-  name       = "frubble-${var.environment}"
-  hostname   = local.hostname
-  app_port   = var.app_port
-}
-
-module "dns" {
+# The API's public name, straight to the load balancer and DNS-only, so Cloud
+# Armor's per-IP limit sees each client's own address. Created once the GCP
+# root's load_balancer_ip output is in the repository variable.
+module "api" {
   source = "../../../modules/cloudflare/dns-record"
+  count  = var.origin_ip == "" ? 0 : 1
 
   zone_id  = var.zone_id
   hostname = local.hostname
-  target   = module.tunnel.cname_target
-  comment  = "frubble ${var.environment} — managed by terraform"
+  type     = "A"
+  target   = var.origin_ip
+  proxied  = false
+  comment  = "frubble ${var.environment} api — managed by terraform"
 }
 
 # Proves control of the API's hostname to Certificate Manager, which issues
