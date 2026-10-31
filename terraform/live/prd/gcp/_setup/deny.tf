@@ -30,6 +30,10 @@ resource "google_iam_deny_policy" "no_secret_values" {
       denied_principals = [
         module.plan_spoke.principal,
         module.tunnel_token_writer.principal,
+        # Plans this project's _setup root from pull requests, holding a
+        # narrow read role (org/gcp/_setup/setup_pipeline.tf) with no secret
+        # access. Denying it here is defence in depth.
+        local.org.setup_plan_principal,
       ]
       denied_permissions = ["secretmanager.googleapis.com/versions.access"]
     }

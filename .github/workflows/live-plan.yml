@@ -141,17 +141,82 @@ jobs:
       contents: read
       id-token: write
 
+  # The _setup roots, read-only through an identity of their own
+  # (org/gcp/_setup/setup_pipeline.tf).
+  setup-org:
+    name: Plan org setup
+    uses: ./.github/workflows/_setup-plan.yml
+    concurrency:
+      group: plan-setup-org-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: false
+    with:
+      stack: org
+      root: terraform/live/org/gcp/_setup
+      project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
+      management_project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
+      management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      service_account: ${{ vars.GCP_SETUP_PLAN_IDENTITY }}
+      workload_identity_provider: ${{ vars.GCP_PLAN_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    permissions:
+      contents: read
+      id-token: write
+
+  setup-stg:
+    name: Plan stg setup
+    uses: ./.github/workflows/_setup-plan.yml
+    concurrency:
+      group: plan-setup-stg-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: false
+    with:
+      stack: stg
+      root: terraform/live/stg/gcp/_setup
+      project_id: ${{ vars.GCP_PROJECT_STG }}
+      management_project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
+      management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      service_account: ${{ vars.GCP_SETUP_PLAN_IDENTITY }}
+      workload_identity_provider: ${{ vars.GCP_PLAN_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    permissions:
+      contents: read
+      id-token: write
+
+  setup-prd:
+    name: Plan prd setup
+    uses: ./.github/workflows/_setup-plan.yml
+    concurrency:
+      group: plan-setup-prd-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: false
+    with:
+      stack: prd
+      root: terraform/live/prd/gcp/_setup
+      project_id: ${{ vars.GCP_PROJECT_PRD }}
+      management_project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
+      management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      service_account: ${{ vars.GCP_SETUP_PLAN_IDENTITY }}
+      workload_identity_provider: ${{ vars.GCP_PLAN_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    permissions:
+      contents: read
+      id-token: write
+
   # The only job that may write to the pull request. It runs even when a plan
   # failed, so a red stack is named in the comment instead of silently absent.
   plan-comment:
     name: Plan comment
-    needs: [gcp-stg, gcp-prd, cloudflare-org, cloudflare-stg, cloudflare-prd, posthog-org]
+    needs: [gcp-stg, gcp-prd, cloudflare-org, cloudflare-stg, cloudflare-prd, posthog-org, setup-org, setup-stg, setup-prd]
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
     steps:
+      # For the script below. No credentials: this job writes through the
+      # github-script token, never through git.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
       # A stack that was not touched uploaded nothing, so a missing artifact
       # is the signal that there is nothing to report for it.
       #
@@ -170,170 +235,8 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           RESULTS: ${{ toJSON(needs) }}
+          PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
         with:
           script: |
-            const fs = require('fs')
-            const path = require('path')
-
-            const MARKER = '<!-- frubble-plan -->'
-            // A GitHub comment body caps at 65536 characters, and this is
-            // the ceiling for the whole comment — scaffolding included, not
-            // just the plans inside it. Cutting here rather than per stack is
-            // the point: five sections each cut at 60k would be rejected by
-            // the API as one oversized comment.
-            const BUDGET = 55000
-
-            // Also the authoritative list of stacks, and the order they are
-            // read in: environments first, then the edge, then the SaaS roots.
-            const STACKS = [
-              'gcp-stg', 'gcp-prd',
-              'cloudflare-org', 'cloudflare-stg', 'cloudflare-prd',
-              'posthog-org',
-            ]
-            const label = key => {
-              const [provider, env] = key.split('-')
-              return `${env} (${provider})`
-            }
-
-            const results = JSON.parse(process.env.RESULTS)
-            const read = key => {
-              const file = path.join('plans', `plan-${key}`, 'summary.txt')
-              return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null
-            }
-
-            // Three states per stack: it planned, it failed, or it was not
-            // touched. Only the last one means "say nothing".
-            const sections = []
-            for (const key of STACKS) {
-              const plan = read(key)
-              if (plan !== null) {
-                sections.push({ key, plan })
-              } else if (results[key] && results[key].result === 'failure') {
-                sections.push({ key, plan: null })
-              }
-            }
-
-            if (sections.length === 0) {
-              core.info('no stack in scope — the comment should not exist')
-            }
-
-            const render = (s, shown, cut) => {
-              if (s.plan === null) {
-                return [`### ${label(s.key)}`, '', '**Plan failed.**', '']
-              }
-              const notice = cut ? '\n> Truncated.' : ''
-              // Counted from the full plan, never from the truncated copy.
-              // Terraform prints `Plan: …` as its last line, so cutting the
-              // body removes exactly the summary a reviewer needs most — and
-              // a large plan is the case where the cut happens.
-              const m = s.plan.match(/Plan: (\d+) to add, (\d+) to change, (\d+) to destroy/)
-              const summary = m
-                ? `**${m[1]}** to add · **${m[2]}** to change · **${m[3]}** to destroy`
-                : (/No changes/.test(s.plan) ? '**No changes.**' : '_Counts unavailable._')
-              // The counts are the heading; the body is the resource lines.
-              const body = shown.split('\n')
-                .filter(l => !/^(Plan: \d+ to add|No changes\.)/.test(l))
-                .join('\n').replace(/^\n+|\n+$/g, '')
-              if (body === '') {
-                return [`### ${label(s.key)}`, '', summary, '']
-              }
-              return [
-                `### ${label(s.key)}`,
-                '',
-                summary,
-                ...(notice ? [notice] : []),
-                '',
-                // open: the diff is the thing a reviewer came to read.
-                // Collapsed by default, approving without expanding it is one
-                // click, and the comment stops being a gate and becomes
-                // decoration.
-                '<details open><summary>Resources</summary>',
-                '',
-                '```terraform',
-                body,
-                '```',
-                '',
-                '</details>',
-                '',
-              ]
-            }
-
-            const assemble = each => [MARKER, '## Terraform plan', '']
-              .concat(...sections.map(each))
-              .join('\n')
-
-            // What the comment costs before a line of plan text goes into it:
-            // the marker, the headings, the counts, the fences, the details
-            // blocks. The budget is on the whole comment, so this comes off
-            // the top — dividing BUDGET among the plans alone put the comment
-            // over it by the size of its own scaffolding.
-            //
-            // The cut notice is counted for every section that planned, even
-            // the ones that will not be cut. A section that keeps its whole
-            // plan costs less than this, never more, which is what makes the
-            // final length an upper bound rather than an estimate.
-            const overhead = assemble(s => render(s, '', s.plan !== null)).length
-
-            // Give every section what is left, smallest first, and let the
-            // unused share flow to the ones that are too long. Splitting the
-            // budget evenly would truncate a large plan while a one-line
-            // "No changes." section sat on an unused 11k.
-            const planned = sections.filter(s => s.plan !== null)
-            const order = planned.map((s, i) => i)
-              .sort((a, b) => planned[a].plan.length - planned[b].plan.length)
-            let left = Math.max(BUDGET - overhead, 0)
-            let share = order.length
-            for (const i of order) {
-              const allowance = Math.floor(left / share)
-              const take = Math.min(planned[i].plan.length, allowance)
-              planned[i].allowance = take
-              left -= take
-              share -= 1
-            }
-
-            const body = assemble(s => {
-              if (s.plan === null) return render(s, null, false)
-              const cut = s.plan.length > s.allowance
-              return render(s, cut ? s.plan.slice(0, s.allowance) : s.plan, cut)
-            })
-
-            // Paginated on purpose. One page of 100 was the bug this replaces:
-            // past that, bot reviews push the marker off the first page, the
-            // upsert finds nothing, and every push adds another comment.
-            const issue = {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            }
-            const comments = await github.paginate(
-              github.rest.issues.listComments, { ...issue, per_page: 100 },
-            )
-            const mine = c => c.user.type === 'Bot' && c.body.includes(MARKER)
-            const existing = comments.find(mine)
-
-            if (sections.length === 0) {
-              if (existing) {
-                await github.rest.issues.deleteComment({
-                  owner: issue.owner, repo: issue.repo, comment_id: existing.id,
-                })
-              }
-            } else if (existing) {
-              await github.rest.issues.updateComment({
-                owner: issue.owner, repo: issue.repo, comment_id: existing.id, body,
-              })
-            } else {
-              await github.rest.issues.createComment({ ...issue, body })
-            }
-
-            // One comment per stack is what this workflow replaced. Clearing
-            // the old ones here means the change takes effect on the pull
-            // request that introduces it, rather than leaving five orphans
-            // nothing will ever update again.
-            const legacy = comments.filter(
-              c => c.user.type === 'Bot' && c.body.includes('<!-- frubble-plan:'),
-            )
-            for (const c of legacy) {
-              await github.rest.issues.deleteComment({
-                owner: issue.owner, repo: issue.repo, comment_id: c.id,
-              })
-            }
+            const comment = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/pull-request/plan-comment.js`)
+            await comment({ github, context, core })

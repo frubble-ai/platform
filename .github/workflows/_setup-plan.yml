@@ -1,0 +1,164 @@
+# Shared by the three _setup plan callers. The identity a caller may request is
+# pinned to this file's path in the identity pool, so a workflow added in a
+# pull request cannot reach it by copying these steps. It is read-only across
+# the management and environment projects and denied every secret value: this
+# runs on unreviewed pull-request code.
+name: _setup-plan
+
+on:
+  workflow_call:
+    inputs:
+      stack:
+        description: Which _setup root — org, stg or prd. Names the plan artifact and the plan-store prefix.
+        required: true
+        type: string
+      root:
+        description: Path of the root to plan, e.g. terraform/live/stg/gcp/_setup.
+        required: true
+        type: string
+      project_id:
+        description: Project the root is pinned to.
+        required: true
+        type: string
+      management_project_id:
+        required: true
+        type: string
+      management_state_bucket:
+        required: true
+        type: string
+      service_account:
+        description: The _setup plan identity. Read-only, and denied secret values.
+        required: true
+        type: string
+      workload_identity_provider:
+        required: true
+        type: string
+      audience:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TERRAFORM_VERSION: 1.16.6
+
+jobs:
+  plan:
+    name: plan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Always runs and decides for itself whether there is work, for the
+      # same reason as _gcp-live-plan: a skipped required check reads as
+      # passed.
+      - name: Does this PR touch the root?
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(git diff --name-only \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}")
+          # The modules are the seven a _setup root sources, the same list
+          # setup-cd.yml triggers on; a change to any other plans nothing here.
+          modules='terraform/modules/gcp/(developer-access|plan-store|project|project-pin|state-bucket|wif-hub|wif-spoke)/'
+          workflow='\.github/workflows/(_setup-plan|live-plan)\.yml$'
+          if grep -qE "^(${{ inputs.root }}/|$modules|$workflow|\.github/scripts/terraform/)" <<<"$changed"; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+            echo "no change under ${{ inputs.root }}/, the modules the _setup roots use, .github/scripts/terraform/ or the plan workflows"
+          fi
+
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        if: steps.scope.outputs.relevant == 'true'
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      # No spoke to become afterwards: the plan identity is the credential
+      # Terraform runs as, which is also what the roots' remote_state reads
+      # with.
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
+        if: steps.scope.outputs.relevant == 'true'
+        with:
+          workload_identity_provider: ${{ inputs.workload_identity_provider }}
+          service_account: ${{ inputs.service_account }}
+          audience: ${{ inputs.audience }}
+
+      - name: Init
+        if: steps.scope.outputs.relevant == 'true'
+        working-directory: ${{ inputs.root }}
+        run: |
+          terraform init -lockfile=readonly \
+            -backend-config="bucket=${{ inputs.management_state_bucket }}"
+
+      # The _setup inputs come from repository variables, none of them secret;
+      # a root ignores the ones it does not declare. This repository's own
+      # name comes from the run itself, so a trust entry can never name a
+      # platform repository other than the one that applied it; the
+      # application's name is a repository variable.
+      - name: Plan
+        id: plan
+        if: steps.scope.outputs.relevant == 'true'
+        working-directory: ${{ inputs.root }}
+        shell: bash
+        env:
+          PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
+          TF_VAR_project_id: ${{ inputs.project_id }}
+          TF_VAR_environment: ${{ inputs.stack }}
+          TF_VAR_management_project_id: ${{ inputs.management_project_id }}
+          TF_VAR_management_state_bucket: ${{ inputs.management_state_bucket }}
+          TF_VAR_org_id: ${{ vars.TF_SETUP_ORG_ID }}
+          TF_VAR_billing_account: ${{ vars.TF_SETUP_BILLING_ACCOUNT }}
+          TF_VAR_developer_group: ${{ vars.TF_SETUP_DEVELOPER_GROUP }}
+          TF_VAR_administrator: ${{ vars.TF_SETUP_ADMINISTRATOR }}
+          TF_VAR_environment_projects: '{"stg":"${{ vars.GCP_PROJECT_STG }}","prd":"${{ vars.GCP_PROJECT_PRD }}"}'
+          TF_VAR_github_owner: ${{ github.repository_owner }}
+          TF_VAR_platform_repository: ${{ github.event.repository.name }}
+          TF_VAR_backend_repository: ${{ vars.BACKEND_REPOSITORY }}
+        run: |
+          set -euo pipefail
+          "$GITHUB_WORKSPACE/.github/scripts/terraform/terraform-quiet.sh" plan.txt \
+            plan -no-color -input=false -lock=false -out=tfplan
+          "$GITHUB_WORKSPACE/.github/scripts/terraform/terraform-plan-summary.sh" tfplan \
+            | tee summary.txt
+
+      - name: Keep the full plan (private)
+        if: always() && steps.scope.outputs.relevant == 'true'
+        timeout-minutes: 10
+        continue-on-error: true
+        working-directory: ${{ inputs.root }}
+        shell: bash
+        env:
+          PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
+          PLAN_STORE_REF: >-
+            ${{ github.event.pull_request.number
+            && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}
+          PLAN_STORE_PREFIX_FILE: prefix.txt
+        run: |
+          if ! "$GITHUB_WORKSPACE/.github/scripts/terraform/plan-store-upload.sh" \
+            plan setup-${{ inputs.stack }} tfplan plan.txt; then
+            echo "::warning::Private plan upload failed."
+          fi
+
+      - name: Upload the summary
+        if: steps.scope.outputs.relevant == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: plan-setup-${{ inputs.stack }}
+          path: |
+            ${{ inputs.root }}/summary.txt
+            ${{ inputs.root }}/prefix.txt
+          retention-days: 5
+          if-no-files-found: error

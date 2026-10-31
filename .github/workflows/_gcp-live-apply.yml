@@ -45,8 +45,41 @@ env:
   TERRAFORM_VERSION: 1.16.6
 
 jobs:
+  # A push that touches a _setup root starts setup-cd beside the caller, and
+  # setup-cd then waits in the `setup` environment for a reviewer. The apply
+  # below reads _setup outputs through remote state, so applying against the
+  # old _setup state would miss a new output or use a stale one. This waits
+  # for setup-cd's run on this same commit, when the push called for one, and
+  # fails if it did not succeed (scripts/workflows/wait-for-setup-cd.sh).
+  # Here rather than in each caller so stg and prd cannot drift apart. If the
+  # reviewer takes longer than the timeout, this fails and the caller is
+  # re-run by hand once setup-cd has succeeded.
+  setup-first:
+    name: wait for setup-cd
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Wait for setup-cd on this commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          "$GITHUB_WORKSPACE/.github/scripts/workflows/wait-for-setup-cd.sh"
+
   apply:
     name: apply
+    needs: setup-first
     runs-on: ubuntu-latest
 
     environment:
@@ -99,7 +132,7 @@ jobs:
           TF_VAR_spoke_service_account: ${{ inputs.spoke_service_account }}
         run: |
           set -euo pipefail
-          scripts="$GITHUB_WORKSPACE/.github/scripts"
+          scripts="$GITHUB_WORKSPACE/.github/scripts/terraform"
           "$scripts/terraform-quiet.sh" plan.txt \
             plan -no-color -input=false -lock-timeout=5m -out=tfplan
           "$scripts/terraform-plan-summary.sh" tfplan
@@ -118,5 +151,5 @@ jobs:
           PLAN_STORE_REF: ${{ github.ref_name }}
           PLAN_STORE_AS: ${{ inputs.spoke_service_account }}
         run: |
-          "$GITHUB_WORKSPACE/.github/scripts/plan-store-upload.sh" \
+          "$GITHUB_WORKSPACE/.github/scripts/terraform/plan-store-upload.sh" \
             apply gcp-${{ inputs.environment }} tfplan plan.txt apply.txt

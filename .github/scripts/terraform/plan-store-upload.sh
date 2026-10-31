@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Uploads files to gs://$PLAN_STORE_BUCKET/<kind>/<stack>/<random id>/ as
+# create-only requests (ifGenerationMatch=0), with a run.txt beside them naming
+# the ref, run and commit. No-op when the bucket is unset.
+#
+# The id is random rather than <ref>/<run>-<attempt> because the prefix ends
+# up in a pull-request comment on a public repository: the link should say
+# nothing a reader cannot already see there. The stack stays in the path
+# because the bucket's create-only grants are conditioned on it.
+#
+# Usage: plan-store-upload.sh <plan|apply> <stack> <file...>
+# Env:   PLAN_STORE_BUCKET, PLAN_STORE_REF (pr-<n> or branch),
+#        PLAN_STORE_AS (service account to impersonate, optional),
+#        PLAN_STORE_PREFIX_FILE (where to record the upload prefix, optional)
+set -euo pipefail
+
+kind=${1:?usage: plan-store-upload.sh <plan|apply> <stack> <file...>}
+stack=${2:?usage: plan-store-upload.sh <plan|apply> <stack> <file...>}
+shift 2
+
+if [ -z "${PLAN_STORE_BUCKET:-}" ]; then exit 0; fi
+
+ref=$(printf '%s' "${PLAN_STORE_REF:?}" | tr -c 'A-Za-z0-9._-' '-')
+prefix="${kind}/${stack}/$(openssl rand -hex 16)"
+
+run_file=$(mktemp)
+printf 'ref=%s\nrun=%s\nattempt=%s\ncommit=%s\n' \
+  "$ref" "${GITHUB_RUN_ID:?}" "${GITHUB_RUN_ATTEMPT:?}" "${GITHUB_SHA:-}" > "$run_file"
+
+token_args=()
+if [ -n "${PLAN_STORE_AS:-}" ]; then token_args=(--impersonate-service-account="$PLAN_STORE_AS"); fi
+token=$(timeout 60 gcloud auth print-access-token "${token_args[@]}" 2> /dev/null)
+echo "::add-mask::$token"
+
+upload() { # <local file> <object name>
+  name=$(jq -rn --arg s "${prefix}/$2" '$s | @uri')
+  curl -sS --fail-with-body -o /dev/null -X POST \
+    --connect-timeout 20 --max-time 120 \
+    -H "Authorization: Bearer $token" \
+    -H "Content-Type: application/octet-stream" \
+    --data-binary "@$1" \
+    "https://storage.googleapis.com/upload/storage/v1/b/${PLAN_STORE_BUCKET}/o?uploadType=media&ifGenerationMatch=0&name=${name}"
+}
+
+upload "$run_file" run.txt
+plan_uploaded=false
+for file in "$@"; do
+  [ -f "$file" ] || continue
+  upload "$file" "$(basename "$file")"
+  [ "$(basename "$file")" = plan.txt ] && plan_uploaded=true
+done
+
+# The prefix, for whoever links to plan.txt. Written last, and only once that
+# file is in the store, so a failed upload leaves no link to a missing plan.
+# Recorded here because the attempt in it is this job's, and a later job in
+# a re-run has a higher one.
+if [ -n "${PLAN_STORE_PREFIX_FILE:-}" ] && [ "$plan_uploaded" = true ]; then
+  printf '%s\n' "$prefix" > "$PLAN_STORE_PREFIX_FILE"
+fi
+

@@ -13,9 +13,12 @@ concurrency:
   group: stg-cd
   cancel-in-progress: false
 
+# actions: read is for the wait on setup-cd inside _gcp-live-apply.yml; a
+# called workflow can hold no token permission its caller did not pass.
 permissions:
   contents: read
   id-token: write
+  actions: read
 
 jobs:
   gcp:
@@ -35,6 +38,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      actions: read
 
   # Runs beside the GCP apply, not after it. The two touch different systems
   # and neither reads the other's output during the run.

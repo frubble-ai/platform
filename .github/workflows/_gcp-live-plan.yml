@@ -86,12 +86,14 @@ jobs:
           changed=$(git diff --name-only \
             "${{ github.event.pull_request.base.sha }}" \
             "${{ github.event.pull_request.head.sha }}")
+          # pull-request/ holds the comment renderer: a change to it must
+          # produce at least one plan for the comment job to render.
           workflow='\.github/workflows/(_gcp-live-plan|live-plan)\.yml$'
-          if echo "$changed" | grep -qE "^(${{ inputs.root }}/|terraform/modules/|$workflow|\.github/scripts/)"; then
+          if grep -qE "^(${{ inputs.root }}/|terraform/modules/|$workflow|\.github/scripts/(terraform|pull-request)/)" <<<"$changed"; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"
-            echo "no change under ${{ inputs.root }}/, terraform/modules/, .github/scripts/ or the plan workflows"
+            echo "no change under ${{ inputs.root }}/, terraform/modules/, .github/scripts/{terraform,pull-request}/ or the plan workflows"
           fi
 
       - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
@@ -135,9 +137,9 @@ jobs:
         # Raw output to plan.txt only; summary.txt feeds the log and comment.
         run: |
           set -euo pipefail
-          "$GITHUB_WORKSPACE/.github/scripts/terraform-quiet.sh" plan.txt \
+          "$GITHUB_WORKSPACE/.github/scripts/terraform/terraform-quiet.sh" plan.txt \
             plan -no-color -input=false -lock=false -out=tfplan
-          "$GITHUB_WORKSPACE/.github/scripts/terraform-plan-summary.sh" tfplan \
+          "$GITHUB_WORKSPACE/.github/scripts/terraform/terraform-plan-summary.sh" tfplan \
             | tee summary.txt
 
       # Raw plan to the plan store (org/gcp/_setup/plan_store.tf), never an artifact.
@@ -152,9 +154,10 @@ jobs:
           PLAN_STORE_REF: >-
             ${{ github.event.pull_request.number
             && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}
+          PLAN_STORE_PREFIX_FILE: prefix.txt
           PLAN_STORE_AS: ${{ inputs.spoke_service_account }}
         run: |
-          if ! "$GITHUB_WORKSPACE/.github/scripts/plan-store-upload.sh" \
+          if ! "$GITHUB_WORKSPACE/.github/scripts/terraform/plan-store-upload.sh" \
             plan gcp-${{ inputs.environment }} tfplan plan.txt; then
             echo "::warning::Private plan upload failed."
           fi
@@ -165,6 +168,8 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: plan-gcp-${{ inputs.environment }}
-          path: ${{ inputs.root }}/summary.txt
+          path: |
+            ${{ inputs.root }}/summary.txt
+            ${{ inputs.root }}/prefix.txt
           retention-days: 5
           if-no-files-found: error

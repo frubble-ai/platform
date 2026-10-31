@@ -67,7 +67,7 @@ jobs:
             "${{ github.event.pull_request.head.sha }}")
           workflow='\.github/workflows/(_cloudflare-live-plan|live-plan)\.yml$'
           modules='terraform/modules/cloudflare/'
-          if echo "$changed" | grep -qE "^(${{ inputs.root }}/|$modules|$workflow|\.github/scripts/)"; then
+          if echo "$changed" | grep -qE "^(${{ inputs.root }}/|$modules|$workflow|\.github/scripts/terraform/)"; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"
@@ -131,9 +131,9 @@ jobs:
           set -euo pipefail
           echo "::add-mask::$TF_VAR_account_id"
           echo "::add-mask::$TF_VAR_zone_id"
-          "$GITHUB_WORKSPACE/.github/scripts/terraform-quiet.sh" plan.txt \
+          "$GITHUB_WORKSPACE/.github/scripts/terraform/terraform-quiet.sh" plan.txt \
             plan -no-color -input=false -lock=false -out=tfplan
-          "$GITHUB_WORKSPACE/.github/scripts/terraform-plan-summary.sh" tfplan \
+          "$GITHUB_WORKSPACE/.github/scripts/terraform/terraform-plan-summary.sh" tfplan \
             | tee summary.txt
 
       # Raw plan to the plan store (org/gcp/_setup/plan_store.tf), never an artifact.
@@ -148,8 +148,9 @@ jobs:
           PLAN_STORE_REF: >-
             ${{ github.event.pull_request.number
             && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}
+          PLAN_STORE_PREFIX_FILE: prefix.txt
         run: |
-          if ! "$GITHUB_WORKSPACE/.github/scripts/plan-store-upload.sh" \
+          if ! "$GITHUB_WORKSPACE/.github/scripts/terraform/plan-store-upload.sh" \
             plan cloudflare-${{ inputs.stack }} tfplan plan.txt; then
             echo "::warning::Private plan upload failed."
           fi
@@ -160,6 +161,8 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: plan-cloudflare-${{ inputs.stack }}
-          path: ${{ inputs.root }}/summary.txt
+          path: |
+            ${{ inputs.root }}/summary.txt
+            ${{ inputs.root }}/prefix.txt
           retention-days: 5
           if-no-files-found: error

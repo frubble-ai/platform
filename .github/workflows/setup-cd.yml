@@ -1,0 +1,92 @@
+name: setup-cd
+
+# The _setup roots, applied on merge like everything else — after a person
+# approves the run in the `setup` environment. org first, because the
+# environment roots read its outputs.
+on:
+  push:
+    branches: [dev]
+    # The modules listed are the ones a _setup root sources. Any other module
+    # change applies nowhere here and must not hold a reviewer, or a stg-cd
+    # waiting on this run. scripts/workflows/wait-for-setup-cd.sh mirrors this
+    # list; change both.
+    paths:
+      - terraform/live/*/gcp/_setup/**
+      - terraform/modules/gcp/developer-access/**
+      - terraform/modules/gcp/plan-store/**
+      - terraform/modules/gcp/project/**
+      - terraform/modules/gcp/project-pin/**
+      - terraform/modules/gcp/state-bucket/**
+      - terraform/modules/gcp/wif-hub/**
+      - terraform/modules/gcp/wif-spoke/**
+      - .github/workflows/_setup-apply.yml
+      - .github/workflows/setup-cd.yml
+      # The apply runs terraform through these, checks its environment and
+      # records its output with them, so a change to them is a change to what
+      # the apply does. The other script folders serve other workflows; the
+      # wait that gates the workload applies lives in scripts/workflows/ for
+      # that reason.
+      - .github/scripts/terraform/**
+  workflow_dispatch:
+
+concurrency:
+  group: setup-cd
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  org:
+    name: apply org setup
+    uses: ./.github/workflows/_setup-apply.yml
+    with:
+      stack: org
+      gh_environment: setup
+      root: terraform/live/org/gcp/_setup
+      project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
+      management_project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
+      management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      service_account: ${{ vars.GCP_BOOTSTRAP_SERVICE_ACCOUNT }}
+      workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    permissions:
+      contents: read
+      id-token: write
+
+  stg:
+    name: apply stg setup
+    needs: org
+    uses: ./.github/workflows/_setup-apply.yml
+    with:
+      stack: stg
+      gh_environment: setup
+      root: terraform/live/stg/gcp/_setup
+      project_id: ${{ vars.GCP_PROJECT_STG }}
+      management_project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
+      management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      service_account: ${{ vars.GCP_BOOTSTRAP_SERVICE_ACCOUNT }}
+      workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    permissions:
+      contents: read
+      id-token: write
+
+  prd:
+    name: apply prd setup
+    needs: org
+    uses: ./.github/workflows/_setup-apply.yml
+    with:
+      stack: prd
+      gh_environment: setup
+      root: terraform/live/prd/gcp/_setup
+      project_id: ${{ vars.GCP_PROJECT_PRD }}
+      management_project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
+      management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      service_account: ${{ vars.GCP_BOOTSTRAP_SERVICE_ACCOUNT }}
+      workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    permissions:
+      contents: read
+      id-token: write

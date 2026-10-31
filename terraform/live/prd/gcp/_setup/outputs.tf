@@ -34,3 +34,23 @@ output "instance_service_account" {
   description = "Identity the VM runs as. Created here so the apply spoke never needs serviceAccountAdmin."
   value       = google_service_account.instance.email
 }
+
+# Passed through from org for the workload root, which can read this state and
+# not the org one. The value crosses two roots by reference, never by hand.
+output "workload_identity_pool" {
+  value = local.org.workload_identity_pool
+}
+
+output "repositories" {
+  value = local.org.repositories
+}
+
+output "tunnel_token_hub_name" {
+  description = "Full resource name of this environment's tunnel-token hub; the workload root binds its trust rule on it."
+  value       = local.org.tunnel_token_hub_names[var.environment]
+}
+
+output "backend_deploy_hub_name" {
+  description = "Full resource name of the backend deploy hub. Null outside stg."
+  value       = var.environment == "stg" ? local.org.backend_deploy_hub_name : null
+}
