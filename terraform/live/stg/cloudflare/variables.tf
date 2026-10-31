@@ -1,8 +1,3 @@
-variable "account_id" {
-  description = "Cloudflare account that owns the tunnel."
-  type        = string
-}
-
 variable "zone_id" {
   description = "Cloudflare zone the DNS record is published in."
   type        = string
