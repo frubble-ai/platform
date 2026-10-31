@@ -7,9 +7,9 @@ resource "google_artifact_registry_repository" "this" {
   labels        = var.labels
 
   # Tags stay mutable: with immutable tags Artifact Registry cannot delete a
-  # tagged image, so the retention below would bound nothing. A tag naming
-  # one image forever is the deploy's job: it checks for the tag and never
-  # pushes over one.
+  # tagged image, so the retention below would bound nothing. The deploy
+  # never pushes over a tag that exists; once cleanup has deleted that
+  # version, a re-run of the same old commit builds and pushes it again.
 
   # DELETE is what removes an image; KEEP is the exception to it. Without the
   # DELETE rule the KEEP rule bounds nothing and every deploy adds an image
