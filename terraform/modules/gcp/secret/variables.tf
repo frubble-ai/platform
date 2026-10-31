@@ -14,7 +14,7 @@ variable "domain" {
 }
 
 variable "name" {
-  description = "Leaf name, e.g. `tunnel-token`."
+  description = "Leaf name, e.g. `api-key`."
   type        = string
 }
 

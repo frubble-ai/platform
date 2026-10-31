@@ -11,13 +11,6 @@ locals {
   pool  = local.setup.workload_identity_pool
   repos = local.setup.repositories
 
-  # The tunnel-token step runs directly in <env>-cd.yml, so that file is the
-  # job_workflow_ref. prd names a workflow that does not exist yet; the entry
-  # is inert until someone adds it.
-  tunnel_token_entries = [
-    "${local.repos.platform}|${local.repos.platform}/.github/workflows/${var.environment}-cd.yml|${var.environment}|refs/heads/dev",
-  ]
-
   # The application deploys from its own branch, in an environment named
   # after the component, since that name is what GitHub lists the deployment
   # under. Only stg: the application deploys nowhere else.
@@ -26,23 +19,14 @@ locals {
   ] : []
 }
 
-# Authoritative: this root is the only owner of each hub's members since
+# Authoritative: this root is the only owner of the hub's members since
 # org/gcp/_setup forgot them without destroying, so the first apply sets the
 # same list and changes nothing, and a member added under this role from
 # anywhere else — by hand, or by the apply spoke's own policy right — is a
-# diff in the next plan. The _setup root binds the two other roles these hubs
-# carry the same way. A member under any further role, tokenCreator or
+# diff in the next plan. The _setup root binds the two other roles the hub
+# carries the same way. A member under any further role, tokenCreator or
 # keyAdmin say, is the remaining blind spot: nothing in this repository
 # declares such a role on a hub, so nothing would report one.
-resource "google_service_account_iam_binding" "tunnel_token_trust" {
-  service_account_id = local.setup.tunnel_token_hub_name
-  role               = "roles/iam.workloadIdentityUser"
-  members = [
-    for entry in local.tunnel_token_entries :
-    "principalSet://iam.googleapis.com/${local.pool}/attribute.apply_entry/${entry}"
-  ]
-}
-
 resource "google_service_account_iam_binding" "backend_deploy_trust" {
   count = length(local.backend_deploy_entries) > 0 ? 1 : 0
 

@@ -1,7 +1,7 @@
 # Secret Manager ids accept only [a-zA-Z0-9_-], so the four-part path the
 # standard asks for cannot use "/". The parts are kept and joined with "_",
 # which stays unambiguous because the leaf names themselves contain hyphens:
-#   frubble/stg/cloudflare/tunnel-token -> frubble_stg_cloudflare_tunnel-token
+#   frubble/stg/posthog/api-key -> frubble_stg_posthog_api-key
 locals {
   secret_id = join("_", ["frubble", var.environment, var.domain, var.name])
 }
