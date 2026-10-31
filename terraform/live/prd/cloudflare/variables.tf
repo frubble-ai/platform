@@ -30,3 +30,22 @@ variable "app_port" {
   type        = number
   default     = 8080
 }
+
+variable "certificate_dns_authorization_name" {
+  description = "Name of the CNAME Certificate Manager asks for, from the GCP root's output. Empty until the first GCP apply has produced it."
+  type        = string
+  default     = ""
+
+  # Both or neither. One missing variable would otherwise read as "no record"
+  # and the next apply would delete the one the certificate renews against.
+  validation {
+    condition     = (var.certificate_dns_authorization_name == "") == (var.certificate_dns_authorization_target == "")
+    error_message = "certificate_dns_authorization_name and certificate_dns_authorization_target must be set together or both left empty."
+  }
+}
+
+variable "certificate_dns_authorization_target" {
+  description = "Its target, from the same output."
+  type        = string
+  default     = ""
+}

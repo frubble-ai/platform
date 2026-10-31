@@ -22,15 +22,16 @@ terraform/
 
 One root per scope and provider, one state each.
 
-The GCP workload root outputs two values the Cloudflare root will need: `load_balancer_ip`
-and `certificate_dns_authorization`. They cross by repository variable, the way `_setup`
-outputs do, once that root reads them (a later change): `GCP_LB_IP_<ENV>`,
-`GCP_CERT_DNS_AUTH_NAME_<ENV>` and `GCP_CERT_DNS_AUTH_TARGET_<ENV>`. The order there is the
-authorization CNAME first, the certificate goes active against it, then the hostname's A
-record; the authorization record stays, since renewals reuse it. Both records are DNS-only:
-proxied, every client would arrive from Cloudflare's addresses and Cloud Armor's per-IP limit
-would be one budget for all of them. The Cloud Run service starts on a placeholder image; the
-application's deploy replaces it and Terraform ignores the image from then on.
+The GCP workload root outputs two values for the Cloudflare root, which cross by repository
+variable the way `_setup` outputs do. `certificate_dns_authorization` is read now, as
+`GCP_CERT_DNS_AUTH_NAME_<ENV>` and `GCP_CERT_DNS_AUTH_TARGET_<ENV>`: the Cloudflare root
+publishes that CNAME, DNS-only, and Certificate Manager issues the load balancer's certificate
+against it before the hostname moves; the record is permanent, since renewals reuse it. Until
+the variables are set the root creates no record. `load_balancer_ip` is for the cutover, when
+the hostname's A record is published, DNS-only too: proxied, every client would arrive from
+Cloudflare's addresses and Cloud Armor's per-IP limit would be one budget for all of them. The
+Cloud Run service starts on a placeholder image; the application's deploy replaces it and
+Terraform ignores the image from then on.
 
 ## How CI authenticates
 

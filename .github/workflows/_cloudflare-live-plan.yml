@@ -24,6 +24,15 @@ on:
       audience:
         required: true
         type: string
+      certificate_dns_authorization_name:
+        description: Name of the Certificate Manager authorization CNAME, from the GCP root's output. Empty for org, and until the first GCP apply.
+        required: false
+        type: string
+        default: ""
+      certificate_dns_authorization_target:
+        required: false
+        type: string
+        default: ""
     secrets:
       CLOUDFLARE_PLAN_TOKEN:
         required: true
@@ -126,6 +135,8 @@ jobs:
           TF_VAR_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           TF_VAR_zone_id: ${{ vars.CLOUDFLARE_ZONE_ID }}
           TF_VAR_domain: ${{ vars.CLOUDFLARE_DOMAIN }}
+          TF_VAR_certificate_dns_authorization_name: ${{ inputs.certificate_dns_authorization_name }}
+          TF_VAR_certificate_dns_authorization_target: ${{ inputs.certificate_dns_authorization_target }}
         # Raw output to plan.txt only; summary.txt feeds the log and comment.
         run: |
           set -euo pipefail
