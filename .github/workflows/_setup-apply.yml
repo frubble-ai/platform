@@ -123,7 +123,7 @@ jobs:
           TF_VAR_backend_repository: ${{ vars.BACKEND_REPOSITORY }}
         run: |
           set -euo pipefail
-          scripts="$GITHUB_WORKSPACE/.github/scripts"
+          scripts="$GITHUB_WORKSPACE/.github/scripts/terraform"
           "$scripts/terraform-quiet.sh" plan.txt \
             plan -no-color -input=false -lock-timeout=5m -out=tfplan
           "$scripts/terraform-plan-summary.sh" tfplan
@@ -144,5 +144,5 @@ jobs:
           PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
           PLAN_STORE_REF: ${{ github.ref_name }}
         run: |
-          "$GITHUB_WORKSPACE/.github/scripts/plan-store-upload.sh" \
+          "$GITHUB_WORKSPACE/.github/scripts/terraform/plan-store-upload.sh" \
             apply setup-${{ inputs.stack }} tfplan plan.txt apply.txt

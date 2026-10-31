@@ -80,7 +80,7 @@ jobs:
           BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
-          paths='^(terraform/live/[^/]+/gcp/_setup/|terraform/modules/gcp/(developer-access|plan-store|project|project-pin|state-bucket|wif-hub|wif-spoke)/|\.github/workflows/(_setup-apply|setup-cd)\.yml$|\.github/scripts/)'
+          paths='^(terraform/live/[^/]+/gcp/_setup/|terraform/modules/gcp/(developer-access|plan-store|project|project-pin|state-bucket|wif-hub|wif-spoke)/|\.github/workflows/(_setup-apply|setup-cd)\.yml$|\.github/scripts/terraform/)'
           expected=unknown
           if [ -n "$BEFORE" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
             # Captured first: in a pipeline, grep -q stopping at its first
@@ -184,7 +184,7 @@ jobs:
           TF_VAR_spoke_service_account: ${{ inputs.spoke_service_account }}
         run: |
           set -euo pipefail
-          scripts="$GITHUB_WORKSPACE/.github/scripts"
+          scripts="$GITHUB_WORKSPACE/.github/scripts/terraform"
           "$scripts/terraform-quiet.sh" plan.txt \
             plan -no-color -input=false -lock-timeout=5m -out=tfplan
           "$scripts/terraform-plan-summary.sh" tfplan
@@ -203,5 +203,5 @@ jobs:
           PLAN_STORE_REF: ${{ github.ref_name }}
           PLAN_STORE_AS: ${{ inputs.spoke_service_account }}
         run: |
-          "$GITHUB_WORKSPACE/.github/scripts/plan-store-upload.sh" \
+          "$GITHUB_WORKSPACE/.github/scripts/terraform/plan-store-upload.sh" \
             apply gcp-${{ inputs.environment }} tfplan plan.txt apply.txt

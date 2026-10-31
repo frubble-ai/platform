@@ -238,5 +238,5 @@ jobs:
           PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
         with:
           script: |
-            const comment = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/plan-comment.js`)
+            const comment = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/pull-request/plan-comment.js`)
             await comment({ github, context, core })
