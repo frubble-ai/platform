@@ -92,13 +92,13 @@ variable "execution_environment" {
 variable "ingress" {
   type        = string
   default     = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
-  description = "Who may reach the service. The default admits only internal traffic and Google load balancers."
+  description = "Who may reach the service. The default admits Google load balancers and this project's VPC networks, not the internet."
 }
 
 variable "invoker_iam_disabled" {
   type        = bool
   default     = true
-  description = "Skip the invoker IAM check instead of binding allUsers, which the org policy forbids."
+  description = "Skip the invoker IAM check. An external load balancer carries no invoker identity, and the org policy forbids an allUsers binding; `ingress` is what limits the callers."
 }
 
 variable "deletion_protection" {
