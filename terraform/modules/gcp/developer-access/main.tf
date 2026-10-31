@@ -54,7 +54,7 @@ resource "google_iam_deny_policy" "no_secret_values" {
 #
 # secretAccessor because neither of those reads a secret's value — editor
 # manages secrets but not their payloads. Owner would have included it, and a
-# recovery that needs the tunnel token should not start with granting it.
+# recovery that needs a secret's value should not start with granting it.
 resource "google_project_iam_member" "administration" {
   for_each = toset([
     "roles/editor",

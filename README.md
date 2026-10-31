@@ -2,7 +2,7 @@
 
 Terraform for [`app`](https://github.com/frubble-ai/app): the API as a Cloud Run service behind
 a Google load balancer with Cloud Armor, and the keyless identities CI uses. The Cloudflare
-Tunnel is gone; the GCE instance it fronted still exists, serving nothing, until its cleanup change.
+Tunnel and the GCE instance it fronted are gone.
 
 ## Layout
 
@@ -14,7 +14,7 @@ terraform/
     org/cloudflare            DNS shared by every environment
     org/posthog               the PostHog project
     stg/gcp/_setup            stg state bucket, spokes, deny policies
-    stg/gcp                   the stg API service, load balancer, WAF, alerts, registry, and the trust rules of its deploy identities (plus the instance and tunnel secret, until their cleanup)
+    stg/gcp                   the stg API service, load balancer, WAF, alerts, registry, and the trust rules of its deploy identities
     stg/cloudflare            the stg API's DNS: its A record and its certificate authorization
     prd/…                     the same, not yet applied
   modules/                    shared code, no state. gcp/cloud-run-service, gcp/https-load-balancer, gcp/cloud-armor and gcp/alerts are the API's stack

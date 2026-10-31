@@ -34,18 +34,4 @@
 #     expired_at: 2026-01-31
 #     owner: drn1996
 #
-misconfigurations:
-  - id: AVD-GCP-0031
-    paths:
-      - "modules/gcp/api-vm/main.tf"
-    statement: >-
-      The API instance has an ephemeral public IP, used for egress only:
-      pulling its image from Artifact Registry and dialling out to the
-      Cloudflare edge. Nothing inbound can reach it — the firewall in
-      network.tf denies all ingress except Google's IAP forwarding range,
-      and the only identity holding a tunnel grant is the deploy spoke.
-      The alternative is Cloud NAT, which is the one line item on this
-      stack the free tier does not cover. Revisit if the project gains a
-      budget, or if anything inbound is ever opened on this instance.
-    expired_at: 2027-04-30
-    owner: drn1996
+misconfigurations: []
