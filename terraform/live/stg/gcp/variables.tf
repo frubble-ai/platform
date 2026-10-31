@@ -32,7 +32,7 @@ variable "spoke_service_account" {
 }
 
 variable "api_hostname" {
-  description = "Public hostname of the API. The load balancer's certificate, its host rule and the rate limit all use it."
+  description = "Public hostname of the API. The load balancer's certificate and its host rule use it."
   type        = string
   default     = "api.stg.frubble.ai"
 }

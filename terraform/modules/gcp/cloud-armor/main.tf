@@ -1,20 +1,25 @@
-# The WAF on the load balancer: a per-IP rate limit on the API host and
-# Google's preconfigured rule sets, each of which can run in preview (logged,
-# not enforced) until its false positives are known.
+# The WAF on the load balancer: Google's preconfigured rule sets, each of
+# which can run in preview (logged, not enforced) until its false positives
+# are known, then a per-IP rate limit on everything that got past them.
+# Lowest priority number wins and a match ends evaluation, so the throttle
+# sits after the WAF rules: its allow would otherwise end the evaluation
+# before they ran.
 resource "google_compute_security_policy" "this" {
   project     = var.project_id
   name        = var.name
   type        = "CLOUD_ARMOR"
   description = var.description
 
+  # Every request: the policy attaches only to this load balancer, and a
+  # match on the Host header would be skipped by sending another one.
   rule {
     action      = "throttle"
     priority    = var.rate_limit.priority
-    description = "Per-IP rate limit on ${var.rate_limit.host}"
+    description = "Per-IP rate limit"
 
     match {
       expr {
-        expression = "request.headers['host'].lower() == '${var.rate_limit.host}'"
+        expression = "true"
       }
     }
 

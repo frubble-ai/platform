@@ -16,12 +16,11 @@ variable "description" {
 
 variable "rate_limit" {
   type = object({
-    host             = string
     count            = number
     interval_seconds = number
-    priority         = optional(number, 10)
+    priority         = optional(number, 1000)
   })
-  description = "Requests one client IP may send to `host` per interval before it gets 429s."
+  description = "Requests one client IP may send per interval before it gets 429s. The priority must sort after every WAF rule, or the throttle's allow ends evaluation before they run."
 }
 
 variable "waf_rules" {

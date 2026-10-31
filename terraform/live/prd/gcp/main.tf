@@ -75,13 +75,13 @@ module "armor" {
   description = "WAF for the ${var.environment} load balancer"
 
   rate_limit = {
-    host             = var.api_hostname
     count            = 300
     interval_seconds = 300
   }
 
   # Preview first: matches are logged, not blocked, until the logs show no
-  # false positives. Each rule is a monthly line item.
+  # false positives. Each rule is a monthly line item. Evaluated before the
+  # rate limit (module default priority).
   waf_rules = {
     "sqli-v33-stable" = { priority = 20 }
     "xss-v33-stable"  = { priority = 30 }
