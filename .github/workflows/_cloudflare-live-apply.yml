@@ -98,7 +98,6 @@ jobs:
             [ -n "$id" ] || { echo "::error::No Cloudflare permission group named \"$1\"" >&2; return 1; }
             echo "$id"
           }
-          tunnel_write=$(id_of 'Cloudflare Tunnel Write')
           zone_read=$(id_of 'Zone Read')
           dns_write=$(id_of 'DNS Write')
           settings_write=$(id_of 'Zone Settings Write')
@@ -106,15 +105,11 @@ jobs:
           body=$(jq -n \
             --arg name "frubble-apply-${{ inputs.stack }}-${{ github.run_id }}-${{ github.run_attempt }}" \
             --arg acct "$ACCOUNT_ID" --arg zone "$ZONE_ID" \
-            --arg tunnel_write "$tunnel_write" \
             --arg zone_read "$zone_read" \
             --arg dns_write "$dns_write" \
             --arg settings_write "$settings_write" \
             '{name: $name,
               policies: [
-                {effect: "allow",
-                 resources: {("com.cloudflare.api.account." + $acct): "*"},
-                 permission_groups: [{id: $tunnel_write}]},
                 {effect: "allow",
                  resources: {("com.cloudflare.api.account.zone." + $zone): "*"},
                  permission_groups: [{id: $zone_read}, {id: $dns_write}, {id: $settings_write}]}

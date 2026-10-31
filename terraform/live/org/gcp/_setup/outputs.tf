@@ -51,16 +51,6 @@ output "apply_hubs" {
   value = { for k, m in module.apply_hub : k => m.email }
 }
 
-output "tunnel_token_hubs" {
-  description = "Tunnel-token hub per environment. Separate hubs: a shared one would let one environment's deploy write another's secret."
-  value       = { for k, sa in google_service_account.tunnel_token_hub : k => sa.email }
-}
-
-output "tunnel_token_hub_names" {
-  description = "Full resource name per environment, for the roots that bind trust on them."
-  value       = { for k, sa in google_service_account.tunnel_token_hub : k => sa.name }
-}
-
 output "backend_deploy_hub" {
   value = google_service_account.backend_deploy_hub.email
 }

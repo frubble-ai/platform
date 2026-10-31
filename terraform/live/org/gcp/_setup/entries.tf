@@ -71,10 +71,10 @@ locals {
 
   setup_apply_entries = ["${local.platform_repo}|${local.wf.setup_apply}|setup|refs/heads/dev"]
 
-  # Not here: the entries for the tunnel-token hubs and the backend deploy
-  # hub. Each of those is reached by one environment's deploy, so its rule
-  # changes when that environment's workflows do. It lives in that
-  # environment's workload root (terraform/live/<env>/gcp/trust.tf), which CI
-  # plans on every pull request and applies on merge. This root creates the
-  # accounts (hubs.tf) and says nothing about who may become them.
+  # Not here: the entry for the backend deploy hub. It is reached by one
+  # environment's deploy, so its rule changes when that environment's
+  # workflows do. It lives in that environment's workload root
+  # (terraform/live/<env>/gcp/trust.tf), which CI plans on every pull request
+  # and applies on merge. This root creates the account (hubs.tf) and says
+  # nothing about who may become it.
 }

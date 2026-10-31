@@ -105,6 +105,7 @@ resource "google_project_iam_custom_role" "setup_plan_reader" {
     "iam.roles.get",
     "iam.denypolicies.get",
     "iam.denypolicies.list",
+    "monitoring.notificationChannels.get",
   ]
 
   depends_on = [module.environment_project]
