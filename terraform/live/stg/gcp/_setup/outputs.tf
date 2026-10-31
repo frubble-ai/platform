@@ -36,7 +36,7 @@ output "instance_service_account" {
 }
 
 output "api_service_account" {
-  description = "Identity the API's Cloud Run service runs as. Created here for the same reason."
+  description = "Identity the API's Cloud Run service runs as. Created here so the apply spoke never needs serviceAccountAdmin."
   value       = google_service_account.api.email
 }
 
