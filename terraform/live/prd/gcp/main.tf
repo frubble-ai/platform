@@ -64,7 +64,8 @@ module "api_service" {
   image                 = var.api_bootstrap_image
   env                   = { APP_ENV = var.environment }
   # In prd a rollback takes one apply more: set this to false and apply, then
-  # remove the module and apply, keeping the google-beta provider until then.
+  # remove this stack as a whole (service, load balancer, armor, alerts and
+  # their outputs) and apply, keeping the google-beta provider until then.
   deletion_protection = var.environment == "prd"
   labels              = merge(local.labels, { component = "api" })
 }
