@@ -20,6 +20,9 @@ on:
       - terraform/modules/gcp/wif-spoke/**
       - .github/workflows/_setup-apply.yml
       - .github/workflows/setup-cd.yml
+      # The apply runs terraform through these, so a change to them is a
+      # change to what the apply does.
+      - .github/scripts/**
   workflow_dispatch:
 
 concurrency:

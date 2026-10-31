@@ -52,7 +52,7 @@ jobs:
           BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
-          paths='^(terraform/live/[^/]+/gcp/_setup/|terraform/modules/gcp/(developer-access|plan-store|project|project-pin|state-bucket|wif-hub|wif-spoke)/|\.github/workflows/(_setup-apply|setup-cd)\.yml$)'
+          paths='^(terraform/live/[^/]+/gcp/_setup/|terraform/modules/gcp/(developer-access|plan-store|project|project-pin|state-bucket|wif-hub|wif-spoke)/|\.github/workflows/(_setup-apply|setup-cd)\.yml$|\.github/scripts/)'
           if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
             # Captured first: in a pipeline, grep -q stopping at its first
             # match can hand git diff a SIGPIPE, and a failing git diff would
