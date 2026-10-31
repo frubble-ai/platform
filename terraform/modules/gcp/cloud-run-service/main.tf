@@ -81,10 +81,14 @@ resource "google_cloud_run_v2_service" "this" {
 
   lifecycle {
     # The image is CI's; the client fields are what gcloud stamps on a deploy.
+    # The service-level scaling block is not set here (scaling is on the
+    # template) and the API returns it with zeroed defaults, which would
+    # otherwise be an update on every plan.
     ignore_changes = [
       template[0].containers[0].image,
       client,
       client_version,
+      scaling,
     ]
   }
 }
