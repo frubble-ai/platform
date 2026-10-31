@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
-# Uploads files to gs://$PLAN_STORE_BUCKET/<kind>/<stack>/<ref>/<run id>-<attempt>/
-# as create-only requests (ifGenerationMatch=0). No-op when the bucket is unset.
+# Uploads files to gs://$PLAN_STORE_BUCKET/<kind>/<stack>/<random id>/ as
+# create-only requests (ifGenerationMatch=0), with a run.txt beside them naming
+# the ref, run and commit. No-op when the bucket is unset.
+#
+# The id is random rather than <ref>/<run>-<attempt> because the prefix ends
+# up in a pull-request comment on a public repository: the link should say
+# nothing a reader cannot already see there. The stack stays in the path
+# because the bucket's create-only grants are conditioned on it.
 #
 # Usage: plan-store-upload.sh <plan|apply> <stack> <file...>
 # Env:   PLAN_STORE_BUCKET, PLAN_STORE_REF (pr-<n> or branch),
@@ -15,23 +21,32 @@ shift 2
 if [ -z "${PLAN_STORE_BUCKET:-}" ]; then exit 0; fi
 
 ref=$(printf '%s' "${PLAN_STORE_REF:?}" | tr -c 'A-Za-z0-9._-' '-')
-prefix="${kind}/${stack}/${ref}/${GITHUB_RUN_ID:?}-${GITHUB_RUN_ATTEMPT:?}"
+prefix="${kind}/${stack}/$(openssl rand -hex 16)"
+
+run_file=$(mktemp)
+printf 'ref=%s\nrun=%s\nattempt=%s\ncommit=%s\n' \
+  "$ref" "${GITHUB_RUN_ID:?}" "${GITHUB_RUN_ATTEMPT:?}" "${GITHUB_SHA:-}" > "$run_file"
 
 token_args=()
 if [ -n "${PLAN_STORE_AS:-}" ]; then token_args=(--impersonate-service-account="$PLAN_STORE_AS"); fi
 token=$(timeout 60 gcloud auth print-access-token "${token_args[@]}" 2> /dev/null)
 echo "::add-mask::$token"
 
-plan_uploaded=false
-for file in "$@"; do
-  [ -f "$file" ] || continue
-  name=$(jq -rn --arg s "${prefix}/$(basename "$file")" '$s | @uri')
+upload() { # <local file> <object name>
+  name=$(jq -rn --arg s "${prefix}/$2" '$s | @uri')
   curl -sS --fail-with-body -o /dev/null -X POST \
     --connect-timeout 20 --max-time 120 \
     -H "Authorization: Bearer $token" \
     -H "Content-Type: application/octet-stream" \
-    --data-binary "@$file" \
+    --data-binary "@$1" \
     "https://storage.googleapis.com/upload/storage/v1/b/${PLAN_STORE_BUCKET}/o?uploadType=media&ifGenerationMatch=0&name=${name}"
+}
+
+upload "$run_file" run.txt
+plan_uploaded=false
+for file in "$@"; do
+  [ -f "$file" ] || continue
+  upload "$file" "$(basename "$file")"
   [ "$(basename "$file")" = plan.txt ] && plan_uploaded=true
 done
 
