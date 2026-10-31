@@ -20,19 +20,9 @@ output "apply_spoke" {
   value = module.apply_spoke.email
 }
 
-output "tunnel_token_writer" {
-  description = "Identity the deploy job uses to write the tunnel token. The workload root grants it access to that one secret."
-  value       = module.tunnel_token_writer.email
-}
-
 output "deploy_spoke" {
   description = "Identity frubble-app deploys as. Empty outside stg."
   value       = one(module.deploy_spoke[*].email)
-}
-
-output "instance_service_account" {
-  description = "Identity the VM runs as. Created here so the apply spoke never needs serviceAccountAdmin."
-  value       = google_service_account.instance.email
 }
 
 output "api_service_account" {
@@ -48,11 +38,6 @@ output "workload_identity_pool" {
 
 output "repositories" {
   value = local.org.repositories
-}
-
-output "tunnel_token_hub_name" {
-  description = "Full resource name of this environment's tunnel-token hub; the workload root binds its trust rule on it."
-  value       = local.org.tunnel_token_hub_names[var.environment]
 }
 
 output "backend_deploy_hub_name" {

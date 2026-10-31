@@ -91,8 +91,6 @@ variable "apis" {
     "certificatemanager.googleapis.com",
     "monitoring.googleapis.com",
 
-    "iap.googleapis.com",
-    "oslogin.googleapis.com",
     "cloudkms.googleapis.com",
     "iam.googleapis.com",
     "cloudresourcemanager.googleapis.com",
