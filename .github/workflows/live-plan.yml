@@ -96,6 +96,8 @@ jobs:
       state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
       workload_identity_provider: ${{ vars.GCP_PLAN_PROVIDER }}
       audience: ${{ vars.GCP_WIF_AUDIENCE }}
+      certificate_dns_authorization_name: ${{ vars.GCP_CERT_DNS_AUTH_NAME_STG }}
+      certificate_dns_authorization_target: ${{ vars.GCP_CERT_DNS_AUTH_TARGET_STG }}
     secrets:
       CLOUDFLARE_PLAN_TOKEN: ${{ secrets.CLOUDFLARE_PLAN_TOKEN }}
     permissions:
@@ -115,6 +117,8 @@ jobs:
       state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
       workload_identity_provider: ${{ vars.GCP_PLAN_PROVIDER }}
       audience: ${{ vars.GCP_WIF_AUDIENCE }}
+      certificate_dns_authorization_name: ${{ vars.GCP_CERT_DNS_AUTH_NAME_PRD }}
+      certificate_dns_authorization_target: ${{ vars.GCP_CERT_DNS_AUTH_TARGET_PRD }}
     secrets:
       CLOUDFLARE_PLAN_TOKEN: ${{ secrets.CLOUDFLARE_PLAN_TOKEN }}
     permissions:

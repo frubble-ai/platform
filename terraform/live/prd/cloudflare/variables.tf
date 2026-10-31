@@ -30,3 +30,15 @@ variable "app_port" {
   type        = number
   default     = 8080
 }
+
+variable "certificate_dns_authorization_name" {
+  description = "Name of the CNAME Certificate Manager asks for, from the GCP root's output. Empty until the first GCP apply has produced it."
+  type        = string
+  default     = ""
+}
+
+variable "certificate_dns_authorization_target" {
+  description = "Its target, from the same output."
+  type        = string
+  default     = ""
+}
