@@ -50,7 +50,7 @@ jobs:
   # below reads _setup outputs through remote state, so applying against the
   # old _setup state would miss a new output or use a stale one. This waits
   # for setup-cd's run on this same commit, when the push called for one, and
-  # fails if it did not succeed (scripts/terraform/wait-for-setup-cd.sh).
+  # fails if it did not succeed (scripts/workflows/wait-for-setup-cd.sh).
   # Here rather than in each caller so stg and prd cannot drift apart. If the
   # reviewer takes longer than the timeout, this fails and the caller is
   # re-run by hand once setup-cd has succeeded.
@@ -75,7 +75,7 @@ jobs:
           SHA: ${{ github.sha }}
           BEFORE: ${{ github.event.before }}
         run: |
-          "$GITHUB_WORKSPACE/.github/scripts/terraform/wait-for-setup-cd.sh"
+          "$GITHUB_WORKSPACE/.github/scripts/workflows/wait-for-setup-cd.sh"
 
   apply:
     name: apply

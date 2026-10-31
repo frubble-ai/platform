@@ -42,9 +42,12 @@ every pull request (`Plan * setup`) and applied on merge by `setup-cd`, which wa
 emergency. `org/cloudflare/_setup` stays by hand: it needs the Cloudflare bootstrap token,
 which is never stored in GitHub.
 
-A hand apply takes its inputs from the same repository variables CI uses, never from a
-kept `terraform.tfvars`, or a stale file rewrites what CI last applied: `TF_SETUP_ORG_ID`
-(`org_id`), `TF_SETUP_BILLING_ACCOUNT` (`billing_account`), `TF_SETUP_DEVELOPER_GROUP`
+Where a `_setup` root's inputs come from changes once. The first apply reads a
+`terraform.tfvars` copied from the example, because the repository variables do not exist
+yet. Step 4 copies those values into the variables. From then on CI reads the variables,
+and so does every hand apply, as `TF_VAR_*` in the environment; the file is deleted, or a
+stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_id`),
+`TF_SETUP_BILLING_ACCOUNT` (`billing_account`), `TF_SETUP_DEVELOPER_GROUP`
 (`developer_group`), `TF_SETUP_ADMINISTRATOR` (`administrator`), `GCP_MANAGEMENT_PROJECT`
 (`management_project_id`), `GCP_PROJECT_STG` and `GCP_PROJECT_PRD` (`environment_projects`),
 `BACKEND_REPOSITORY` (`backend_repository`), and this repository's owner and name
@@ -54,7 +57,7 @@ kept `terraform.tfvars`, or a stale file rewrites what CI last applied: `TF_SETU
 2. Apply `org/gcp/_setup` without a backend, then migrate its state into the bucket it
    created.
 3. Apply `org/cloudflare/_setup`, `stg/gcp/_setup`, `prd/gcp/_setup`, each with its own
-   `terraform.tfvars` from the example.
+   `terraform.tfvars` from the example, for this first time only.
 4. Copy the outputs into GitHub repository variables (including `PLAN_STORE_BUCKET`,
    `GCP_SETUP_PLAN_IDENTITY` and `GCP_BOOTSTRAP_SERVICE_ACCOUNT`), the `_setup` inputs as
    `TF_SETUP_ORG_ID`, `TF_SETUP_BILLING_ACCOUNT`, `TF_SETUP_DEVELOPER_GROUP`,

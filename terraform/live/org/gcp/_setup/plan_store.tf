@@ -6,7 +6,8 @@
 # on a public repository (plan-store-upload.sh).
 #   kind  = plan | apply
 #   stack = gcp-stg, gcp-prd, cloudflare-org, cloudflare-stg, cloudflare-prd,
-#           posthog-org: the keys live-plan.yml labels its comment with.
+#           posthog-org, setup-org, setup-stg, setup-prd: the keys
+#           .github/scripts/pull-request/plan-comment.js labels the comment with.
 #
 # Every grant below is additive and narrow:
 #   - CI writes with objectCreator, conditioned on its own <kind>/<stack>/

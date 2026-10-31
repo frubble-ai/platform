@@ -8,7 +8,7 @@ on:
     branches: [dev]
     # The modules listed are the ones a _setup root sources. Any other module
     # change applies nowhere here and must not hold a reviewer, or a stg-cd
-    # waiting on this run. scripts/terraform/wait-for-setup-cd.sh mirrors this
+    # waiting on this run. scripts/workflows/wait-for-setup-cd.sh mirrors this
     # list; change both.
     paths:
       - terraform/live/*/gcp/_setup/**
@@ -21,9 +21,11 @@ on:
       - terraform/modules/gcp/wif-spoke/**
       - .github/workflows/_setup-apply.yml
       - .github/workflows/setup-cd.yml
-      # The apply runs terraform through these and records its output with
-      # them, so a change to them is a change to what the apply does. The
-      # other script folders serve other workflows.
+      # The apply runs terraform through these, checks its environment and
+      # records its output with them, so a change to them is a change to what
+      # the apply does. The other script folders serve other workflows; the
+      # wait that gates the workload applies lives in scripts/workflows/ for
+      # that reason.
       - .github/scripts/terraform/**
   workflow_dispatch:
 

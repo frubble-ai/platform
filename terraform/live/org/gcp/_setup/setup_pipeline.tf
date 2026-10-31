@@ -59,12 +59,6 @@ resource "google_service_account_iam_binding" "setup_plan_federated" {
   ]
 }
 
-# Created through the hub module at first; the move keeps the account.
-moved {
-  from = module.setup_plan.google_service_account.hub
-  to   = google_service_account.setup_plan
-}
-
 locals {
   setup_plan_member = "serviceAccount:${google_service_account.setup_plan.email}"
 }

@@ -11,7 +11,8 @@
 # the answer comes from the poll instead. Exits 0 when there is nothing to
 # wait for or setup-cd succeeded, 1 otherwise.
 #
-# The path list mirrors setup-cd.yml's triggers; change both.
+# The path list mirrors setup-cd.yml's triggers; change both. This script is
+# not among them: it gates the workload applies, which setup-cd never runs.
 #
 # Env: GH_TOKEN, REPO (owner/name), SHA, BEFORE (may be empty or all zeros)
 set -euo pipefail
