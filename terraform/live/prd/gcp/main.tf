@@ -40,13 +40,8 @@ module "armor" {
     interval_seconds = 300
   }
 
-  # Preview first: matches are logged, not blocked, until the logs show no
-  # false positives. Each rule is a monthly line item. Evaluated before the
-  # rate limit (module default priority).
-  waf_rules = {
-    "sqli-v33-stable" = { priority = 20 }
-    "xss-v33-stable"  = { priority = 30 }
-  }
+  # No preconfigured rule sets for now; each is a monthly line item and the
+  # API has no public input to protect yet. Add them here, in preview first.
 }
 
 module "load_balancer" {
