@@ -124,10 +124,12 @@ resource "google_monitoring_alert_policy" "instances_at_max" {
   conditions {
     display_name = "instance count at max_instances, 10 min"
 
+    # Monitoring offers GT and LT only; the count is an integer, so
+    # "greater than max - 1" is "at max".
     condition_threshold {
       filter          = "metric.type=\"run.googleapis.com/container/instance_count\" AND ${local.service}"
-      comparison      = "COMPARISON_GE"
-      threshold_value = var.max_instances
+      comparison      = "COMPARISON_GT"
+      threshold_value = var.max_instances - 1
       duration        = "600s"
 
       aggregations {
