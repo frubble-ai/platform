@@ -1,7 +1,8 @@
 # platform
 
-Terraform for [`app`](https://github.com/frubble-ai/app): a Cloudflare Tunnel, a small GCE
-instance behind it, and the keyless identities CI uses.
+Terraform for [`app`](https://github.com/frubble-ai/app): the API as a Cloud Run service behind
+a Google load balancer with Cloud Armor, and the keyless identities CI uses. The Cloudflare
+Tunnel and the GCE instance it fronted still exist while the hostname moves; they go once it has.
 
 ## Layout
 
@@ -13,13 +14,23 @@ terraform/
     org/cloudflare            DNS shared by every environment
     org/posthog               the PostHog project
     stg/gcp/_setup            stg state bucket, spokes, deny policies
-    stg/gcp                   the stg instance, registry, secrets, and the trust rules of its deploy identities
+    stg/gcp                   the stg API service, load balancer, WAF, alerts, registry, and the trust rules of its deploy identities (plus the instance and tunnel secret, until the cutover)
     stg/cloudflare            stg tunnel and DNS
     prd/…                     the same, not yet applied
-  modules/                    shared code, no state
+  modules/                    shared code, no state. gcp/cloud-run-service, gcp/https-load-balancer, gcp/cloud-armor and gcp/alerts are the API's stack
 ```
 
 One root per scope and provider, one state each.
+
+The GCP workload root outputs two values the Cloudflare root will need: `load_balancer_ip`
+and `certificate_dns_authorization`. They cross by repository variable, the way `_setup`
+outputs do, once that root reads them (a later change): `GCP_LB_IP_<ENV>`,
+`GCP_CERT_DNS_AUTH_NAME_<ENV>` and `GCP_CERT_DNS_AUTH_TARGET_<ENV>`. The order there is the
+authorization CNAME first, the certificate goes active against it, then the hostname's A
+record; the authorization record stays, since renewals reuse it. Both records are DNS-only:
+proxied, every client would arrive from Cloudflare's addresses and Cloud Armor's per-IP limit
+would be one budget for all of them. The Cloud Run service starts on a placeholder image; the
+application's deploy replaces it and Terraform ignores the image from then on.
 
 ## How CI authenticates
 
