@@ -33,6 +33,11 @@ shape: their plan identity and the bootstrap admin act on the management project
 with no hub in between, since the management project is what they change. Cloudflare and
 PostHog have no federation, so they use tokens stored as GitHub secrets.
 
+The identities a workload runs as (the API's service account, the instance's) are created in
+the environment's `_setup` root and bound in the workload root. An apply spoke that could
+create service accounts could also edit the trust binding on itself: IAM conditions cannot
+name a service account, so that right cannot be narrowed to a prefix.
+
 ## Bootstrap
 
 The three GCP `_setup` roots are applied by hand exactly once, as the bootstrap service

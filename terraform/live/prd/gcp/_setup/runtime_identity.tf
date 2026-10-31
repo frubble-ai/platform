@@ -1,7 +1,6 @@
-# The identity the API runs as on Cloud Run. Created here, not in the workload
-# root, for the same reason as the instance identity: the apply spoke must
-# never hold serviceAccountAdmin, and IAM conditions cannot narrow that role
-# to one account.
+# The identity the API's Cloud Run service runs as. Runtime identities are
+# created in _setup and bound in the workload root (README, "How CI
+# authenticates").
 resource "google_service_account" "api" {
   account_id   = "frubble-${var.environment}-api"
   project      = var.project_id
@@ -16,8 +15,7 @@ resource "google_service_account_iam_member" "apply_attaches_api" {
   member             = module.apply_spoke.member
 }
 
-# A deploy creates a revision that runs as this account, which needs the same
-# right — on this one account, not project-wide.
+# A deploy creates a revision that runs as this account.
 resource "google_service_account_iam_member" "deploy_acts_as_api" {
   count = var.environment == "stg" ? 1 : 0
 
