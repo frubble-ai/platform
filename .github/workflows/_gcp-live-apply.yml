@@ -74,7 +74,8 @@ jobs:
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
           BEFORE: ${{ github.event.before }}
-        run: "$GITHUB_WORKSPACE/.github/scripts/terraform/wait-for-setup-cd.sh"
+        run: |
+          "$GITHUB_WORKSPACE/.github/scripts/terraform/wait-for-setup-cd.sh"
 
   apply:
     name: apply

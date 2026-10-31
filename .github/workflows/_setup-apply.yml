@@ -73,7 +73,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           ENVIRONMENT: ${{ inputs.gh_environment }}
-        run: "$GITHUB_WORKSPACE/.github/scripts/terraform/require-environment-reviewer.sh"
+        run: |
+          "$GITHUB_WORKSPACE/.github/scripts/terraform/require-environment-reviewer.sh"
 
       - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
         with:
