@@ -63,8 +63,10 @@ module "api_service" {
   service_account_email = local.setup.api_service_account
   image                 = var.api_bootstrap_image
   env                   = { APP_ENV = var.environment }
-  deletion_protection   = var.environment == "prd"
-  labels                = merge(local.labels, { component = "api" })
+  # In prd a rollback takes one apply more: set this to false and apply, then
+  # remove the module and apply, keeping the google-beta provider until then.
+  deletion_protection = var.environment == "prd"
+  labels              = merge(local.labels, { component = "api" })
 }
 
 module "armor" {
