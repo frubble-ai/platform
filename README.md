@@ -84,10 +84,6 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
    `POSTHOG_PLAN_API_KEY`, `POSTHOG_OWNER_EMAIL` and `POSTHOG_MEMBERS` on the repo;
    `CLOUDFLARE_MINT_TOKEN` and `POSTHOG_APPLY_API_KEY` on their environments.
 5. Add real secret values with `gcloud secrets versions add … --data-file=-`.
-   The budget in `org/gcp/_setup` needs two roles on the billing account, which no root
-   manages: `roles/billing.costsManager` for the bootstrap service account and
-   `roles/billing.viewer` for the setup plan identity. Grant them once, by hand, as a
-   billing account administrator.
 6. Sign up at PostHog with the owner account (never managed by Terraform; its email
    goes in `POSTHOG_OWNER_EMAIL`), create the two personal API keys, invite the
    human members, and once they have joined list them in `POSTHOG_MEMBERS` as a JSON

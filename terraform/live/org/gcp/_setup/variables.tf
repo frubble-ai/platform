@@ -96,15 +96,3 @@ variable "apis" {
     "cloudresourcemanager.googleapis.com",
   ]
 }
-
-variable "monthly_budget_usd" {
-  description = "Monthly budget for every project on the billing account, in USD. Alerts only: Google has no spending cap."
-  type        = number
-  default     = 50
-}
-
-variable "budget_alert_email" {
-  description = "Address the budget's threshold alerts go to, besides the billing account's own administrators."
-  type        = string
-  default     = "platform@frubble.ai"
-}
