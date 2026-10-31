@@ -2,6 +2,8 @@
 # image: CI deploys a new revision with `gcloud run services update --image`,
 # and a later apply keeps whatever image is live.
 resource "google_cloud_run_v2_service" "this" {
+  provider = google-beta
+
   project  = var.project_id
   name     = var.name
   location = var.region
