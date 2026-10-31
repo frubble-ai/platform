@@ -37,6 +37,7 @@
 # than it reads as granting.
 locals {
   permission_groups = {
+    tunnel_read   = { name = "Cloudflare Tunnel Read", scope = "com.cloudflare.api.account" }
     zone_read     = { name = "Zone Read", scope = "com.cloudflare.api.account.zone" }
     dns_read      = { name = "DNS Read", scope = "com.cloudflare.api.account.zone" }
     settings_read = { name = "Zone Settings Read", scope = "com.cloudflare.api.account.zone" }
@@ -84,6 +85,11 @@ resource "cloudflare_account_token" "plan" {
   name       = "frubble-cloudflare-plan"
 
   policies = [
+    {
+      effect            = "allow"
+      permission_groups = [{ id = local.group_id.tunnel_read }]
+      resources         = jsonencode({ "com.cloudflare.api.account.${var.account_id}" = "*" })
+    },
     {
       effect = "allow"
       permission_groups = [
