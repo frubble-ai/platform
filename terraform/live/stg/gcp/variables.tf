@@ -32,7 +32,7 @@ variable "spoke_service_account" {
 }
 
 variable "api_hostname" {
-  description = "Public hostname of the API. The load balancer's certificate and its host rule use it."
+  description = "Public hostname of the API behind the load balancer, which replaces the tunnel's `api-<env>.<domain>` name at the cutover. The certificate and the host rule use it; the application's deploy verifies against it."
   type        = string
   default     = "api.stg.frubble.ai"
 }

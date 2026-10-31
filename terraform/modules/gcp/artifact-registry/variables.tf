@@ -21,7 +21,7 @@ variable "description" {
 variable "keep_recent_versions" {
   type        = number
   default     = 10
-  description = "How many image versions survive cleanup. Images are rebuilt on every deploy, so an unbounded registry grows without anyone noticing until it leaves the free tier."
+  description = "How many image versions survive cleanup; every older one is deleted. Images are rebuilt on every deploy, so an unbounded registry grows without anyone noticing until it leaves the free tier."
 }
 
 variable "immutable_tags" {

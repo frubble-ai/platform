@@ -12,6 +12,17 @@ resource "google_artifact_registry_repository" "this" {
     immutable_tags = var.immutable_tags
   }
 
+  # DELETE is what removes an image; KEEP is the exception to it. Without the
+  # DELETE rule the KEEP rule bounds nothing and every deploy adds an image
+  # that stays.
+  cleanup_policies {
+    id     = "delete-all"
+    action = "DELETE"
+    condition {
+      tag_state = "ANY"
+    }
+  }
+
   cleanup_policies {
     id     = "keep-recent"
     action = "KEEP"

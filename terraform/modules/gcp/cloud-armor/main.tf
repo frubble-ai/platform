@@ -11,7 +11,10 @@ resource "google_compute_security_policy" "this" {
   description = var.description
 
   # Every request: the policy attaches only to this load balancer, and a
-  # match on the Host header would be skipped by sending another one.
+  # match on the Host header would be skipped by sending another one. Per IP
+  # assumes the client's own address reaches the balancer, so the hostname's
+  # record must be DNS-only; behind a proxy this would be one budget for
+  # everyone.
   rule {
     action      = "throttle"
     priority    = var.rate_limit.priority
