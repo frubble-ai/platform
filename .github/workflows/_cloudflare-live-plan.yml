@@ -33,6 +33,11 @@ on:
         required: false
         type: string
         default: ""
+      origin_ip:
+        description: Address of the load balancer, from the GCP root's output. Empty for org, and until the first GCP apply.
+        required: false
+        type: string
+        default: ""
     secrets:
       CLOUDFLARE_PLAN_TOKEN:
         required: true
@@ -137,6 +142,7 @@ jobs:
           TF_VAR_domain: ${{ vars.CLOUDFLARE_DOMAIN }}
           TF_VAR_certificate_dns_authorization_name: ${{ inputs.certificate_dns_authorization_name }}
           TF_VAR_certificate_dns_authorization_target: ${{ inputs.certificate_dns_authorization_target }}
+          TF_VAR_origin_ip: ${{ inputs.origin_ip }}
         # Raw output to plan.txt only; summary.txt feeds the log and comment.
         run: |
           set -euo pipefail
