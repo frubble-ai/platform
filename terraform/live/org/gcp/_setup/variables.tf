@@ -84,6 +84,13 @@ variable "apis" {
 
     "secretmanager.googleapis.com",
     "artifactregistry.googleapis.com",
+
+    # The API runs as a Cloud Run service behind a load balancer whose
+    # certificate Certificate Manager issues; Monitoring holds its alerts.
+    "run.googleapis.com",
+    "certificatemanager.googleapis.com",
+    "monitoring.googleapis.com",
+
     "iap.googleapis.com",
     "oslogin.googleapis.com",
     "cloudkms.googleapis.com",

@@ -78,11 +78,18 @@ module "apply_spoke" {
   hub_member  = local.apply_hub
 
   roles = [
+    # compute.admin also covers the load balancer and its Cloud Armor policy.
     { role = "roles/compute.admin" },
     { role = "roles/artifactregistry.admin" },
     { role = "roles/secretmanager.admin" },
     { role = "roles/iap.admin" },
     { role = "roles/serviceusage.serviceUsageAdmin" },
+
+    # The API's Cloud Run service, the load balancer's certificate and the
+    # alert policies in front of it.
+    { role = "roles/run.admin" },
+    { role = "roles/certificatemanager.editor" },
+    { role = "roles/monitoring.editor" },
 
     # Project-level bindings are part of applying the stack (the instance
     # needs logWriter), but projectIamAdmin unconditionally would let the
