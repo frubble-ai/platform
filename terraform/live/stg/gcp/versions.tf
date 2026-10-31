@@ -34,6 +34,9 @@ provider "google" {
 }
 
 # Same project, region and hop as above; only the Cloud Run service uses it.
+# A rollback that drops the service keeps this block and the lock entry until
+# the destroy has applied: a resource in state with no provider configuration
+# fails every plan with "Provider configuration not present".
 provider "google-beta" {
   project = var.project_id
   region  = var.region
