@@ -7,12 +7,12 @@ resource "google_cloud_run_v2_service" "this" {
   location = var.region
   labels   = var.labels
 
-  # Reachable from Google load balancers and from this project's own VPC
-  # networks, never from the internet. An external load balancer cannot
-  # present an invoker identity (only IAP can, which signs people in, not an
-  # API), so the IAM check is off and the ingress setting is the boundary.
-  # A project with no VPC, which this one is once the instance goes, has no
-  # internal caller at all; the org policy forbids allUsers bindings anyway.
+  # The load balancer is the only way in: the run.app URL does not exist, and
+  # ingress admits Google load balancers and nothing from the internet. An
+  # external load balancer cannot present an invoker identity (only IAP can,
+  # which signs people in, not an API), so the IAM check is off; the org
+  # policy forbids an allUsers binding anyway.
+  default_uri_disabled = var.default_uri_disabled
   ingress              = var.ingress
   invoker_iam_disabled = var.invoker_iam_disabled
   deletion_protection  = var.deletion_protection
