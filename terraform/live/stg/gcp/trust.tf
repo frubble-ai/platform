@@ -28,8 +28,12 @@ locals {
 
 # Authoritative: this root is the only owner of each hub's members since
 # org/gcp/_setup forgot them without destroying, so the first apply sets the
-# same list and changes nothing, and a member added anywhere else — by hand,
-# or by the apply spoke's own policy right — is a diff in the next plan.
+# same list and changes nothing, and a member added under this role from
+# anywhere else — by hand, or by the apply spoke's own policy right — is a
+# diff in the next plan. The _setup root binds the two other roles these hubs
+# carry the same way. A member under any further role, tokenCreator or
+# keyAdmin say, is the remaining blind spot: nothing in this repository
+# declares such a role on a hub, so nothing would report one.
 resource "google_service_account_iam_binding" "tunnel_token_trust" {
   service_account_id = local.setup.tunnel_token_hub_name
   role               = "roles/iam.workloadIdentityUser"

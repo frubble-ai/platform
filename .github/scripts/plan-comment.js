@@ -85,11 +85,11 @@ module.exports = async ({ github, context, core }) => {
     const m = s.plan.match(/Plan: (\d+) to add, (\d+) to change, (\d+) to destroy/)
     const counts = m
       ? `**${m[1]}** to add · **${m[2]}** to change · **${m[3]}** to destroy`
-      : (quiet(s) ? '**No changes.**' : '_Counts unavailable._')
+      : '_Counts unavailable._'
     const summary = fullPlan(s.key) ? `${counts} · [full plan](${fullPlan(s.key)})` : counts
     // The counts are the heading; the body is the resource lines.
     const body = shown.split('\n')
-      .filter(l => !/^(Plan: \d+ to add|No changes\.)/.test(l))
+      .filter(l => !/^Plan: \d+ to add/.test(l))
       .join('\n').replace(/^\n+|\n+$/g, '')
     if (body === '') {
       return [`### ${label(s.key)}`, '', summary, '']

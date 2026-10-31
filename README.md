@@ -42,6 +42,14 @@ every pull request (`Plan * setup`) and applied on merge by `setup-cd`, which wa
 emergency. `org/cloudflare/_setup` stays by hand: it needs the Cloudflare bootstrap token,
 which is never stored in GitHub.
 
+A hand apply takes its inputs from the same repository variables CI uses, never from a
+kept `terraform.tfvars`, or a stale file rewrites what CI last applied: `TF_SETUP_ORG_ID`
+(`org_id`), `TF_SETUP_BILLING_ACCOUNT` (`billing_account`), `TF_SETUP_DEVELOPER_GROUP`
+(`developer_group`), `TF_SETUP_ADMINISTRATOR` (`administrator`), `GCP_MANAGEMENT_PROJECT`
+(`management_project_id`), `GCP_PROJECT_STG` and `GCP_PROJECT_PRD` (`environment_projects`),
+`BACKEND_REPOSITORY` (`backend_repository`), and this repository's owner and name
+(`github_owner`, `platform_repository`). `gh variable list` prints them.
+
 1. Create the management project and the developer Google Group.
 2. Apply `org/gcp/_setup` without a backend, then migrate its state into the bucket it
    created.
@@ -63,9 +71,10 @@ which is never stored in GitHub.
    (see `org/posthog/main.tf`).
 
 Environments `stg`, `prd`, `cloudflare-org`, `posthog-org` and `setup` must exist and
-accept deployments from `dev` only; `setup` also requires a reviewer. Their names are part
-of the trust rules, and so is the `backend-stg` environment on `app`, which accepts
-deployments from `stg` only.
+accept deployments from `dev` only; `setup` also requires a reviewer and bars self-review,
+which `_setup-apply.yml` checks before it runs. Their names are part of the trust rules,
+and so is the `backend-stg` environment on `app`, which accepts deployments from `stg`
+only.
 
 ## Pipelines
 
