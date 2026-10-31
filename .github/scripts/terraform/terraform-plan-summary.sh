@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Prints a saved plan as resource addresses and actions, then the counts line
 # ("Plan: N to add, N to change, N to destroy." or "No changes.", which
-# live-plan.yml parses). No attribute values. for_each keys must be handles.
+# pull-request/plan-comment.js parses). No attribute values. for_each keys
+# must be handles.
 #
 # Usage: terraform-plan-summary.sh <saved plan file>   (run in the root)
 set -euo pipefail
