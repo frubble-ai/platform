@@ -6,11 +6,10 @@ resource "google_artifact_registry_repository" "this" {
   description   = var.description
   labels        = var.labels
 
-  # A tag names one image forever: a deploy of commit X is the same bytes on
-  # every run, and a re-run reuses the push instead of repeating it.
-  docker_config {
-    immutable_tags = var.immutable_tags
-  }
+  # Tags stay mutable: with immutable tags Artifact Registry cannot delete a
+  # tagged image, so the retention below would bound nothing. A tag naming
+  # one image forever is the deploy's job: it checks for the tag and never
+  # pushes over one.
 
   # DELETE is what removes an image; KEEP is the exception to it. Without the
   # DELETE rule the KEEP rule bounds nothing and every deploy adds an image
