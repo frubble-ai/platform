@@ -44,10 +44,10 @@ else
   echo "no previous commit to diff against; checking for a $WORKFLOW run"
 fi
 
-# id, status, conclusion and url of the newest run for a commit.
+# id, attempt, status, conclusion and url of the newest run for a commit.
 run_for() {
   gh api "repos/$REPO/actions/workflows/$WORKFLOW/runs?head_sha=$1&per_page=1" \
-    --jq '.workflow_runs[0] // empty | "\(.id) \(.status) \(.conclusion // "-") \(.html_url)"'
+    --jq '.workflow_runs[0] // empty | "\(.id) \(.run_attempt) \(.status) \(.conclusion // "-") \(.html_url)"'
 }
 
 # Whether a completed run did what the caller needs: every job in JOBS
@@ -86,7 +86,7 @@ if [ -z "$run" ]; then
 fi
 
 while :; do
-  read -r id status conclusion url <<<"$run"
+  read -r id attempt status conclusion url <<<"$run"
   if [ "$status" = "completed" ]; then
     if succeeded "$id" "$conclusion"; then
       echo "$WORKFLOW succeeded: $url"
@@ -109,15 +109,16 @@ echo "$WORKFLOW was cancelled for $SHA, superseded by a newer push: $url"
 
 # Fetched on every poll: a replacement may run a commit the clone does not
 # have yet.
+# A run is rejected by id and attempt: a re-run keeps the id and gets the
+# next attempt, and counts again.
 replacement() {
   git fetch --quiet origin "$BRANCH"
   gh api "repos/$REPO/actions/workflows/$WORKFLOW/runs?branch=$BRANCH&per_page=20" \
-    --jq '.workflow_runs[] | "\(.id) \(.status) \(.conclusion // "-") \(.head_sha) \(.html_url)"' \
-    | while read -r id status conclusion head url; do
-        # Newer than the last cancelled one: ids grow, so this never falls
-        # back to a run already rejected.
-        if [ "$id" -gt "${cancelled:-0}" ] && git merge-base --is-ancestor "$SHA" "$head"; then
-          echo "$id $status $conclusion $head $url"
+    --jq '.workflow_runs[] | "\(.id) \(.run_attempt) \(.status) \(.conclusion // "-") \(.head_sha) \(.html_url)"' \
+    | while read -r id attempt status conclusion head url; do
+        case " $rejected " in *" $id:$attempt "*) continue ;; esac
+        if git merge-base --is-ancestor "$SHA" "$head"; then
+          echo "$id $attempt $status $conclusion $head $url"
           break
         fi
       done
@@ -125,7 +126,7 @@ replacement() {
 
 # A replacement that is not visible yet, or was cancelled in turn, gets the
 # same five minutes the first run got to appear.
-cancelled=""
+rejected="$id:$attempt"
 missing=0
 while :; do
   rep=$(replacement)
@@ -139,11 +140,11 @@ while :; do
     continue
   fi
   missing=0
-  read -r id status conclusion head url <<<"$rep"
+  read -r id attempt status conclusion head url <<<"$rep"
   if [ "$status" = "completed" ]; then
     if [ "$conclusion" = "cancelled" ]; then
       echo "$WORKFLOW was cancelled for $head too: $url"
-      cancelled=$id
+      rejected="$rejected $id:$attempt"
       sleep 30
       continue
     fi
