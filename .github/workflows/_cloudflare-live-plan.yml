@@ -38,13 +38,18 @@ on:
         required: false
         type: string
         default: ""
+      mailgun_dkim_name:
+        description: Name of the sending domain's DKIM record, from the mailgun root's output. Empty for org, and until the first mailgun apply.
+        required: false
+        type: string
+        default: ""
+      mailgun_dkim_value:
+        required: false
+        type: string
+        default: ""
     secrets:
       CLOUDFLARE_PLAN_TOKEN:
         required: true
-      # Only the environment roots register a sending domain; the org root
-      # has no Mailgun provider and ignores it.
-      MAILGUN_PLAN_API_KEY:
-        required: false
 
 # No pull-requests: write — see _gcp-live-plan.yml. The aggregating job in
 # live-plan.yml owns the comment.
@@ -113,17 +118,6 @@ jobs:
           echo "::add-mask::$PLAN_TOKEN"
           echo "CLOUDFLARE_API_TOKEN=$PLAN_TOKEN" >> "$GITHUB_ENV"
 
-      # Mailgun has no read-only key kind for domains (README, "Email"); the
-      # plan holds a standing key like the apply does.
-      - name: Use the Mailgun key
-        if: steps.scope.outputs.relevant == 'true'
-        shell: bash
-        env:
-          MAILGUN_KEY: ${{ secrets.MAILGUN_PLAN_API_KEY }}
-        run: |
-          echo "::add-mask::$MAILGUN_KEY"
-          echo "MAILGUN_API_KEY=$MAILGUN_KEY" >> "$GITHUB_ENV"
-
       - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
         if: steps.scope.outputs.relevant == 'true'
         with:
@@ -158,6 +152,8 @@ jobs:
           TF_VAR_certificate_dns_authorization_name: ${{ inputs.certificate_dns_authorization_name }}
           TF_VAR_certificate_dns_authorization_target: ${{ inputs.certificate_dns_authorization_target }}
           TF_VAR_origin_ip: ${{ inputs.origin_ip }}
+          TF_VAR_mailgun_dkim_name: ${{ inputs.mailgun_dkim_name }}
+          TF_VAR_mailgun_dkim_value: ${{ inputs.mailgun_dkim_value }}
         # Raw output to plan.txt only; summary.txt feeds the log and comment.
         run: |
           set -euo pipefail

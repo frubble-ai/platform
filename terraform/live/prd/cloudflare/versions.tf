@@ -6,12 +6,6 @@ terraform {
       source  = "cloudflare/cloudflare"
       version = "~> 5.0"
     }
-    # The sending domain at the email provider lives in this root: its only
-    # outputs are DNS records (README, "Email").
-    mailgun = {
-      source  = "wgebis/mailgun"
-      version = "~> 0.10"
-    }
   }
 
   # Cloudflare state lives in the management bucket, like the _setup roots.
@@ -27,7 +21,3 @@ terraform {
 # job and revokes when the job ends — including when the job fails. A token in
 # tfvars would be long-lived and would end up in a file someone copies.
 provider "cloudflare" {}
-
-# Same shape: the provider reads MAILGUN_API_KEY from the environment, which the
-# workflow fills from a GitHub secret.
-provider "mailgun" {}

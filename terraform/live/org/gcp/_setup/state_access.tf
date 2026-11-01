@@ -19,11 +19,13 @@ locals {
   # org/cloudflare/live and org/cloudflare/setup — so a prefix of
   # `org/cloudflare/` would hand the _setup state to these identities, and the
   # plan one is reachable from pull-request code. org/posthog/live follows the
-  # same rule.
+  # same rule, and org/mailgun/setup has no live sibling and no entry at all.
   direct_state_stacks = {
     cloudflare-org = { prefix = "org/cloudflare/live/", plan = local.cloudflare_plan_entries, apply = local.cloudflare_apply_entries.org }
     cloudflare-stg = { prefix = "stg/cloudflare/", plan = local.cloudflare_plan_entries, apply = local.cloudflare_apply_entries.stg }
     cloudflare-prd = { prefix = "prd/cloudflare/", plan = local.cloudflare_plan_entries, apply = local.cloudflare_apply_entries.prd }
+    mailgun-stg    = { prefix = "stg/mailgun/", plan = local.mailgun_plan_entries, apply = local.mailgun_apply_entries.stg }
+    mailgun-prd    = { prefix = "prd/mailgun/", plan = local.mailgun_plan_entries, apply = local.mailgun_apply_entries.prd }
     posthog-org    = { prefix = "org/posthog/live/", plan = local.posthog_plan_entries, apply = local.posthog_apply_entries }
   }
 

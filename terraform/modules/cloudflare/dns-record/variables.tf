@@ -25,9 +25,14 @@ variable "target" {
 }
 
 variable "proxied" {
-  description = "Through Cloudflare's edge (true) or straight to the target (false)."
+  description = "Through Cloudflare's edge (true) or straight to the target (false). Only A, AAAA and CNAME records can be proxied."
   type        = bool
   default     = true
+
+  validation {
+    condition     = !var.proxied || contains(["A", "CNAME"], var.type)
+    error_message = "Only A and CNAME records can be proxied; TXT and MX must be DNS-only."
+  }
 }
 
 variable "ttl" {

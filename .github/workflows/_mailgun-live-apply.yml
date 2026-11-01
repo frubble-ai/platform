@@ -1,0 +1,111 @@
+name: _mailgun-live-apply
+
+on:
+  workflow_call:
+    inputs:
+      stack:
+        required: true
+        type: string
+      gh_environment:
+        description: GitHub environment the job runs in. The state binding for this stack trusts this exact name.
+        required: true
+        type: string
+      root:
+        required: true
+        type: string
+      state_bucket:
+        required: true
+        type: string
+      workload_identity_provider:
+        required: true
+        type: string
+      audience:
+        required: true
+        type: string
+    secrets:
+      # An environment secret. A job that declares an environment reads that
+      # environment's value, so the caller has nothing to pass; the
+      # declaration only names it.
+      MAILGUN_APPLY_API_KEY:
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TERRAFORM_VERSION: 1.16.6
+
+jobs:
+  apply:
+    name: apply
+    runs-on: ubuntu-latest
+
+    environment:
+      name: ${{ inputs.gh_environment }}
+      deployment: false
+
+    concurrency:
+      group: apply-mailgun-${{ inputs.stack }}
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      # No minting: Mailgun has no API to issue a key per run. The apply key
+      # lives only in the environment, so pull-request code never reaches it.
+      - name: Use the Mailgun apply key
+        shell: bash
+        env:
+          APPLY_KEY: ${{ secrets.MAILGUN_APPLY_API_KEY }}
+        run: |
+          echo "::add-mask::$APPLY_KEY"
+          echo "MAILGUN_API_KEY=$APPLY_KEY" >> "$GITHUB_ENV"
+
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      # No service account: the federated GitHub identity reads this stack's
+      # state prefix directly (state_access.tf in org/gcp/_setup).
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
+        with:
+          workload_identity_provider: ${{ inputs.workload_identity_provider }}
+          audience: ${{ inputs.audience }}
+
+      - name: Init
+        working-directory: ${{ inputs.root }}
+        run: terraform init -lockfile=readonly -backend-config="bucket=${{ inputs.state_bucket }}"
+
+      # Re-plan against current state and apply that saved plan. Raw output
+      # to files only.
+      - name: Apply
+        working-directory: ${{ inputs.root }}
+        shell: bash
+        env:
+          PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
+        run: |
+          set -euo pipefail
+          scripts="$GITHUB_WORKSPACE/.github/scripts/terraform"
+          "$scripts/terraform-quiet.sh" plan.txt \
+            plan -no-color -input=false -lock-timeout=5m -out=tfplan
+          "$scripts/terraform-plan-summary.sh" tfplan
+          "$scripts/terraform-quiet.sh" apply.txt \
+            apply -no-color -input=false -lock-timeout=5m tfplan
+          grep -E '^Apply complete!' apply.txt | "$scripts/redact.sh"
+
+      # Raw output to the plan store.
+      - name: Keep the full output (private)
+        if: always()
+        timeout-minutes: 10
+        working-directory: ${{ inputs.root }}
+        shell: bash
+        env:
+          PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
+          PLAN_STORE_REF: ${{ github.ref_name }}
+        run: |
+          "$GITHUB_WORKSPACE/.github/scripts/terraform/plan-store-upload.sh" \
+            apply mailgun-${{ inputs.stack }} tfplan plan.txt apply.txt

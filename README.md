@@ -14,9 +14,11 @@ terraform/
     org/cloudflare/_setup     zone-wide settings and the plan token
     org/cloudflare            DNS shared by every environment
     org/posthog               the PostHog project
+    org/mailgun/_setup        the Mailgun keys CI and the workers use; applied by hand
     stg/gcp/_setup            stg state bucket, spokes, deny policies
     stg/gcp                   the stg API service, load balancer, WAF, alerts, registry, network, database, secrets, migration job, email queue, worker service, and the trust rules of its deploy identities
-    stg/cloudflare            the stg API's DNS: its A record, its certificate authorization, and the sending domain at Mailgun with its email records
+    stg/cloudflare            the stg API's DNS: its A record, its certificate authorization, and the sending domain's SPF, DKIM and DMARC
+    stg/mailgun               the stg sending domain at Mailgun
     prd/…                     the same, not yet applied
   modules/                    shared code, no state. gcp/cloud-run-service, gcp/https-load-balancer, gcp/cloud-armor and gcp/alerts are the API's stack; gcp/network, gcp/cloud-sql-postgres and gcp/cloud-run-job its database and migration; gcp/pubsub-queue the email queue
 ```
@@ -52,21 +54,24 @@ database access.
 
 ## Email
 
-Mail goes out through Mailgun. The sending domain (`stg.frubble.ai` on stg) is registered
-there by the environment's Cloudflare root, beside the SPF, DKIM and DMARC records it needs,
-all DNS-only: a sending domain is DNS configuration, and the DKIM key the provider hands
-back is read by nothing else. The Mailgun provider reads its key from `MAILGUN_API_KEY`, which
-the workflows fill from GitHub secrets: `MAILGUN_PLAN_API_KEY` on the repository for plans,
-`MAILGUN_APPLY_API_KEY` on the environment for applies. Mailgun has no read-only key kind for
-domains, so the plan key is a standing credential with the same reach as the apply one; it is
-the one secret here the Cloudflare pattern (a minted, short-lived token) cannot be repeated
-for. Mailgun also returns the domain's SMTP password on creation and the provider records it
-in state; nothing here uses SMTP, and resetting that password in the Mailgun dashboard makes
-the recorded one dead.
+Mail goes out through Mailgun, in the shape every provider here has. `org/mailgun/_setup`
+creates the keys CI and the worker use, applied by hand with a bootstrap admin key made once
+in the Mailgun dashboard, exactly as `org/cloudflare/_setup` does with the Cloudflare
+bootstrap token: the plan key (role `basic`, a repository secret), the apply key (role
+`admin`, an environment secret) and one sending key per environment's domain (role
+`sending`, scoped to that domain, the worker's only credential). `stg/mailgun` and
+`prd/mailgun` each register one sending domain (`stg.frubble.ai`, `frubble.ai`), planned
+and applied by CI like the Cloudflare roots, their state in the management bucket under
+`<env>/mailgun/`. There is no `org/mailgun` live root: the account holds nothing shared that
+the provider manages.
 
-The worker sends with a domain sending key, which can send through that one domain and do
-nothing else with the account. It is created in the Mailgun dashboard once the domain exists
-and added to the `email/api-key` secret (Bootstrap, step 5).
+The records receivers check are the Cloudflare root's: SPF and DMARC are fixed text, and
+DKIM, the one record only Mailgun can give, crosses from the mailgun root's outputs as the
+repository variables `MAILGUN_DKIM_NAME_<ENV>` and `MAILGUN_DKIM_VALUE_<ENV>`, the way the
+certificate authorization does. `MAILGUN_ENABLED` turns the mailgun plans and apply on once
+the setup root has run; until then they report nothing. The Mailgun provider records the
+domain's SMTP password in state; nothing here uses SMTP, and resetting it in the dashboard
+kills the recorded one.
 
 ## Secrets
 
@@ -104,8 +109,8 @@ The three GCP `_setup` roots are applied by hand exactly once, as the bootstrap 
 account from `.envrc.local` (copy `.envrc.local.example`). After that they are planned on
 every pull request (`Plan * setup`) and applied on merge by `setup-cd`, which waits in the
 `setup` environment for a reviewer. The hand path stays for that first apply and for an
-emergency. `org/cloudflare/_setup` stays by hand: it needs the Cloudflare bootstrap token,
-which is never stored in GitHub.
+emergency. `org/cloudflare/_setup` and `org/mailgun/_setup` stay by hand: each needs its
+provider's bootstrap credential, which is never stored in GitHub.
 
 Where a `_setup` root's inputs come from changes once. The first apply reads a
 `terraform.tfvars` copied from the example, because the repository variables do not exist
@@ -121,8 +126,8 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
 1. Create the management project and the developer Google Group.
 2. Apply `org/gcp/_setup` without a backend, then migrate its state into the bucket it
    created.
-3. Apply `org/cloudflare/_setup`, `stg/gcp/_setup`, `prd/gcp/_setup`, each with its own
-   `terraform.tfvars` from the example, for this first time only.
+3. Apply `org/cloudflare/_setup`, `org/mailgun/_setup`, `stg/gcp/_setup`, `prd/gcp/_setup`,
+   each with its own `terraform.tfvars` from the example, for this first time only.
 4. Copy the outputs into GitHub repository variables (including `PLAN_STORE_BUCKET`,
    `GCP_SETUP_PLAN_IDENTITY` and `GCP_BOOTSTRAP_SERVICE_ACCOUNT`), the `_setup` inputs as
    `TF_SETUP_ORG_ID`, `TF_SETUP_BILLING_ACCOUNT`, `TF_SETUP_DEVELOPER_GROUP`,
@@ -130,11 +135,14 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
    secrets: `CLOUDFLARE_PLAN_TOKEN`, `MAILGUN_PLAN_API_KEY`,
    `POSTHOG_PLAN_API_KEY`, `POSTHOG_OWNER_EMAIL` and `POSTHOG_MEMBERS` on the repo;
    `CLOUDFLARE_MINT_TOKEN`, `MAILGUN_APPLY_API_KEY` and `POSTHOG_APPLY_API_KEY` on their
-   environments.
+   environments. Then set `MAILGUN_ENABLED` to `true`, and after the first mailgun apply copy
+   its `dkim_record_name` and `dkim_record_value` outputs into `MAILGUN_DKIM_NAME_<ENV>` and
+   `MAILGUN_DKIM_VALUE_<ENV>`.
 5. Add the secret values that come from outside with
-   `gcloud secrets versions add … --data-file=-`: the Mailgun domain sending key in
-   `email/api-key`, once the Cloudflare apply has registered the domain. The generated ones
-   (Secrets, above) need nothing. A service reads a
+   `gcloud secrets versions add … --data-file=-`: the Mailgun sending key in `email/api-key`.
+   It comes from `org/mailgun/_setup`, applied again with the domain listed in
+   `sending_domains` once the environment's mailgun root has created it (the example file
+   shows the pipe). The generated ones (Secrets, above) need nothing. A service reads a
    secret when an instance starts, so a new value is live on the next revision, which the
    next deploy creates.
 6. Sign up at PostHog with the owner account (never managed by Terraform; its email
@@ -157,7 +165,7 @@ only.
 | `live-plan`    | every PR       | plans every stack, one comment with a section each    |
 | `code-quality` | every PR       | fmt, validate, tflint, actionlint, gitleaks, trivy     |
 | `pr-template`  | every PR, edits | conventional title on every PR; every template section filled and checklist answered, except for bots |
-| `stg-cd`       | merge to `dev` | applies stg GCP and Cloudflare                          |
+| `stg-cd`       | merge to `dev` | applies stg GCP, Cloudflare and Mailgun                 |
 | `org-cd`       | merge to `dev` | applies org Cloudflare and PostHog                    |
 | `setup-cd`     | merge to `dev` | applies the three GCP `_setup` roots, once a reviewer approves the run |
 | `*-prd-*`      | every push     | switched off                                           |

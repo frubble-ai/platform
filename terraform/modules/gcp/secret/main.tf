@@ -32,6 +32,12 @@ resource "google_secret_manager_secret_version" "managed" {
   secret                 = google_secret_manager_secret.this.id
   secret_data_wo         = var.value_wo
   secret_data_wo_version = var.value_wo_version
+
+  # A version bump replaces this resource; the new version exists before the
+  # old one goes, so a service starting in between still finds `latest`.
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # A value that comes from outside (a third party's API key): Terraform creates

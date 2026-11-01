@@ -12,6 +12,8 @@ locals {
     gcp_apply        = ".github/workflows/_gcp-live-apply.yml"
     cloudflare_plan  = ".github/workflows/_cloudflare-live-plan.yml"
     cloudflare_apply = ".github/workflows/_cloudflare-live-apply.yml"
+    mailgun_plan     = ".github/workflows/_mailgun-live-plan.yml"
+    mailgun_apply    = ".github/workflows/_mailgun-live-apply.yml"
     posthog_plan     = ".github/workflows/_posthog-live-plan.yml"
     posthog_apply    = ".github/workflows/_posthog-live-apply.yml"
     setup_plan       = ".github/workflows/_setup-plan.yml"
@@ -49,6 +51,18 @@ locals {
     org = ["${local.platform_repo}|${local.wf.cloudflare_apply}|cloudflare-org|refs/heads/dev"]
     stg = ["${local.platform_repo}|${local.wf.cloudflare_apply}|stg|refs/heads/dev"]
     prd = ["${local.platform_repo}|${local.wf.cloudflare_apply}|prd|refs/heads/dev"]
+  }
+
+  # The sending domains are per environment, so the Mailgun apply runs in the
+  # environment, beside its GCP and Cloudflare applies.
+  mailgun_plan_entries = [
+    "${local.platform_repo}|${local.wf.mailgun_plan}|pull-request",
+    "${local.platform_repo}|${local.wf.mailgun_plan}|refs/heads/dev",
+  ]
+
+  mailgun_apply_entries = {
+    stg = ["${local.platform_repo}|${local.wf.mailgun_apply}|stg|refs/heads/dev"]
+    prd = ["${local.platform_repo}|${local.wf.mailgun_apply}|prd|refs/heads/dev"]
   }
 
   # PostHog is organisation-wide like org/cloudflare, so its apply gets a
