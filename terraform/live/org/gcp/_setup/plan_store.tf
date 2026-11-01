@@ -7,7 +7,9 @@
 #   kind  = plan | apply
 #   stack = gcp-stg, gcp-prd, cloudflare-org, cloudflare-stg, cloudflare-prd,
 #           posthog-org, setup-org, setup-stg, setup-prd: the keys
-#           .github/scripts/pull-request/plan-comment.js labels the comment with.
+#           .github/scripts/pull-request/plan-comment.js labels the comment with;
+#           mailgun-stg, mailgun-prd: apply output only, those roots have no
+#           pull-request plan.
 #
 # Every grant below is additive and narrow:
 #   - CI writes with objectCreator, conditioned on its own <kind>/<stack>/

@@ -89,7 +89,10 @@ jobs:
           # pull-request/ holds the comment renderer: a change to it must
           # produce at least one plan for the comment job to render.
           workflow='\.github/workflows/(_gcp-live-plan|live-plan)\.yml$'
-          if grep -qE "^(${{ inputs.root }}/|terraform/modules/|$workflow|\.github/scripts/(terraform|pull-request)/)" <<<"$changed"; then
+          # The environment's shared/ is part of every root in it (README,
+          # "Shared values").
+          shared="$(dirname "${{ inputs.root }}")/shared/"
+          if grep -qE "^(${{ inputs.root }}/|$shared|terraform/modules/|$workflow|\.github/scripts/(terraform|pull-request)/)" <<<"$changed"; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"

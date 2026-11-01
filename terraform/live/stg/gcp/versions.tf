@@ -11,6 +11,11 @@ terraform {
       source  = "hashicorp/google-beta"
       version = "~> 6.0"
     }
+    # Ephemeral passwords for the generated secrets (secrets.tf).
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.7"
+    }
   }
 
   # Workload state lives in the environment's own bucket, not the management

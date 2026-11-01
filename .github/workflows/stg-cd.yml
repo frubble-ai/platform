@@ -55,8 +55,31 @@ jobs:
       certificate_dns_authorization_name: ${{ vars.GCP_CERT_DNS_AUTH_NAME_STG }}
       certificate_dns_authorization_target: ${{ vars.GCP_CERT_DNS_AUTH_TARGET_STG }}
       origin_ip: ${{ vars.GCP_LB_IP_STG }}
+      mailgun_dkim_name: ${{ vars.MAILGUN_DKIM_NAME_STG }}
+      mailgun_dkim_value: ${{ vars.MAILGUN_DKIM_VALUE_STG }}
     secrets:
       CLOUDFLARE_MINT_TOKEN: ${{ secrets.CLOUDFLARE_MINT_TOKEN }}
+    permissions:
+      contents: read
+      id-token: write
+
+  # Beside the other two for the same reason. Off until org/mailgun/_setup has
+  # been applied and its key is in GitHub (README, Bootstrap). No pull-request
+  # plan exists for this root (README, "Email"): the plan this job makes
+  # before applying is the only one.
+  mailgun:
+    name: apply stg mailgun
+    if: vars.MAILGUN_ENABLED == 'true'
+    uses: ./.github/workflows/_mailgun-live-apply.yml
+    with:
+      stack: stg
+      gh_environment: stg
+      root: terraform/live/stg/mailgun
+      state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    secrets:
+      MAILGUN_APPLY_API_KEY: ${{ secrets.MAILGUN_APPLY_API_KEY }}
     permissions:
       contents: read
       id-token: write

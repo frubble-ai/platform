@@ -23,11 +23,29 @@ resource "google_secret_manager_secret" "this" {
   }
 }
 
-# Terraform creates the container and a placeholder, and then stops being the
-# owner of the value. A real value entered here would be written to state in
-# clear text, which is why the standard separates "the secret exists" from
-# "the secret has a value" and keeps only the first in code.
+# A value Terraform generates (README, "Secrets"): written through the
+# write-only attribute, so it reaches Secret Manager and never the state.
+# Only `value_wo_version` is recorded; bumping it writes a new value.
+resource "google_secret_manager_secret_version" "managed" {
+  count = var.generated ? 1 : 0
+
+  secret                 = google_secret_manager_secret.this.id
+  secret_data_wo         = var.value_wo
+  secret_data_wo_version = var.value_wo_version
+
+  # A version bump replaces this resource; the new version exists before the
+  # old one goes, so a service starting in between still finds `latest`.
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# A value that comes from outside (a third party's API key): Terraform creates
+# the container and a placeholder, a person adds the real version, and from
+# then on Terraform is not the owner of the value.
 resource "google_secret_manager_secret_version" "placeholder" {
+  count = var.generated ? 0 : 1
+
   secret      = google_secret_manager_secret.this.id
   secret_data = var.placeholder
 

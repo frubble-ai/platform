@@ -4,7 +4,7 @@ module "registry" {
   project_id  = var.project_id
   name        = local.name
   location    = var.region
-  description = "Container images for frubble (${var.environment})"
+  description = "Container images for frubble (${module.shared.environment})"
   labels      = merge(local.labels, { component = "registry" })
 
   # Enough to roll back past a bad week of deploys.
@@ -21,8 +21,9 @@ module "api_service" {
   service_account_email = local.setup.api_service_account
   image                 = var.api_bootstrap_image
   env = merge(local.database_env, {
-    APP_ENV         = var.environment
-    BETTER_AUTH_URL = "https://${var.api_hostname}"
+    APP_ENV             = module.shared.environment
+    BETTER_AUTH_URL     = "https://${module.shared.api_hostname}"
+    PUBSUB_EMAILS_TOPIC = module.emails_queue.topic
   })
   secret_env = merge(local.database_secret_env, {
     BETTER_AUTH_SECRET = { secret = module.secrets["auth_secret"].secret_id }
@@ -31,10 +32,16 @@ module "api_service" {
   # In prd a rollback takes one apply more: set this to false and apply, then
   # remove this stack as a whole (service, load balancer, armor, alerts and
   # their outputs) and apply, keeping the google-beta provider until then.
-  deletion_protection = var.environment == "prd"
+  deletion_protection = module.shared.environment == "prd"
   labels              = merge(local.labels, { component = "api" })
 
-  depends_on = [google_secret_manager_secret_iam_member.api_reads]
+  # The secrets' versions and the bindings on them both exist before the
+  # service does: Cloud Run checks a referenced secret when it creates the
+  # revision.
+  depends_on = [
+    module.secrets,
+    google_secret_manager_secret_iam_member.api_reads,
+  ]
 }
 
 module "armor" {
@@ -42,7 +49,7 @@ module "armor" {
 
   project_id  = var.project_id
   name        = "${local.name}-lb"
-  description = "WAF for the ${var.environment} load balancer"
+  description = "WAF for the ${module.shared.environment} load balancer"
 
   rate_limit = {
     count            = 300
@@ -66,7 +73,7 @@ module "load_balancer" {
     api = {
       service = module.api_service.name
       region  = var.region
-      host    = var.api_hostname
+      host    = module.shared.api_hostname
     }
   }
 }
@@ -84,8 +91,8 @@ module "alerts" {
 }
 
 # ---------- what the application's deploy identity may touch ----------
-# This registry, this service and the migration job. It cannot create a
-# second service to run something else.
+# This registry, the two services and the migration job. It cannot create a
+# third service to run something else.
 resource "google_artifact_registry_repository_iam_member" "deploy_pushes" {
   project    = var.project_id
   location   = module.registry.location
@@ -113,6 +120,14 @@ resource "google_cloud_run_v2_job_iam_member" "deploy_runs_migrate" {
   project  = var.project_id
   location = var.region
   name     = module.migrate_job.name
+  role     = "roles/run.developer"
+  member   = "serviceAccount:${local.setup.deploy_spoke}"
+}
+
+resource "google_cloud_run_v2_service_iam_member" "deploy_rolls_out_worker" {
+  project  = var.project_id
+  location = var.region
+  name     = module.worker_service.name
   role     = "roles/run.developer"
   member   = "serviceAccount:${local.setup.deploy_spoke}"
 }

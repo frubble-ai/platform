@@ -38,6 +38,15 @@ on:
         required: false
         type: string
         default: ""
+      mailgun_dkim_name:
+        description: Name of the sending domain's DKIM record, from the mailgun root's output. Empty for org, and until the first mailgun apply.
+        required: false
+        type: string
+        default: ""
+      mailgun_dkim_value:
+        required: false
+        type: string
+        default: ""
     secrets:
       CLOUDFLARE_PLAN_TOKEN:
         required: true
@@ -80,8 +89,11 @@ jobs:
             "${{ github.event.pull_request.base.sha }}" \
             "${{ github.event.pull_request.head.sha }}")
           workflow='\.github/workflows/(_cloudflare-live-plan|live-plan)\.yml$'
-          modules='terraform/modules/cloudflare/'
-          if echo "$changed" | grep -qE "^(${{ inputs.root }}/|$modules|$workflow|\.github/scripts/terraform/)"; then
+          modules='terraform/modules/(cloudflare|naming)/'
+          # The environment's shared/ is part of every root in it (README,
+          # "Shared values").
+          shared="$(dirname "${{ inputs.root }}")/shared/"
+          if echo "$changed" | grep -qE "^(${{ inputs.root }}/|$shared|$modules|$workflow|\.github/scripts/terraform/)"; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"
@@ -143,6 +155,8 @@ jobs:
           TF_VAR_certificate_dns_authorization_name: ${{ inputs.certificate_dns_authorization_name }}
           TF_VAR_certificate_dns_authorization_target: ${{ inputs.certificate_dns_authorization_target }}
           TF_VAR_origin_ip: ${{ inputs.origin_ip }}
+          TF_VAR_mailgun_dkim_name: ${{ inputs.mailgun_dkim_name }}
+          TF_VAR_mailgun_dkim_value: ${{ inputs.mailgun_dkim_value }}
         # Raw output to plan.txt only; summary.txt feeds the log and comment.
         run: |
           set -euo pipefail

@@ -25,3 +25,16 @@ output "database_instance" {
   description = "Cloud SQL instance, for the hand step that sets the application user's password."
   value       = module.database.instance_name
 }
+
+output "worker_service_name" {
+  value = module.worker_service.name
+}
+
+output "emails_topic" {
+  value = module.emails_queue.topic
+}
+
+output "emails_dead_letter_subscription" {
+  description = "Where emails the worker gave up on wait."
+  value       = module.emails_queue.dead_letter_subscription
+}

@@ -1,0 +1,24 @@
+# Copy to terraform.tfvars and fill in. The real file is git-ignored.
+#
+# Applied by hand, with a bootstrap key made once in the Mailgun dashboard
+# (Settings → API Security → Mailgun API keys, role admin) by the account
+# owner. That key never goes into GitHub; it lives with the person who applies
+# this root.
+#
+#   export MAILGUN_API_KEY="<the bootstrap key>"
+#   terraform init -backend-config="bucket=<management_state_bucket>"
+#   terraform apply -input=false
+#
+# Then pipe what it created where it goes, once. Piping rather than copying: a
+# value printed to the terminal stays in the scrollback.
+#
+#   terraform output -raw apply_key | gh secret set MAILGUN_APPLY_API_KEY --env stg
+#
+# Once stg/mailgun has created the sending domain, list it here, apply again,
+# and pipe its sending key into the environment's secret:
+#
+#   terraform output -json sending_keys | jq -r .stg \
+#     | gcloud secrets versions add frubble_stg_email_api-key --project frubble-stg --data-file=-
+
+sending_domains = {}
+# sending_domains = { stg = "stg.frubble.ai" }

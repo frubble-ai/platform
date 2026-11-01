@@ -82,17 +82,13 @@ resource "google_sql_database" "this" {
   name     = var.database_name
 }
 
-# The application's user. Terraform creates it with a placeholder and then
-# stops being the owner of the password, as the secret module does with
-# values: the real one is set by hand with `gcloud sql users set-password` and
-# added to the matching secret, and never passes through state.
+# The application's user. The password is the generated value the matching
+# secret holds, written through the write-only attribute: it reaches Cloud SQL
+# and never the state (README, "Secrets").
 resource "google_sql_user" "application" {
-  project  = var.project_id
-  instance = google_sql_database_instance.this.name
-  name     = var.user_name
-  password = var.placeholder_password
-
-  lifecycle {
-    ignore_changes = [password]
-  }
+  project             = var.project_id
+  instance            = google_sql_database_instance.this.name
+  name                = var.user_name
+  password_wo         = var.password_wo
+  password_wo_version = var.password_wo_version
 }

@@ -14,7 +14,7 @@ locals {
   # The application deploys from its own branch, in an environment named
   # after the component, since that name is what GitHub lists the deployment
   # under. Only stg: the application deploys nowhere else.
-  backend_deploy_entries = var.environment == "stg" ? [
+  backend_deploy_entries = module.shared.environment == "stg" ? [
     "${local.repos.backend}|${local.repos.backend}/.github/workflows/backend-cd.yml|backend-stg|refs/heads/stg",
   ] : []
 }

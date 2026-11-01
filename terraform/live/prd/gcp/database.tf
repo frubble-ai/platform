@@ -14,13 +14,15 @@ module "database" {
   name              = "${local.name}-postgres"
   region            = var.region
   network_id        = module.network.network_id
-  high_availability = var.environment == "prd"
+  high_availability = module.shared.environment == "prd"
   # A week in stg; prd keeps a month, the longest a mistake has gone unnoticed
   # in anyone's experience.
-  backup_retention_days = var.environment == "prd" ? 30 : 7
+  backup_retention_days = module.shared.environment == "prd" ? 30 : 7
   database_name         = "frubble"
   user_name             = "frubble"
-  deletion_protection   = var.environment == "prd"
+  password_wo           = local.generated_values["database_password"]
+  password_wo_version   = var.secrets_version
+  deletion_protection   = module.shared.environment == "prd"
   labels                = merge(local.labels, { component = "database" })
 
   depends_on = [module.network]
@@ -58,13 +60,16 @@ module "migrate_job" {
   image                 = var.api_bootstrap_image
   command               = ["bun", "run", "scripts/migrate.ts"]
   env = merge(local.database_env, {
-    APP_ENV              = var.environment
+    APP_ENV              = module.shared.environment
     SHOULD_RUN_MIGRATION = "true"
   })
   secret_env          = local.database_secret_env
   vpc                 = local.vpc
-  deletion_protection = var.environment == "prd"
+  deletion_protection = module.shared.environment == "prd"
   labels              = merge(local.labels, { component = "migrate" })
 
-  depends_on = [google_secret_manager_secret_iam_member.api_reads]
+  depends_on = [
+    module.secrets,
+    google_secret_manager_secret_iam_member.api_reads,
+  ]
 }

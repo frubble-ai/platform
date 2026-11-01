@@ -1,5 +1,11 @@
+# The environment's shared values: its name, zone and hostnames (README,
+# "Shared values").
+module "shared" {
+  source = "../shared"
+}
+
 locals {
-  hostname = "api.${var.environment}.${var.domain}"
+  hostname = module.shared.api_hostname
 }
 
 # The API's public name, straight to the load balancer and DNS-only, so Cloud
@@ -14,7 +20,7 @@ module "api" {
   type     = "A"
   target   = var.origin_ip
   proxied  = false
-  comment  = "frubble ${var.environment} api — managed by terraform"
+  comment  = "frubble ${module.shared.environment} api — managed by terraform"
 }
 
 # Proves control of the API's hostname to Certificate Manager, which issues
@@ -32,5 +38,6 @@ module "certificate_authorization" {
   type     = "CNAME"
   target   = trimsuffix(var.certificate_dns_authorization_target, ".")
   proxied  = false
-  comment  = "frubble ${var.environment} certificate authorization — managed by terraform"
+  comment  = "frubble ${module.shared.environment} certificate authorization — managed by terraform"
 }
+
