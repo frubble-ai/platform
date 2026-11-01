@@ -1,11 +1,12 @@
 # ---------- the sending domain's records ----------
-# The domain itself is registered at Mailgun by the stg/mailgun root; what
+# The domain itself is registered at Mailgun by the stg/mailgun root, from the
+# same shared value that names it here; what
 # receivers check lives here, DNS-only like every record in this root. SPF and
 # DMARC are fixed text. DKIM is the one record only Mailgun can give: it
 # crosses from that root's outputs as repository variables, the way the
 # certificate authorization does, and exists once both are set.
 locals {
-  sending_domain = "stg.${var.domain}"
+  sending_domain = module.shared.sending_domain
 }
 
 module "email_spf" {

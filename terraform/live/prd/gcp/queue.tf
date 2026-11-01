@@ -26,10 +26,10 @@ module "worker_service" {
   # EMAIL_PROVIDER; the key and the sending domain mean the same whichever it
   # is, so swapping providers is a value here and a secret version.
   env = {
-    APP_ENV         = var.environment
+    APP_ENV         = module.shared.environment
     EMAIL_PROVIDER  = var.email_provider
-    EMAIL_DOMAIN    = var.email_domain
-    EMAIL_FROM      = "noreply@${var.email_domain}"
+    EMAIL_DOMAIN    = module.shared.sending_domain
+    EMAIL_FROM      = "noreply@${module.shared.sending_domain}"
     EMAIL_FROM_NAME = "Frubble"
   }
   secret_env = {
@@ -43,7 +43,7 @@ module "worker_service" {
   invoker_iam_disabled = false
   max_instances        = 2
   concurrency          = 10
-  deletion_protection  = var.environment == "prd"
+  deletion_protection  = module.shared.environment == "prd"
   labels               = merge(local.labels, { component = "worker" })
 
   depends_on = [google_secret_manager_secret_iam_member.worker_reads]

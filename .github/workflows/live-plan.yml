@@ -131,46 +131,6 @@ jobs:
       contents: read
       id-token: write
 
-  # Off until org/mailgun/_setup has been applied by hand and its keys are in
-  # GitHub (README, Bootstrap); prd follows the prd switch as well.
-  mailgun-stg:
-    name: Plan stg mailgun
-    uses: ./.github/workflows/_mailgun-live-plan.yml
-    concurrency:
-      group: plan-mailgun-stg-${{ github.event.pull_request.number || github.ref }}
-      cancel-in-progress: false
-    with:
-      enabled: ${{ vars.MAILGUN_ENABLED == 'true' }}
-      stack: stg
-      root: terraform/live/stg/mailgun
-      state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
-      workload_identity_provider: ${{ vars.GCP_PLAN_PROVIDER }}
-      audience: ${{ vars.GCP_WIF_AUDIENCE }}
-    secrets:
-      MAILGUN_PLAN_API_KEY: ${{ secrets.MAILGUN_PLAN_API_KEY }}
-    permissions:
-      contents: read
-      id-token: write
-
-  mailgun-prd:
-    name: Plan prd mailgun
-    uses: ./.github/workflows/_mailgun-live-plan.yml
-    concurrency:
-      group: plan-mailgun-prd-${{ github.event.pull_request.number || github.ref }}
-      cancel-in-progress: false
-    with:
-      enabled: ${{ vars.MAILGUN_ENABLED == 'true' && vars.TF_PLAN_ENABLE_PRD == 'true' }}
-      stack: prd
-      root: terraform/live/prd/mailgun
-      state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
-      workload_identity_provider: ${{ vars.GCP_PLAN_PROVIDER }}
-      audience: ${{ vars.GCP_WIF_AUDIENCE }}
-    secrets:
-      MAILGUN_PLAN_API_KEY: ${{ secrets.MAILGUN_PLAN_API_KEY }}
-    permissions:
-      contents: read
-      id-token: write
-
   posthog-org:
     name: Plan org posthog
     uses: ./.github/workflows/_posthog-live-plan.yml
@@ -254,7 +214,7 @@ jobs:
   # failed, so a red stack is named in the comment instead of silently absent.
   plan-comment:
     name: Plan comment
-    needs: [gcp-stg, gcp-prd, cloudflare-org, cloudflare-stg, cloudflare-prd, mailgun-stg, mailgun-prd, posthog-org, setup-org, setup-stg, setup-prd]
+    needs: [gcp-stg, gcp-prd, cloudflare-org, cloudflare-stg, cloudflare-prd, posthog-org, setup-org, setup-stg, setup-prd]
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:

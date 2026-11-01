@@ -12,7 +12,6 @@
 # Then pipe what it created where it goes, once. Piping rather than copying: a
 # value printed to the terminal stays in the scrollback.
 #
-#   terraform output -raw plan_key  | gh secret set MAILGUN_PLAN_API_KEY
 #   terraform output -raw apply_key | gh secret set MAILGUN_APPLY_API_KEY --env stg
 #
 # Once stg/mailgun has created the sending domain, list it here, apply again,

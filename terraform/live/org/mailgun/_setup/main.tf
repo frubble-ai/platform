@@ -9,20 +9,11 @@
 # org/gcp/_setup limits them to `<env>/mailgun/`); the README lists them as
 # the secrets that reach state.
 
-# ---------- the plan key ----------
-# A repository secret: plans run on pull-request code, so any secret a plan
-# job holds is reachable by a workflow an unreviewed branch can rewrite.
-# `basic` is the least role the provider offers; what a leak buys is reading
-# the account's domains.
-resource "mailgun_api_key" "plan" {
-  role        = "basic"
-  kind        = "user"
-  description = "frubble terraform plan (read-only)"
-}
-
 # ---------- the apply key ----------
 # An environment secret, reached only by the apply job on merge. Creates and
-# changes domains, so admin.
+# changes domains, so admin. There is no plan key: Mailgun has no read-only
+# role, and a key a pull-request plan could reach would be one that writes
+# (README, "Email").
 resource "mailgun_api_key" "apply" {
   role        = "admin"
   kind        = "user"

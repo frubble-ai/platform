@@ -15,15 +15,29 @@ terraform/
     org/cloudflare            DNS shared by every environment
     org/posthog               the PostHog project
     org/mailgun/_setup        the Mailgun keys CI and the workers use; applied by hand
+    stg/shared                what every stg root agrees on: its name, zone and hostnames; no state
     stg/gcp/_setup            stg state bucket, spokes, deny policies
     stg/gcp                   the stg API service, load balancer, WAF, alerts, registry, network, database, secrets, migration job, email queue, worker service, and the trust rules of its deploy identities
     stg/cloudflare            the stg API's DNS: its A record, its certificate authorization, and the sending domain's SPF, DKIM and DMARC
     stg/mailgun               the stg sending domain at Mailgun
     prd/…                     the same, not yet applied
-  modules/                    shared code, no state. gcp/cloud-run-service, gcp/https-load-balancer, gcp/cloud-armor and gcp/alerts are the API's stack; gcp/network, gcp/cloud-sql-postgres and gcp/cloud-run-job its database and migration; gcp/pubsub-queue the email queue
+  modules/                    shared code, no state. gcp/cloud-run-service, gcp/https-load-balancer, gcp/cloud-armor and gcp/alerts are the API's stack; gcp/network, gcp/cloud-sql-postgres and gcp/cloud-run-job its database and migration; gcp/pubsub-queue the email queue; naming the rule the shared/ modules derive their names with
 ```
 
 One root per scope and provider, one state each.
+
+## Shared values
+
+Placement follows one rule, the application's: a value one root needs lives in that root; a
+value several roots of an environment agree on lives in that environment's `shared/`; the
+derivation both environments share lives in `modules/`. Roots cannot read each other's state,
+so `live/<env>/shared` is a module with no provider and no state that each root of the
+environment calls, and `modules/naming` is where the environment name and the zone become
+the resource prefix, the API hostname (`api.stg.frubble.ai`) and the sending domain
+(`stg.frubble.ai`, a subdomain, never the apex). Nothing in them is secret, and a change to
+`shared/` is in scope for every plan of that environment. What crosses between roots is only
+what one root *produces* and another needs, as repository variables: a load balancer's
+address, a certificate authorization, a DKIM key.
 
 The GCP workload root outputs two values for the Cloudflare root, which cross by repository
 variable the way `_setup` outputs do. `certificate_dns_authorization` as

@@ -64,7 +64,9 @@ jobs:
       id-token: write
 
   # Beside the other two for the same reason. Off until org/mailgun/_setup has
-  # been applied and its keys are in GitHub (README, Bootstrap).
+  # been applied and its key is in GitHub (README, Bootstrap). No pull-request
+  # plan exists for this root (README, "Email"): the plan this job makes
+  # before applying is the only one.
   mailgun:
     name: apply stg mailgun
     if: vars.MAILGUN_ENABLED == 'true'

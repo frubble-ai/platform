@@ -89,8 +89,11 @@ jobs:
             "${{ github.event.pull_request.base.sha }}" \
             "${{ github.event.pull_request.head.sha }}")
           workflow='\.github/workflows/(_cloudflare-live-plan|live-plan)\.yml$'
-          modules='terraform/modules/cloudflare/'
-          if echo "$changed" | grep -qE "^(${{ inputs.root }}/|$modules|$workflow|\.github/scripts/terraform/)"; then
+          modules='terraform/modules/(cloudflare|naming)/'
+          # The environment's shared/ is part of every root in it (README,
+          # "Shared values").
+          shared="$(dirname "${{ inputs.root }}")/shared/"
+          if echo "$changed" | grep -qE "^(${{ inputs.root }}/|$shared|$modules|$workflow|\.github/scripts/terraform/)"; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"

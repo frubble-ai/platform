@@ -1,14 +1,24 @@
+# The environment's shared values: its name, zone and hostnames (README,
+# "Shared values").
+module "shared" {
+  source = "../shared"
+}
+
 # The sending domain. Mail from the stg worker leaves as noreply@ it; the
 # records that let receivers trust that mail are published by the Cloudflare
 # root, from the outputs here (README, "Email").
 resource "mailgun_domain" "sending" {
-  name          = var.sending_domain
+  name          = module.shared.sending_domain
   region        = "us"
   dkim_key_size = 2048
   # Fixed, so the DKIM record's name is known before the domain exists.
   dkim_selector = local.dkim_selector
-  spam_action   = "disabled"
-  wildcard      = false
+  # Its own key: without this Mailgun lets a subdomain sign with a parent
+  # domain's key when that parent is registered too, and the record below
+  # would never appear.
+  force_dkim_authority = true
+  spam_action          = "disabled"
+  wildcard             = false
   # Transactional codes only: no links rewritten, no pixels.
   click_tracking = false
   open_tracking  = false
@@ -17,5 +27,5 @@ resource "mailgun_domain" "sending" {
 
 locals {
   dkim_selector = "mg"
-  dkim_name     = "${local.dkim_selector}._domainkey.${var.sending_domain}"
+  dkim_name     = "${local.dkim_selector}._domainkey.${module.shared.sending_domain}"
 }

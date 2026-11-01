@@ -3,16 +3,6 @@ variable "zone_id" {
   type        = string
 }
 
-variable "domain" {
-  description = "Zone apex, e.g. `example.site`."
-  type        = string
-}
-
-variable "environment" {
-  type    = string
-  default = "prd"
-}
-
 
 variable "certificate_dns_authorization_name" {
   description = "Name of the CNAME Certificate Manager asks for, from the GCP root's output. Empty until the first GCP apply has produced it."

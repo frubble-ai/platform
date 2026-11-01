@@ -39,7 +39,7 @@ module "secrets" {
   for_each = local.secrets
 
   project_id       = var.project_id
-  environment      = var.environment
+  environment      = module.shared.environment
   domain           = each.value.domain
   name             = each.value.name
   location         = var.region

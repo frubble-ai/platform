@@ -10,11 +10,6 @@ variable "zone" {
   default = "us-central1-a"
 }
 
-variable "environment" {
-  type    = string
-  default = "stg"
-}
-
 variable "management_state_bucket" {
   description = "Where the _setup roots keep their state. Read-only from here."
   type        = string
@@ -23,12 +18,6 @@ variable "management_state_bucket" {
 variable "spoke_service_account" {
   description = "Spoke this run acts as. The plan workflow passes the read-only spoke, the apply workflow the write one, so the same root is harmless or not depending only on which identity CI hands it."
   type        = string
-}
-
-variable "api_hostname" {
-  description = "Public hostname of the API behind the load balancer, which replaces the tunnel's `api-<env>.<domain>` name at the cutover. The certificate and the host rule use it; the application's deploy verifies against it."
-  type        = string
-  default     = "api.stg.frubble.ai"
 }
 
 variable "api_bootstrap_image" {
@@ -53,10 +42,4 @@ variable "email_provider" {
   description = "Which email provider the worker sends through; the application knows the ones it supports. The provider's own setup (its root, its keys, the DNS records) is what the Email section of the README describes."
   type        = string
   default     = "mailgun"
-}
-
-variable "email_domain" {
-  description = "The sending domain, registered at the email provider by the Cloudflare root. The worker sends as noreply@ it."
-  type        = string
-  default     = "stg.frubble.ai"
 }
