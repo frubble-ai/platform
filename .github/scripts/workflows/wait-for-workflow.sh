@@ -114,7 +114,9 @@ replacement() {
   gh api "repos/$REPO/actions/workflows/$WORKFLOW/runs?branch=$BRANCH&per_page=20" \
     --jq '.workflow_runs[] | "\(.id) \(.status) \(.conclusion // "-") \(.head_sha) \(.html_url)"' \
     | while read -r id status conclusion head url; do
-        if [ "$id" != "$cancelled" ] && git merge-base --is-ancestor "$SHA" "$head"; then
+        # Newer than the last cancelled one: ids grow, so this never falls
+        # back to a run already rejected.
+        if [ "$id" -gt "${cancelled:-0}" ] && git merge-base --is-ancestor "$SHA" "$head"; then
           echo "$id $status $conclusion $head $url"
           break
         fi
