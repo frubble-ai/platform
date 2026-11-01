@@ -106,9 +106,11 @@ done
 # the first: it may still be queued, it may fail, or it may be superseded in
 # turn, in which case the next poll finds the run that replaced it.
 echo "$WORKFLOW was cancelled for $SHA, superseded by a newer push: $url"
-git fetch --quiet origin "$BRANCH"
 
+# Fetched on every poll: a replacement may run a commit the clone does not
+# have yet.
 replacement() {
+  git fetch --quiet origin "$BRANCH"
   gh api "repos/$REPO/actions/workflows/$WORKFLOW/runs?branch=$BRANCH&per_page=20" \
     --jq '.workflow_runs[] | "\(.id) \(.status) \(.conclusion // "-") \(.head_sha) \(.html_url)"' \
     | while read -r id status conclusion head url; do
