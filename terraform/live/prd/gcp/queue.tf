@@ -22,14 +22,18 @@ module "worker_service" {
   service_account_email = local.setup.worker_service_account
   image                 = var.api_bootstrap_image
   command               = ["bun", "run", "src/services/worker/index.ts"]
+  # The worker speaks to its email provider through one adapter chosen by
+  # EMAIL_PROVIDER; the key and the sending domain mean the same whichever it
+  # is, so swapping providers is a value here and a secret version.
   env = {
     APP_ENV         = var.environment
-    MAILGUN_DOMAIN  = var.email_domain
+    EMAIL_PROVIDER  = var.email_provider
+    EMAIL_DOMAIN    = var.email_domain
     EMAIL_FROM      = "noreply@${var.email_domain}"
     EMAIL_FROM_NAME = "Frubble"
   }
   secret_env = {
-    MAILGUN_API_KEY = { secret = module.secrets["email_api_key"].secret_id }
+    EMAIL_API_KEY = { secret = module.secrets["email_api_key"].secret_id }
   }
   # Reached by Pub/Sub only: the run.app URL exists, ingress admits same-project
   # Google services and nothing from the internet, and the invoker check holds

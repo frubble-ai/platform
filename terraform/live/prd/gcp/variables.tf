@@ -49,6 +49,12 @@ variable "secrets_version" {
   default     = 1
 }
 
+variable "email_provider" {
+  description = "Which email provider the worker sends through; the application knows the ones it supports. The provider's own setup (its root, its keys, the DNS records) is what the Email section of the README describes."
+  type        = string
+  default     = "mailgun"
+}
+
 variable "email_domain" {
   description = "The sending domain, registered at the email provider by the Cloudflare root. The worker sends as noreply@ it."
   type        = string

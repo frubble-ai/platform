@@ -36,6 +36,15 @@ on:
         required: false
         type: string
         default: ""
+      mailgun_dkim_name:
+        description: Name of the sending domain's DKIM record, from the mailgun root's output. Empty for org, and until the first mailgun apply.
+        required: false
+        type: string
+        default: ""
+      mailgun_dkim_value:
+        required: false
+        type: string
+        default: ""
     secrets:
       CLOUDFLARE_MINT_TOKEN:
         required: true
