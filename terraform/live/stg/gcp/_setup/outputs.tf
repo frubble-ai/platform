@@ -30,6 +30,16 @@ output "api_service_account" {
   value       = google_service_account.api.email
 }
 
+output "worker_service_account" {
+  description = "Identity the email worker's Cloud Run service runs as."
+  value       = google_service_account.worker.email
+}
+
+output "push_service_account" {
+  description = "Identity Pub/Sub pushes to the worker as."
+  value       = google_service_account.push.email
+}
+
 # Passed through from org for the workload root, which can read this state and
 # not the org one. The value crosses two roots by reference, never by hand.
 output "workload_identity_pool" {
