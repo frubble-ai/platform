@@ -38,6 +38,12 @@ variable "secrets_version" {
   default     = 1
 }
 
+variable "email_api_key_version" {
+  description = "Secret Manager version of email/api-key the worker reads. Pinned, so a new provider's key added ahead of its EMAIL_PROVIDER change is not picked up by an instance still on the old provider; both move in one PR."
+  type        = string
+  default     = "latest"
+}
+
 variable "email_provider" {
   description = "Which email provider the worker sends through; the application knows the ones it supports. The provider's own setup (its root, its keys, the DNS records) is what the Email section of the README describes."
   type        = string

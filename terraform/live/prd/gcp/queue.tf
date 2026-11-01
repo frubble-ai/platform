@@ -33,7 +33,10 @@ module "worker_service" {
     EMAIL_FROM_NAME = "Frubble"
   }
   secret_env = {
-    EMAIL_API_KEY = { secret = module.secrets["email_api_key"].secret_id }
+    EMAIL_API_KEY = {
+      secret  = module.secrets["email_api_key"].secret_id
+      version = var.email_api_key_version
+    }
   }
   # Reached by Pub/Sub only: the run.app URL exists, ingress admits same-project
   # Google services and nothing from the internet, and the invoker check holds
