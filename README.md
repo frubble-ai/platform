@@ -77,7 +77,11 @@ runs in `mailgun-setup-cd` behind the same reviewer as the GCP `_setup` roots, a
 `stg-cd` run that registers the domain when one commit changes both. A worker instance reads
 the secret when it starts and keeps that key until it stops, so a rotation keeps two keys
 alive: add the next generation in the root (the secret moves to it), roll the workers, then
-remove the old one; the root's comment spells the steps. The credential both
+remove the old one; the root's comment spells the steps. Changing a sending domain is the
+Bootstrap email steps again, in their order, and ends the same way: the worker that `stg-cd`
+rolls onto the new domain still holds the old domain's key until it is rolled once more
+after `mailgun-setup-cd` has written the new one, and nothing leaves the new domain before
+its DKIM record is published and verified in any case. The credential both
 use is the account's admin key, made once in the Mailgun dashboard and held as
 `MAILGUN_APPLY_API_KEY` by the `stg` and `setup` environments: Mailgun has no narrower role
 that creates domains or keys, so there is nothing to mint for CI, unlike Cloudflare. There
@@ -168,9 +172,10 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
    `POSTHOG_PLAN_API_KEY`, `POSTHOG_OWNER_EMAIL` and `POSTHOG_MEMBERS` on the repo;
    `CLOUDFLARE_MINT_TOKEN` and `POSTHOG_APPLY_API_KEY` on their environments, and the
    Mailgun admin key as `MAILGUN_APPLY_API_KEY` on both `stg` and `setup`.
-5. Email, in this order, since each step needs the one before: set `MAILGUN_ENABLED` to
-   `true` and run `stg-cd` by hand (Actions → stg-cd → Run workflow), which registers the
-   domain; run `mailgun-setup-cd` by hand and approve it, which mints the domain's sending key and
+5. Email, in this order, since each step needs the one before: set the repository variable
+   `MAILGUN_ENABLED` to `true` (a repository variable, not an environment one: the jobs it
+   gates read it before any environment is attached) and run `stg-cd` by hand
+   (Actions → stg-cd → Run workflow), which registers the domain; run `mailgun-setup-cd` by hand and approve it, which mints the domain's sending key and
    writes it into `email/api-key` (Secret Manager id `frubble_<env>_email_api-key`: the
    module joins the path with underscores, since an id cannot hold `/`); copy the mailgun
    apply's `dkim_record_name` and `dkim_record_value` outputs into
