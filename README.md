@@ -80,8 +80,8 @@ alive: add the next generation in the root (the secret moves to it), roll the wo
 remove the old one; the root's comment spells the steps. Changing a sending domain is the
 Bootstrap email steps again, in their order, and ends the same way: the worker that `stg-cd`
 rolls onto the new domain still holds the old domain's key until it is rolled once more
-after `mailgun-setup-cd` has written the new one, and nothing leaves the new domain before
-its DKIM record is published and verified in any case. The credential both
+after `mailgun-setup-cd` has written the new one, and receivers trust the new domain only
+once its DKIM record is published, so the roll comes last. The credential both
 use is the account's admin key, made once in the Mailgun dashboard and held as
 `MAILGUN_APPLY_API_KEY` by the `stg` and `setup` environments: Mailgun has no narrower role
 that creates domains or keys, so there is nothing to mint for CI, unlike Cloudflare. There
