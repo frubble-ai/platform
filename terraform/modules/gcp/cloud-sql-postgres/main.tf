@@ -30,7 +30,9 @@ resource "google_sql_database_instance" "this" {
       enabled                        = true
       point_in_time_recovery_enabled = true
       start_time                     = "03:00"
-      transaction_log_retention_days = var.backup_retention_days
+      # Enterprise keeps at most a week of transaction logs; the backups
+      # themselves keep var.backup_retention_days.
+      transaction_log_retention_days = min(var.backup_retention_days, 7)
 
       backup_retention_settings {
         retained_backups = var.backup_retention_days

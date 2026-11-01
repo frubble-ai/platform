@@ -39,7 +39,7 @@ variable "disk_size_gb" {
 variable "backup_retention_days" {
   type        = number
   default     = 7
-  description = "Daily backups kept, and days of transaction logs for point-in-time recovery."
+  description = "Daily backups kept. Point-in-time recovery reaches back the same number of days, capped at 7, which is as far as the Enterprise edition keeps transaction logs."
 }
 
 variable "database_name" {
