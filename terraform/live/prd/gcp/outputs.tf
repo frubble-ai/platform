@@ -15,3 +15,13 @@ output "certificate_dns_authorization" {
 output "api_service_name" {
   value = module.api_service.name
 }
+
+output "migrate_job_name" {
+  description = "Job the deploy executes before a rollout."
+  value       = module.migrate_job.name
+}
+
+output "database_instance" {
+  description = "Cloud SQL instance, for the hand step that sets the application user's password."
+  value       = module.database.instance_name
+}

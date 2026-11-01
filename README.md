@@ -1,8 +1,8 @@
 # platform
 
 Terraform for [`app`](https://github.com/frubble-ai/app): the API as a Cloud Run service behind
-a Google load balancer with Cloud Armor, and the keyless identities CI uses. The Cloudflare
-Tunnel and the GCE instance it fronted are gone.
+a Google load balancer with Cloud Armor, its Postgres database on a private network, the
+migration job the deploy runs first, and the keyless identities CI uses.
 
 ## Layout
 
@@ -14,10 +14,10 @@ terraform/
     org/cloudflare            DNS shared by every environment
     org/posthog               the PostHog project
     stg/gcp/_setup            stg state bucket, spokes, deny policies
-    stg/gcp                   the stg API service, load balancer, WAF, alerts, registry, and the trust rules of its deploy identities
+    stg/gcp                   the stg API service, load balancer, WAF, alerts, registry, network, database, secrets, migration job, and the trust rules of its deploy identities
     stg/cloudflare            the stg API's DNS: its A record and its certificate authorization
     prd/…                     the same, not yet applied
-  modules/                    shared code, no state. gcp/cloud-run-service, gcp/https-load-balancer, gcp/cloud-armor and gcp/alerts are the API's stack
+  modules/                    shared code, no state. gcp/cloud-run-service, gcp/https-load-balancer, gcp/cloud-armor and gcp/alerts are the API's stack; gcp/network, gcp/cloud-sql-postgres and gcp/cloud-run-job its database and migration
 ```
 
 One root per scope and provider, one state each.
@@ -31,8 +31,17 @@ against it; the record is permanent, since renewals reuse it. `load_balancer_ip`
 arrive from Cloudflare's addresses and Cloud Armor's per-IP limit would be one budget for all
 of them. Until a variable is set the root creates its record not at all. For a new environment
 the order is the authorization first, the certificate active, then the A record. The
-Cloud Run service starts on a placeholder image; the application's deploy replaces it and
-Terraform ignores the image from then on.
+Cloud Run service and the migration job start on a placeholder image; the application's
+deploy replaces it and Terraform ignores the image from then on.
+
+The database is a Cloud SQL Postgres instance with a private address only, in the
+environment's VPC, reached by the service and the job through direct VPC egress and TLS
+against the instance's own CA, which the root passes to them as `DB_CA_PEM`. Terraform
+creates the application's database user with a placeholder password and ignores it from
+then on, the way the secret module does with values: the real password is set by hand and
+added to the `database/password` secret (Bootstrap, step 5). No person reaches the database:
+there is no public address and no bastion; the migration job and the application are its
+only clients.
 
 ## How CI authenticates
 
@@ -83,7 +92,12 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
    secrets: `CLOUDFLARE_PLAN_TOKEN`,
    `POSTHOG_PLAN_API_KEY`, `POSTHOG_OWNER_EMAIL` and `POSTHOG_MEMBERS` on the repo;
    `CLOUDFLARE_MINT_TOKEN` and `POSTHOG_APPLY_API_KEY` on their environments.
-5. Add real secret values with `gcloud secrets versions add … --data-file=-`.
+5. Add real secret values with `gcloud secrets versions add … --data-file=-`: an
+   `auth/secret` of at least 32 random bytes, and the `database/password`, which is also
+   set on the instance with
+   `gcloud sql users set-password frubble --instance=<database_instance output> --prompt-for-password`.
+   The service reads a secret when an instance starts, so a new value is live on the next
+   revision, which the next deploy creates.
 6. Sign up at PostHog with the owner account (never managed by Terraform; its email
    goes in `POSTHOG_OWNER_EMAIL`), create the two personal API keys, invite the
    human members, and once they have joined list them in `POSTHOG_MEMBERS` as a JSON

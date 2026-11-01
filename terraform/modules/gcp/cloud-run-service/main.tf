@@ -32,7 +32,9 @@ resource "google_cloud_run_v2_service" "this" {
     }
 
     containers {
-      image = var.image
+      image   = var.image
+      command = var.command
+      args    = var.args
 
       ports {
         container_port = var.port
@@ -56,6 +58,19 @@ resource "google_cloud_run_v2_service" "this" {
         }
       }
 
+      dynamic "env" {
+        for_each = var.secret_env
+        content {
+          name = env.key
+          value_source {
+            secret_key_ref {
+              secret  = env.value.secret
+              version = env.value.version
+            }
+          }
+        }
+      }
+
       startup_probe {
         http_get {
           path = var.health_path
@@ -75,6 +90,20 @@ resource "google_cloud_run_v2_service" "this" {
         period_seconds    = 30
         timeout_seconds   = 3
         failure_threshold = 3
+      }
+    }
+
+    # Direct VPC egress: the instance gets an address in the subnet and only
+    # private ranges route through it, so the database is reachable and the
+    # internet still goes out the normal way.
+    dynamic "vpc_access" {
+      for_each = var.vpc == null ? [] : [var.vpc]
+      content {
+        egress = "PRIVATE_RANGES_ONLY"
+        network_interfaces {
+          network    = vpc_access.value.network
+          subnetwork = vpc_access.value.subnetwork
+        }
       }
     }
   }
