@@ -10,8 +10,7 @@ on:
   push:
     branches: [dev]
     # The root, the shared values it takes the sending domains from, the
-    # workflows and scripts that run it. The wait below mirrors the first
-    # three; change both.
+    # workflows and scripts that run it.
     paths:
       - terraform/live/org/mailgun/_setup/**
       - terraform/live/*/shared/**
@@ -34,10 +33,11 @@ permissions:
 
 jobs:
   # A sending key is scoped to a domain that must already exist, and the
-  # domain is stg-cd's: a push that changes the shared values changes both.
-  # This waits for stg-cd's run on this same commit when the push called for
-  # one, and fails if it did not succeed, so the key is never made for a
-  # domain that is not there yet (scripts/workflows/wait-for-workflow.sh).
+  # domain is stg-cd's, which runs on every push to dev. This waits for its
+  # run on this same commit and fails if it did not succeed, so the key is
+  # never made for a domain that is not there yet
+  # (scripts/workflows/wait-for-workflow.sh). PATHS matches every path for
+  # that reason: whatever this push changed, stg-cd ran for it.
   wait:
     name: wait for stg-cd
     if: vars.MAILGUN_ENABLED == 'true'
@@ -56,7 +56,7 @@ jobs:
           SHA: ${{ github.sha }}
           BEFORE: ${{ github.event.before }}
           WORKFLOW: stg-cd.yml
-          PATHS: '^(terraform/live/[^/]+/shared/|terraform/modules/naming/|terraform/live/stg/mailgun/)'
+          PATHS: '.'
         run: |
           "$GITHUB_WORKSPACE/.github/scripts/workflows/wait-for-workflow.sh"
 
