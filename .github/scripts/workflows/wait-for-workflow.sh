@@ -114,27 +114,33 @@ replacement() {
   gh api "repos/$REPO/actions/workflows/$WORKFLOW/runs?branch=$BRANCH&per_page=20" \
     --jq '.workflow_runs[] | "\(.id) \(.status) \(.conclusion // "-") \(.head_sha) \(.html_url)"' \
     | while read -r id status conclusion head url; do
-        if git merge-base --is-ancestor "$SHA" "$head"; then
+        if [ "$id" != "$cancelled" ] && git merge-base --is-ancestor "$SHA" "$head"; then
           echo "$id $status $conclusion $head $url"
           break
         fi
       done
 }
 
+# A replacement that is not visible yet, or was cancelled in turn, gets the
+# same five minutes the first run got to appear.
 cancelled=""
+missing=0
 while :; do
   rep=$(replacement)
   if [ -z "$rep" ]; then
-    echo "::error::$WORKFLOW was superseded for $SHA and no later run contains it. Re-run this workflow once one has succeeded."
-    exit 1
+    missing=$((missing + 1))
+    if [ "$missing" -gt 10 ]; then
+      echo "::error::$WORKFLOW was superseded for $SHA and no later run contains it after five minutes. Re-run this workflow once one has succeeded."
+      exit 1
+    fi
+    sleep 30
+    continue
   fi
+  missing=0
   read -r id status conclusion head url <<<"$rep"
   if [ "$status" = "completed" ]; then
     if [ "$conclusion" = "cancelled" ]; then
-      if [ "$id" = "$cancelled" ]; then
-        echo "::error::$WORKFLOW run $url for $head was cancelled and nothing replaced it. Re-run this workflow once a run containing $SHA has succeeded."
-        exit 1
-      fi
+      echo "$WORKFLOW was cancelled for $head too: $url"
       cancelled=$id
       sleep 30
       continue
