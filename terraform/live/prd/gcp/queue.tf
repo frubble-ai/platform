@@ -21,11 +21,16 @@ module "worker_service" {
   region                = var.region
   service_account_email = local.setup.worker_service_account
   image                 = var.api_bootstrap_image
-  command               = ["bun", "run", "src/services/worker/index.ts"]
+  # The image picks what it runs from APP_PROCESS, so the placeholder image
+  # starts here too and the service exists before the first deploy. A
+  # `command` would make the first revision fail and the service never be
+  # created.
+  #
   # The worker speaks to its email provider through one adapter chosen by
   # EMAIL_PROVIDER; the key and the sending domain mean the same whichever it
   # is, so swapping providers is a value here and a secret version.
   env = {
+    APP_PROCESS     = "worker"
     APP_ENV         = module.shared.environment
     EMAIL_PROVIDER  = var.email_provider
     EMAIL_DOMAIN    = module.shared.sending_domain
