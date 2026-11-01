@@ -20,6 +20,8 @@ module "database" {
   backup_retention_days = var.environment == "prd" ? 30 : 7
   database_name         = "frubble"
   user_name             = "frubble"
+  password_wo           = local.generated_values["database_password"]
+  password_wo_version   = var.secrets_version
   deletion_protection   = var.environment == "prd"
   labels                = merge(local.labels, { component = "database" })
 

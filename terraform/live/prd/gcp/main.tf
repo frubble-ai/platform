@@ -21,8 +21,9 @@ module "api_service" {
   service_account_email = local.setup.api_service_account
   image                 = var.api_bootstrap_image
   env = merge(local.database_env, {
-    APP_ENV         = var.environment
-    BETTER_AUTH_URL = "https://${var.api_hostname}"
+    APP_ENV             = var.environment
+    BETTER_AUTH_URL     = "https://${var.api_hostname}"
+    PUBSUB_EMAILS_TOPIC = module.emails_queue.topic
   })
   secret_env = merge(local.database_secret_env, {
     BETTER_AUTH_SECRET = { secret = module.secrets["auth_secret"].secret_id }

@@ -2,7 +2,8 @@
 
 Terraform for [`app`](https://github.com/frubble-ai/app): the API as a Cloud Run service behind
 a Google load balancer with Cloud Armor, its Postgres database on a private network, the
-migration job the deploy runs first, and the keyless identities CI uses.
+migration job the deploy runs first, the email queue and the worker service that drains it,
+and the keyless identities CI uses.
 
 ## Layout
 
@@ -14,10 +15,10 @@ terraform/
     org/cloudflare            DNS shared by every environment
     org/posthog               the PostHog project
     stg/gcp/_setup            stg state bucket, spokes, deny policies
-    stg/gcp                   the stg API service, load balancer, WAF, alerts, registry, network, database, secrets, migration job, and the trust rules of its deploy identities
-    stg/cloudflare            the stg API's DNS: its A record and its certificate authorization
+    stg/gcp                   the stg API service, load balancer, WAF, alerts, registry, network, database, secrets, migration job, email queue, worker service, and the trust rules of its deploy identities
+    stg/cloudflare            the stg API's DNS: its A record, its certificate authorization, and the sending domain's email records
     prd/…                     the same, not yet applied
-  modules/                    shared code, no state. gcp/cloud-run-service, gcp/https-load-balancer, gcp/cloud-armor and gcp/alerts are the API's stack; gcp/network, gcp/cloud-sql-postgres and gcp/cloud-run-job its database and migration
+  modules/                    shared code, no state. gcp/cloud-run-service, gcp/https-load-balancer, gcp/cloud-armor and gcp/alerts are the API's stack; gcp/network, gcp/cloud-sql-postgres and gcp/cloud-run-job its database and migration; gcp/pubsub-queue the email queue
 ```
 
 One root per scope and provider, one state each.
@@ -36,12 +37,31 @@ deploy replaces it and Terraform ignores the image from then on.
 
 The database is a Cloud SQL Postgres instance with a private address only, in the
 environment's VPC, reached by the service and the job through direct VPC egress and TLS
-against the instance's own CA, which the root passes to them as `DB_CA_PEM`. Terraform
-creates the application's database user with a placeholder password and ignores it from
-then on, the way the secret module does with values: the real password is set by hand and
-added to the `database/password` secret (Bootstrap, step 5). No person reaches the database:
-there is no public address and no bastion; the migration job and the application are its
-only clients.
+against the instance's own CA, which the root passes to them as `DB_CA_PEM`. No person
+reaches the database: there is no public address and no bastion; the migration job and the
+application are its only clients.
+
+Email leaves through a Pub/Sub topic the API publishes to. A push subscription posts each
+message to the worker, a second Cloud Run service on the same image with its own command,
+reachable by Pub/Sub's identity and nothing else: its run.app URL exists, its ingress admits
+same-project Google services only, and its invoker check holds every caller to the push
+identity. The worker answers 204 once the email is sent; anything else is redelivered with
+backoff, and after five refusals the message moves to the dead-letter topic, whose backlog
+raises the one alert this stack adds. The worker holds the email provider's key and no
+database access.
+
+## Secrets
+
+Two kinds, told apart in the workload root's `secrets.tf`. A value Terraform can generate
+(the database password, the auth secret) is generated during the apply by an ephemeral
+`random_password` and written through write-only attributes, to Secret Manager and, for the
+password, to the database user in the same run. Neither value is ever in state or in a plan;
+what state records is `secrets_version`, the number that pins them. Bumping it in a pull
+request rotates both: the apply generates new values, writes them, and the services pick
+them up on their next revision. A value that comes from outside (the email provider's API
+key) gets a container and a placeholder from Terraform, and a person adds the real version
+with `gcloud secrets versions add … --data-file=-`. Each service reads only the secrets bound
+to its identity, per secret.
 
 ## How CI authenticates
 
@@ -92,12 +112,11 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
    secrets: `CLOUDFLARE_PLAN_TOKEN`,
    `POSTHOG_PLAN_API_KEY`, `POSTHOG_OWNER_EMAIL` and `POSTHOG_MEMBERS` on the repo;
    `CLOUDFLARE_MINT_TOKEN` and `POSTHOG_APPLY_API_KEY` on their environments.
-5. Add real secret values with `gcloud secrets versions add … --data-file=-`: an
-   `auth/secret` of at least 32 random bytes, and the `database/password`, which is also
-   set on the instance with
-   `gcloud sql users set-password frubble --instance=<database_instance output> --prompt-for-password`.
-   The service reads a secret when an instance starts, so a new value is live on the next
-   revision, which the next deploy creates.
+5. Add the secret values that come from outside with
+   `gcloud secrets versions add … --data-file=-`: the email provider's API key in
+   `email/api-key`. The generated ones (Secrets, above) need nothing. A service reads a
+   secret when an instance starts, so a new value is live on the next revision, which the
+   next deploy creates.
 6. Sign up at PostHog with the owner account (never managed by Terraform; its email
    goes in `POSTHOG_OWNER_EMAIL`), create the two personal API keys, invite the
    human members, and once they have joined list them in `POSTHOG_MEMBERS` as a JSON

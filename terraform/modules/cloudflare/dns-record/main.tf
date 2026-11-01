@@ -9,6 +9,8 @@ resource "cloudflare_dns_record" "this" {
   content = var.target
   proxied = var.proxied
   comment = var.comment
+  # MX only; the provider rejects it on any other type.
+  priority = var.type == "MX" ? var.priority : null
 
   # Cloudflare rejects an explicit TTL on a proxied record; 1 means automatic
   # and is the only value accepted there.

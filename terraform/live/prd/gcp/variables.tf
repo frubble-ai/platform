@@ -42,3 +42,15 @@ variable "alert_email" {
   type        = string
   default     = "platform@frubble.ai"
 }
+
+variable "secrets_version" {
+  description = "Pins the generated secret values (the database password, the auth secret). Bump it to rotate them: the next apply generates new values and writes them to Secret Manager and the database; the services pick them up on their next revision."
+  type        = number
+  default     = 1
+}
+
+variable "email_from" {
+  description = "Address the worker sends from. Its domain is the one verified at the email provider, whose records the Cloudflare root publishes."
+  type        = string
+  default     = "noreply@frubble.ai"
+}

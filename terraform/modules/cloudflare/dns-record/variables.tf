@@ -9,18 +9,18 @@ variable "hostname" {
 }
 
 variable "type" {
-  description = "Record type, `CNAME` or `A`."
+  description = "Record type: `CNAME`, `A`, `TXT` or `MX`."
   type        = string
   default     = "CNAME"
 
   validation {
-    condition     = contains(["A", "CNAME"], var.type)
-    error_message = "type must be A or CNAME."
+    condition     = contains(["A", "CNAME", "TXT", "MX"], var.type)
+    error_message = "type must be A, CNAME, TXT or MX."
   }
 }
 
 variable "target" {
-  description = "Record content: the CNAME target, or the address of an A record."
+  description = "Record content: the CNAME target, the address of an A record, the text of a TXT, the mail host of an MX."
   type        = string
 }
 
@@ -39,4 +39,10 @@ variable "ttl" {
 variable "comment" {
   description = "Shown in the Cloudflare dashboard. Worth filling in: a proxied CNAME to an opaque tunnel id is otherwise unidentifiable from the UI."
   type        = string
+}
+
+variable "priority" {
+  description = "MX records only."
+  type        = number
+  default     = null
 }

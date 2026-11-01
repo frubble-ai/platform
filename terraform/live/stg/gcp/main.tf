@@ -21,8 +21,9 @@ module "api_service" {
   service_account_email = local.setup.api_service_account
   image                 = var.api_bootstrap_image
   env = merge(local.database_env, {
-    APP_ENV         = var.environment
-    BETTER_AUTH_URL = "https://${var.api_hostname}"
+    APP_ENV             = var.environment
+    BETTER_AUTH_URL     = "https://${var.api_hostname}"
+    PUBSUB_EMAILS_TOPIC = module.emails_queue.topic
   })
   secret_env = merge(local.database_secret_env, {
     BETTER_AUTH_SECRET = { secret = module.secrets["auth_secret"].secret_id }
@@ -84,8 +85,8 @@ module "alerts" {
 }
 
 # ---------- what the application's deploy identity may touch ----------
-# This registry, this service and the migration job. It cannot create a
-# second service to run something else.
+# This registry, the two services and the migration job. It cannot create a
+# third service to run something else.
 resource "google_artifact_registry_repository_iam_member" "deploy_pushes" {
   project    = var.project_id
   location   = module.registry.location
@@ -113,6 +114,14 @@ resource "google_cloud_run_v2_job_iam_member" "deploy_runs_migrate" {
   project  = var.project_id
   location = var.region
   name     = module.migrate_job.name
+  role     = "roles/run.developer"
+  member   = "serviceAccount:${local.setup.deploy_spoke}"
+}
+
+resource "google_cloud_run_v2_service_iam_member" "deploy_rolls_out_worker" {
+  project  = var.project_id
+  location = var.region
+  name     = module.worker_service.name
   role     = "roles/run.developer"
   member   = "serviceAccount:${local.setup.deploy_spoke}"
 }
