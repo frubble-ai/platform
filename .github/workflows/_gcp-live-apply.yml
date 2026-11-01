@@ -75,6 +75,7 @@ jobs:
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
           BEFORE: ${{ github.event.before }}
+          BRANCH: ${{ github.ref_name }}
           WORKFLOW: setup-cd.yml
           PATHS: '^(terraform/live/[^/]+/gcp/_setup/|terraform/modules/gcp/(developer-access|plan-store|project|project-pin|state-bucket|wif-hub|wif-spoke)/|\.github/workflows/(_setup-apply|setup-cd)\.yml$|\.github/scripts/terraform/)'
         run: |

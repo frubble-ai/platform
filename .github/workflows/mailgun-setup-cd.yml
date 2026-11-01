@@ -37,7 +37,9 @@ jobs:
   # run on this same commit and fails if it did not succeed, so the key is
   # never made for a domain that is not there yet
   # (scripts/workflows/wait-for-workflow.sh). PATHS matches every path for
-  # that reason: whatever this push changed, stg-cd ran for it.
+  # that reason: whatever this push changed, stg-cd ran for it. JOBS names
+  # the one job that makes the domain, so the Cloudflare or GCP apply beside
+  # it failing holds nothing here.
   wait:
     name: wait for stg-cd
     if: vars.MAILGUN_ENABLED == 'true'
@@ -55,8 +57,10 @@ jobs:
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
           BEFORE: ${{ github.event.before }}
+          BRANCH: ${{ github.ref_name }}
           WORKFLOW: stg-cd.yml
           PATHS: '.'
+          JOBS: 'apply stg mailgun / apply'
         run: |
           "$GITHUB_WORKSPACE/.github/scripts/workflows/wait-for-workflow.sh"
 

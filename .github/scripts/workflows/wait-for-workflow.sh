@@ -11,13 +11,21 @@
 # poll instead. Exits 0 when there is nothing to wait for or the run
 # succeeded, 1 otherwise.
 #
+# What "succeeded" means is the caller's: the whole run, or with JOBS the
+# named jobs alone, so a job the caller does not depend on cannot hold it.
+# A run that was cancelled was superseded by a newer push on the branch
+# (concurrency replaces a queued run); a later run that succeeded and whose
+# commit contains this one did the same work, and counts.
+#
 # PATHS mirrors WORKFLOW's trigger paths; change both.
 #
 # Env: GH_TOKEN, REPO (owner/name), SHA, BEFORE (may be empty or all zeros),
-#      WORKFLOW (its file name), PATHS (an extended regex over changed paths)
+#      BRANCH, WORKFLOW (its file name), PATHS (an extended regex over
+#      changed paths), JOBS (optional: job names that must succeed,
+#      separated by |, as the run's job list prints them)
 set -euo pipefail
 
-: "${REPO:?}" "${SHA:?}" "${WORKFLOW:?}" "${PATHS:?}"
+: "${REPO:?}" "${SHA:?}" "${BRANCH:?}" "${WORKFLOW:?}" "${PATHS:?}"
 paths="$PATHS"
 
 expected=unknown
@@ -36,14 +44,35 @@ else
   echo "no previous commit to diff against; checking for a $WORKFLOW run"
 fi
 
-latest() {
-  gh api "repos/$REPO/actions/workflows/$WORKFLOW/runs?head_sha=$SHA&per_page=1" \
-    --jq '.workflow_runs[0] // empty | "\(.status) \(.conclusion // "-") \(.html_url)"'
+# id, status, conclusion and url of the newest run for a commit.
+run_for() {
+  gh api "repos/$REPO/actions/workflows/$WORKFLOW/runs?head_sha=$1&per_page=1" \
+    --jq '.workflow_runs[0] // empty | "\(.id) \(.status) \(.conclusion // "-") \(.html_url)"'
+}
+
+# Whether a completed run did what the caller needs: every job in JOBS
+# succeeded, or, with no JOBS, the run as a whole did.
+succeeded() {
+  local id=$1 conclusion=$2
+  if [ -z "${JOBS:-}" ]; then
+    [ "$conclusion" = "success" ]
+    return
+  fi
+  local jobs name
+  jobs=$(gh api "repos/$REPO/actions/runs/$id/jobs?per_page=100" \
+    --jq '.jobs[] | "\(.conclusion // "-")\t\(.name)"')
+  IFS='|' read -ra names <<<"$JOBS"
+  for name in "${names[@]}"; do
+    if ! grep -qxF "success	$name" <<<"$jobs"; then
+      echo "job '$name' did not succeed in run $id"
+      return 1
+    fi
+  done
 }
 
 run=""
 for _ in $(seq 1 30); do
-  run=$(latest)
+  run=$(run_for "$SHA")
   [ -n "$run" ] && break
   sleep 10
 done
@@ -57,16 +86,31 @@ if [ -z "$run" ]; then
 fi
 
 while :; do
-  read -r status conclusion url <<<"$run"
+  read -r id status conclusion url <<<"$run"
   if [ "$status" = "completed" ]; then
-    if [ "$conclusion" = "success" ]; then
+    if succeeded "$id" "$conclusion"; then
       echo "$WORKFLOW succeeded: $url"
       exit 0
     fi
+    [ "$conclusion" = "cancelled" ] && break
     echo "::error::$WORKFLOW did not succeed ($conclusion): $url. Re-run this workflow once it has."
     exit 1
   fi
   echo "$WORKFLOW is $status, waiting: $url"
   sleep 30
-  run=$(latest)
+  run=$(run_for "$SHA")
 done
+
+# Superseded: a newer push replaced the queued run. The newest successful run
+# on the branch whose commit contains this one applied the same change.
+echo "$WORKFLOW was cancelled for $SHA, superseded by a newer push: $url"
+git fetch --quiet origin "$BRANCH"
+while read -r id head url; do
+  if git merge-base --is-ancestor "$SHA" "$head" && succeeded "$id" success; then
+    echo "$WORKFLOW succeeded for $head, which contains $SHA: $url"
+    exit 0
+  fi
+done < <(gh api "repos/$REPO/actions/workflows/$WORKFLOW/runs?branch=$BRANCH&status=completed&per_page=20" \
+  --jq '.workflow_runs[] | select(.conclusion == "success") | "\(.id) \(.head_sha) \(.html_url)"')
+echo "::error::$WORKFLOW was superseded for $SHA and no later run containing it has succeeded yet. Re-run this workflow once one has."
+exit 1
