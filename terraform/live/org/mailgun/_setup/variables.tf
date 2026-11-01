@@ -1,5 +1,4 @@
-variable "sending_domains" {
-  description = "Sending domain per environment handle, e.g. { stg = \"stg.frubble.ai\" }. Empty until the environment's mailgun root has created the domain."
+variable "environment_projects" {
+  description = "Project id per environment handle, as org/gcp/_setup takes it; where each sending key's secret lives."
   type        = map(string)
-  default     = {}
 }

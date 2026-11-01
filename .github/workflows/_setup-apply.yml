@@ -8,7 +8,7 @@ on:
   workflow_call:
     inputs:
       stack:
-        description: Which _setup root — org, stg or prd. Names the plan-store prefix.
+        description: Which _setup root — org, stg, prd or mailgun. Names the plan-store prefix.
         required: true
         type: string
       gh_environment:
@@ -37,6 +37,11 @@ on:
       audience:
         required: true
         type: string
+    secrets:
+      # The Mailgun root's credential, an environment secret the `setup`
+      # environment holds; the other roots pass nothing (README, "Email").
+      MAILGUN_APPLY_API_KEY:
+        required: false
 
 permissions:
   contents: read
@@ -75,6 +80,18 @@ jobs:
           ENVIRONMENT: ${{ inputs.gh_environment }}
         run: |
           "$GITHUB_WORKSPACE/.github/scripts/terraform/require-environment-reviewer.sh"
+
+      # No minting: Mailgun has no API to issue a key per run. The admin key
+      # reaches only this job, after the reviewer.
+      - name: Use the Mailgun key
+        if: inputs.stack == 'mailgun'
+        shell: bash
+        env:
+          APPLY_KEY: ${{ secrets.MAILGUN_APPLY_API_KEY }}
+        run: |
+          [ -n "$APPLY_KEY" ] || { echo "::error::MAILGUN_APPLY_API_KEY is not set in the setup environment"; exit 1; }
+          echo "::add-mask::$APPLY_KEY"
+          echo "MAILGUN_API_KEY=$APPLY_KEY" >> "$GITHUB_ENV"
 
       - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
         with:

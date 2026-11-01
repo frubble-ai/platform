@@ -18,7 +18,7 @@
 set -euo pipefail
 
 : "${REPO:?}" "${SHA:?}"
-paths='^(terraform/live/[^/]+/gcp/_setup/|terraform/modules/gcp/(developer-access|plan-store|project|project-pin|state-bucket|wif-hub|wif-spoke)/|\.github/workflows/(_setup-apply|setup-cd)\.yml$|\.github/scripts/terraform/)'
+paths='^(terraform/live/[^/]+/gcp/_setup/|terraform/live/org/mailgun/_setup/|terraform/live/[^/]+/shared/|terraform/modules/naming/|terraform/modules/gcp/(developer-access|plan-store|project|project-pin|state-bucket|wif-hub|wif-spoke)/|\.github/workflows/(_setup-apply|setup-cd)\.yml$|\.github/scripts/terraform/)'
 
 expected=unknown
 if [ -n "${BEFORE:-}" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
