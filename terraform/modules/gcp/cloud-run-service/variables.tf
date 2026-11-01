@@ -35,10 +35,40 @@ variable "health_path" {
   description = "Path the startup and liveness probes GET."
 }
 
+variable "command" {
+  type        = list(string)
+  default     = null
+  description = "Entrypoint override. Null keeps the image's; the worker runs the same image with its own."
+}
+
+variable "args" {
+  type        = list(string)
+  default     = null
+  description = "Arguments to the entrypoint."
+}
+
 variable "env" {
   type        = map(string)
   default     = {}
-  description = "Plain environment variables. Secrets are not passed this way."
+  description = "Plain environment variables. Secrets go in `secret_env`."
+}
+
+variable "secret_env" {
+  type = map(object({
+    secret  = string
+    version = optional(string, "latest")
+  }))
+  default     = {}
+  description = "Environment variables read from Secret Manager when an instance starts, keyed by variable name. The service's identity needs accessor on each secret, or the revision refuses to start."
+}
+
+variable "vpc" {
+  type = object({
+    network    = string
+    subnetwork = string
+  })
+  default     = null
+  description = "Direct VPC egress for private addresses, such as the database's. Null keeps the service off the VPC."
 }
 
 variable "cpu" {

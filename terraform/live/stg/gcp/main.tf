@@ -20,12 +20,21 @@ module "api_service" {
   region                = var.region
   service_account_email = local.setup.api_service_account
   image                 = var.api_bootstrap_image
-  env                   = { APP_ENV = var.environment }
+  env = merge(local.database_env, {
+    APP_ENV         = var.environment
+    BETTER_AUTH_URL = "https://${var.api_hostname}"
+  })
+  secret_env = merge(local.database_secret_env, {
+    BETTER_AUTH_SECRET = { secret = module.secrets["auth_secret"].secret_id }
+  })
+  vpc = local.vpc
   # In prd a rollback takes one apply more: set this to false and apply, then
   # remove this stack as a whole (service, load balancer, armor, alerts and
   # their outputs) and apply, keeping the google-beta provider until then.
   deletion_protection = var.environment == "prd"
   labels              = merge(local.labels, { component = "api" })
+
+  depends_on = [google_secret_manager_secret_iam_member.api_reads]
 }
 
 module "armor" {
@@ -75,8 +84,8 @@ module "alerts" {
 }
 
 # ---------- what the application's deploy identity may touch ----------
-# This registry and this service. It cannot create a second service to run
-# something else.
+# This registry, this service and the migration job. It cannot create a
+# second service to run something else.
 resource "google_artifact_registry_repository_iam_member" "deploy_pushes" {
   project    = var.project_id
   location   = module.registry.location
@@ -94,6 +103,16 @@ resource "google_cloud_run_v2_service_iam_member" "deploy_rolls_out_api" {
   project  = var.project_id
   location = var.region
   name     = module.api_service.name
+  role     = "roles/run.developer"
+  member   = "serviceAccount:${local.setup.deploy_spoke}"
+}
+
+# The deploy updates the job's image and executes it before rolling the
+# service out; run.developer covers both.
+resource "google_cloud_run_v2_job_iam_member" "deploy_runs_migrate" {
+  project  = var.project_id
+  location = var.region
+  name     = module.migrate_job.name
   role     = "roles/run.developer"
   member   = "serviceAccount:${local.setup.deploy_spoke}"
 }

@@ -20,12 +20,21 @@ module "api_service" {
   region                = var.region
   service_account_email = local.setup.api_service_account
   image                 = var.api_bootstrap_image
-  env                   = { APP_ENV = var.environment }
+  env = merge(local.database_env, {
+    APP_ENV         = var.environment
+    BETTER_AUTH_URL = "https://${var.api_hostname}"
+  })
+  secret_env = merge(local.database_secret_env, {
+    BETTER_AUTH_SECRET = { secret = module.secrets["auth_secret"].secret_id }
+  })
+  vpc = local.vpc
   # In prd a rollback takes one apply more: set this to false and apply, then
   # remove this stack as a whole (service, load balancer, armor, alerts and
   # their outputs) and apply, keeping the google-beta provider until then.
   deletion_protection = var.environment == "prd"
   labels              = merge(local.labels, { component = "api" })
+
+  depends_on = [google_secret_manager_secret_iam_member.api_reads]
 }
 
 module "armor" {
