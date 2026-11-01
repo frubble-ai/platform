@@ -11,6 +11,9 @@ module "plan_spoke" {
 
   roles = [
     { role = "roles/viewer" },
+    # viewer stops short of a topic's or subscription's IAM policy, which the
+    # queue's bindings are refreshed from on every plan.
+    { role = "roles/pubsub.viewer" },
   ]
 }
 
