@@ -49,7 +49,13 @@ module "worker_service" {
   deletion_protection  = module.shared.environment == "prd"
   labels               = merge(local.labels, { component = "worker" })
 
-  depends_on = [google_secret_manager_secret_iam_member.worker_reads]
+  # The secret's first version and the binding on it both exist before the
+  # service does: Cloud Run checks a referenced secret when it creates the
+  # revision.
+  depends_on = [
+    module.secrets,
+    google_secret_manager_secret_iam_member.worker_reads,
+  ]
 }
 
 resource "google_cloud_run_v2_service_iam_member" "push_invokes_worker" {

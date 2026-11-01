@@ -35,7 +35,13 @@ module "api_service" {
   deletion_protection = module.shared.environment == "prd"
   labels              = merge(local.labels, { component = "api" })
 
-  depends_on = [google_secret_manager_secret_iam_member.api_reads]
+  # The secrets' versions and the bindings on them both exist before the
+  # service does: Cloud Run checks a referenced secret when it creates the
+  # revision.
+  depends_on = [
+    module.secrets,
+    google_secret_manager_secret_iam_member.api_reads,
+  ]
 }
 
 module "armor" {

@@ -68,5 +68,8 @@ module "migrate_job" {
   deletion_protection = module.shared.environment == "prd"
   labels              = merge(local.labels, { component = "migrate" })
 
-  depends_on = [google_secret_manager_secret_iam_member.api_reads]
+  depends_on = [
+    module.secrets,
+    google_secret_manager_secret_iam_member.api_reads,
+  ]
 }
