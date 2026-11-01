@@ -69,6 +69,13 @@ module "apply_spoke" {
     { role = "roles/certificatemanager.editor" },
     { role = "roles/monitoring.editor" },
 
+    # The database, its private-IP peering and the email queue. What a
+    # workload may do with them is bound on each resource, never on the
+    # project, so the projectIamAdmin condition below stays as narrow as it is.
+    { role = "roles/cloudsql.admin" },
+    { role = "roles/servicenetworking.networksAdmin" },
+    { role = "roles/pubsub.admin" },
+
     # Project-level bindings are part of applying the stack (the instance
     # needs logWriter), but projectIamAdmin unconditionally would let the
     # apply grant itself owner. The condition limits it to the exact roles
@@ -109,10 +116,10 @@ module "deploy_spoke" {
 
   project_id  = var.project_id
   name        = "frubble-deploy"
-  description = "frubble-app deploy: push an image, roll out the API service."
+  description = "frubble-app deploy: push an image, run the migration job, roll out the API and worker services."
   hub_member  = local.backend_deploy_hub
 
-  # No project role. What the deploy may touch is bound on the registry and
-  # on the service, in the workload root.
+  # No project role. What the deploy may touch is bound on the registry, the
+  # job and the services, in the workload root.
   roles = []
 }
