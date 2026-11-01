@@ -1,4 +1,22 @@
 # ---------- plan: reads everything, changes nothing ----------
+locals {
+  # Spelled out rather than read from the resource: the spoke module keys its
+  # bindings by role, and a key must be known before the role exists.
+  pubsub_policy_viewer_role_id = "frubblePubsubPolicyViewer"
+  pubsub_policy_viewer_role    = "projects/${var.project_id}/roles/${local.pubsub_policy_viewer_role_id}"
+}
+
+resource "google_project_iam_custom_role" "pubsub_policy_viewer" {
+  project     = var.project_id
+  role_id     = local.pubsub_policy_viewer_role_id
+  title       = "Pub/Sub policy viewer"
+  description = "Read the IAM policy of a topic or subscription, and nothing else."
+  permissions = [
+    "pubsub.topics.getIamPolicy",
+    "pubsub.subscriptions.getIamPolicy",
+  ]
+}
+
 # It still needs to write: Terraform's GCS backend takes a lock by writing an
 # object, and a plan that cannot release its lock wedges every run after it.
 module "plan_spoke" {
@@ -11,7 +29,14 @@ module "plan_spoke" {
 
   roles = [
     { role = "roles/viewer" },
+    # viewer stops short of a topic's or subscription's IAM policy, which the
+    # queue's bindings are refreshed from on every plan. No predefined role
+    # reads those without writing them or reading every policy in the
+    # project, so the two permissions are a role of their own.
+    { role = local.pubsub_policy_viewer_role },
   ]
+
+  depends_on = [google_project_iam_custom_role.pubsub_policy_viewer]
 }
 
 # Read the state, write only the lock.

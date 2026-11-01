@@ -97,5 +97,8 @@ variable "apis" {
     "cloudkms.googleapis.com",
     "iam.googleapis.com",
     "cloudresourcemanager.googleapis.com",
+    # Creating a service's own identity (Pub/Sub's, for dead-lettering) is a
+    # Service Usage call.
+    "serviceusage.googleapis.com",
   ]
 }
