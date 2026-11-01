@@ -57,6 +57,7 @@ jobs:
       origin_ip: ${{ vars.GCP_LB_IP_STG }}
     secrets:
       CLOUDFLARE_MINT_TOKEN: ${{ secrets.CLOUDFLARE_MINT_TOKEN }}
+      MAILGUN_APPLY_API_KEY: ${{ secrets.MAILGUN_APPLY_API_KEY }}
     permissions:
       contents: read
       id-token: write

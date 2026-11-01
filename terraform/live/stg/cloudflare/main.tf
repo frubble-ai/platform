@@ -35,17 +35,3 @@ module "certificate_authorization" {
   comment  = "frubble ${var.environment} certificate authorization — managed by terraform"
 }
 
-# The sending domain's DMARC policy: report-only, so a receiver that fails SPF
-# or DKIM on our mail still delivers it while the records settle. The
-# provider's own records (DKIM, SPF, the bounce MX) join it once the domain is
-# registered there.
-module "email_dmarc" {
-  source = "../../../modules/cloudflare/dns-record"
-
-  zone_id  = var.zone_id
-  hostname = "_dmarc.stg.${var.domain}"
-  type     = "TXT"
-  target   = "v=DMARC1; p=none"
-  proxied  = false
-  comment  = "frubble stg email DMARC — managed by terraform"
-}

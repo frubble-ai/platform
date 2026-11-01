@@ -16,7 +16,7 @@ terraform/
     org/posthog               the PostHog project
     stg/gcp/_setup            stg state bucket, spokes, deny policies
     stg/gcp                   the stg API service, load balancer, WAF, alerts, registry, network, database, secrets, migration job, email queue, worker service, and the trust rules of its deploy identities
-    stg/cloudflare            the stg API's DNS: its A record, its certificate authorization, and the sending domain's email records
+    stg/cloudflare            the stg API's DNS: its A record, its certificate authorization, and the sending domain at Mailgun with its email records
     prd/…                     the same, not yet applied
   modules/                    shared code, no state. gcp/cloud-run-service, gcp/https-load-balancer, gcp/cloud-armor and gcp/alerts are the API's stack; gcp/network, gcp/cloud-sql-postgres and gcp/cloud-run-job its database and migration; gcp/pubsub-queue the email queue
 ```
@@ -49,6 +49,24 @@ identity. The worker answers 204 once the email is sent; anything else is redeli
 backoff, and after five refusals the message moves to the dead-letter topic, whose backlog
 raises the one alert this stack adds. The worker holds the email provider's key and no
 database access.
+
+## Email
+
+Mail goes out through Mailgun. The sending domain (`stg.frubble.ai` on stg) is registered
+there by the environment's Cloudflare root, beside the SPF, DKIM and DMARC records it needs,
+all DNS-only: a sending domain is DNS configuration, and the DKIM key the provider hands
+back is read by nothing else. The Mailgun provider reads its key from `MAILGUN_API_KEY`, which
+the workflows fill from GitHub secrets: `MAILGUN_PLAN_API_KEY` on the repository for plans,
+`MAILGUN_APPLY_API_KEY` on the environment for applies. Mailgun has no read-only key kind for
+domains, so the plan key is a standing credential with the same reach as the apply one; it is
+the one secret here the Cloudflare pattern (a minted, short-lived token) cannot be repeated
+for. Mailgun also returns the domain's SMTP password on creation and the provider records it
+in state; nothing here uses SMTP, and resetting that password in the Mailgun dashboard makes
+the recorded one dead.
+
+The worker sends with a domain sending key, which can send through that one domain and do
+nothing else with the account. It is created in the Mailgun dashboard once the domain exists
+and added to the `email/api-key` secret (Bootstrap, step 5).
 
 ## Secrets
 
@@ -108,13 +126,15 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
 4. Copy the outputs into GitHub repository variables (including `PLAN_STORE_BUCKET`,
    `GCP_SETUP_PLAN_IDENTITY` and `GCP_BOOTSTRAP_SERVICE_ACCOUNT`), the `_setup` inputs as
    `TF_SETUP_ORG_ID`, `TF_SETUP_BILLING_ACCOUNT`, `TF_SETUP_DEVELOPER_GROUP`,
-   `TF_SETUP_ADMINISTRATOR`, `GCP_MANAGEMENT_PROJECT` and `BACKEND_REPOSITORY`, and the six
-   secrets: `CLOUDFLARE_PLAN_TOKEN`,
+   `TF_SETUP_ADMINISTRATOR`, `GCP_MANAGEMENT_PROJECT` and `BACKEND_REPOSITORY`, and the
+   secrets: `CLOUDFLARE_PLAN_TOKEN`, `MAILGUN_PLAN_API_KEY`,
    `POSTHOG_PLAN_API_KEY`, `POSTHOG_OWNER_EMAIL` and `POSTHOG_MEMBERS` on the repo;
-   `CLOUDFLARE_MINT_TOKEN` and `POSTHOG_APPLY_API_KEY` on their environments.
+   `CLOUDFLARE_MINT_TOKEN`, `MAILGUN_APPLY_API_KEY` and `POSTHOG_APPLY_API_KEY` on their
+   environments.
 5. Add the secret values that come from outside with
-   `gcloud secrets versions add … --data-file=-`: the email provider's API key in
-   `email/api-key`. The generated ones (Secrets, above) need nothing. A service reads a
+   `gcloud secrets versions add … --data-file=-`: the Mailgun domain sending key in
+   `email/api-key`, once the Cloudflare apply has registered the domain. The generated ones
+   (Secrets, above) need nothing. A service reads a
    secret when an instance starts, so a new value is live on the next revision, which the
    next deploy creates.
 6. Sign up at PostHog with the owner account (never managed by Terraform; its email

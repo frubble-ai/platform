@@ -41,6 +41,10 @@ on:
     secrets:
       CLOUDFLARE_PLAN_TOKEN:
         required: true
+      # Only the environment roots register a sending domain; the org root
+      # has no Mailgun provider and ignores it.
+      MAILGUN_PLAN_API_KEY:
+        required: false
 
 # No pull-requests: write — see _gcp-live-plan.yml. The aggregating job in
 # live-plan.yml owns the comment.
@@ -108,6 +112,17 @@ jobs:
         run: |
           echo "::add-mask::$PLAN_TOKEN"
           echo "CLOUDFLARE_API_TOKEN=$PLAN_TOKEN" >> "$GITHUB_ENV"
+
+      # Mailgun has no read-only key kind for domains (README, "Email"); the
+      # plan holds a standing key like the apply does.
+      - name: Use the Mailgun key
+        if: steps.scope.outputs.relevant == 'true'
+        shell: bash
+        env:
+          MAILGUN_KEY: ${{ secrets.MAILGUN_PLAN_API_KEY }}
+        run: |
+          echo "::add-mask::$MAILGUN_KEY"
+          echo "MAILGUN_API_KEY=$MAILGUN_KEY" >> "$GITHUB_ENV"
 
       - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
         if: steps.scope.outputs.relevant == 'true'

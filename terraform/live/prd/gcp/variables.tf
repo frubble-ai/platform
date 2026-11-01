@@ -49,8 +49,8 @@ variable "secrets_version" {
   default     = 1
 }
 
-variable "email_from" {
-  description = "Address the worker sends from. Its domain is the one verified at the email provider, whose records the Cloudflare root publishes."
+variable "email_domain" {
+  description = "The sending domain, registered at the email provider by the Cloudflare root. The worker sends as noreply@ it."
   type        = string
-  default     = "noreply@frubble.ai"
+  default     = "frubble.ai"
 }

@@ -39,6 +39,8 @@ on:
     secrets:
       CLOUDFLARE_MINT_TOKEN:
         required: true
+      MAILGUN_APPLY_API_KEY:
+        required: false
 
 permissions:
   contents: read
@@ -129,6 +131,16 @@ jobs:
           echo "::add-mask::$token"
           echo "CLOUDFLARE_API_TOKEN=$token" >> "$GITHUB_ENV"
           echo "token_id=$(echo "$created" | jq -r '.result.id')" >> "$GITHUB_OUTPUT"
+
+      # Mailgun has no short-lived tokens to mint (README, "Email"): the apply
+      # holds the standing key for its duration.
+      - name: Use the Mailgun key
+        shell: bash
+        env:
+          MAILGUN_KEY: ${{ secrets.MAILGUN_APPLY_API_KEY }}
+        run: |
+          echo "::add-mask::$MAILGUN_KEY"
+          echo "MAILGUN_API_KEY=$MAILGUN_KEY" >> "$GITHUB_ENV"
 
       - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
         with:

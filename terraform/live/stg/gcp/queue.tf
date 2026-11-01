@@ -24,11 +24,12 @@ module "worker_service" {
   command               = ["bun", "run", "src/services/worker/index.ts"]
   env = {
     APP_ENV         = var.environment
-    EMAIL_FROM      = var.email_from
+    MAILGUN_DOMAIN  = var.email_domain
+    EMAIL_FROM      = "noreply@${var.email_domain}"
     EMAIL_FROM_NAME = "Frubble"
   }
   secret_env = {
-    RESEND_API_KEY = { secret = module.secrets["email_api_key"].secret_id }
+    MAILGUN_API_KEY = { secret = module.secrets["email_api_key"].secret_id }
   }
   # Reached by Pub/Sub only: the run.app URL exists, ingress admits same-project
   # Google services and nothing from the internet, and the invoker check holds

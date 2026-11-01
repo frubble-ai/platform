@@ -80,6 +80,7 @@ jobs:
       audience: ${{ vars.GCP_WIF_AUDIENCE }}
     secrets:
       CLOUDFLARE_PLAN_TOKEN: ${{ secrets.CLOUDFLARE_PLAN_TOKEN }}
+      MAILGUN_PLAN_API_KEY: ${{ secrets.MAILGUN_PLAN_API_KEY }}
     permissions:
       contents: read
       id-token: write
@@ -101,6 +102,7 @@ jobs:
       origin_ip: ${{ vars.GCP_LB_IP_STG }}
     secrets:
       CLOUDFLARE_PLAN_TOKEN: ${{ secrets.CLOUDFLARE_PLAN_TOKEN }}
+      MAILGUN_PLAN_API_KEY: ${{ secrets.MAILGUN_PLAN_API_KEY }}
     permissions:
       contents: read
       id-token: write
@@ -123,6 +125,7 @@ jobs:
       origin_ip: ${{ vars.GCP_LB_IP_PRD }}
     secrets:
       CLOUDFLARE_PLAN_TOKEN: ${{ secrets.CLOUDFLARE_PLAN_TOKEN }}
+      MAILGUN_PLAN_API_KEY: ${{ secrets.MAILGUN_PLAN_API_KEY }}
     permissions:
       contents: read
       id-token: write
