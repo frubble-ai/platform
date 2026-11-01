@@ -19,7 +19,6 @@ module.exports = async ({ github, context, core }) => {
   const STACKS = [
     'gcp-stg', 'gcp-prd',
     'cloudflare-org', 'cloudflare-stg', 'cloudflare-prd',
-    'mailgun-stg', 'mailgun-prd',
     'posthog-org',
     'setup-org', 'setup-stg', 'setup-prd',
   ]
