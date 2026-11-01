@@ -101,16 +101,49 @@ while :; do
   run=$(run_for "$SHA")
 done
 
-# Superseded: a newer push replaced the queued run. The newest successful run
-# on the branch whose commit contains this one applied the same change.
+# Superseded: a newer push replaced the queued run, and the newest run on
+# the branch whose commit contains this one does the same work. Polled like
+# the first: it may still be queued, it may fail, or it may be superseded in
+# turn, in which case the next poll finds the run that replaced it.
 echo "$WORKFLOW was cancelled for $SHA, superseded by a newer push: $url"
 git fetch --quiet origin "$BRANCH"
-while read -r id head url; do
-  if git merge-base --is-ancestor "$SHA" "$head" && succeeded "$id" success; then
-    echo "$WORKFLOW succeeded for $head, which contains $SHA: $url"
-    exit 0
+
+replacement() {
+  gh api "repos/$REPO/actions/workflows/$WORKFLOW/runs?branch=$BRANCH&per_page=20" \
+    --jq '.workflow_runs[] | "\(.id) \(.status) \(.conclusion // "-") \(.head_sha) \(.html_url)"' \
+    | while read -r id status conclusion head url; do
+        if git merge-base --is-ancestor "$SHA" "$head"; then
+          echo "$id $status $conclusion $head $url"
+          break
+        fi
+      done
+}
+
+cancelled=""
+while :; do
+  rep=$(replacement)
+  if [ -z "$rep" ]; then
+    echo "::error::$WORKFLOW was superseded for $SHA and no later run contains it. Re-run this workflow once one has succeeded."
+    exit 1
   fi
-done < <(gh api "repos/$REPO/actions/workflows/$WORKFLOW/runs?branch=$BRANCH&status=completed&per_page=20" \
-  --jq '.workflow_runs[] | select(.conclusion == "success") | "\(.id) \(.head_sha) \(.html_url)"')
-echo "::error::$WORKFLOW was superseded for $SHA and no later run containing it has succeeded yet. Re-run this workflow once one has."
-exit 1
+  read -r id status conclusion head url <<<"$rep"
+  if [ "$status" = "completed" ]; then
+    if [ "$conclusion" = "cancelled" ]; then
+      if [ "$id" = "$cancelled" ]; then
+        echo "::error::$WORKFLOW run $url for $head was cancelled and nothing replaced it. Re-run this workflow once a run containing $SHA has succeeded."
+        exit 1
+      fi
+      cancelled=$id
+      sleep 30
+      continue
+    fi
+    if succeeded "$id" "$conclusion"; then
+      echo "$WORKFLOW succeeded for $head, which contains $SHA: $url"
+      exit 0
+    fi
+    echo "::error::$WORKFLOW did not succeed ($conclusion) for $head, which contains $SHA: $url. Re-run this workflow once it has."
+    exit 1
+  fi
+  echo "$WORKFLOW is $status for $head, which contains $SHA, waiting: $url"
+  sleep 30
+done
