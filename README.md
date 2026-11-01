@@ -73,7 +73,11 @@ Mail goes out through Mailgun, in the shape every provider here has. `stg/mailgu
 `<env>/mailgun/`. `org/mailgun/_setup` mints one sending key per domain (role `sending`,
 scoped to that domain, the worker's only credential) and writes it into the environment's
 `email/api-key` secret through a write-only attribute, so no key is printed or copied; it
-runs in `setup-cd` behind the same reviewer as the GCP `_setup` roots. The credential both
+runs in `mailgun-setup-cd` behind the same reviewer as the GCP `_setup` roots, after the
+`stg-cd` run that registers the domain when one commit changes both. A worker instance reads
+the secret when it starts and keeps that key until it stops, so a rotation keeps two keys
+alive: add the next generation in the root (the secret moves to it), roll the workers, then
+remove the old one; the root's comment spells the steps. The credential both
 use is the account's admin key, made once in the Mailgun dashboard and held as
 `MAILGUN_APPLY_API_KEY` by the `stg` and `setup` environments: Mailgun has no narrower role
 that creates domains or keys, so there is nothing to mint for CI, unlike Cloudflare. There
@@ -136,8 +140,9 @@ account from `.envrc.local` (copy `.envrc.local.example`). After that they are p
 every pull request (`Plan * setup`) and applied on merge by `setup-cd`, which waits in the
 `setup` environment for a reviewer. The hand path stays for that first apply and for an
 emergency. `org/cloudflare/_setup` stays by hand: it needs the Cloudflare bootstrap token,
-which is never stored in GitHub. `org/mailgun/_setup` runs in `setup-cd` too, with the
-Mailgun admin key from the `setup` environment and no pull-request plan (Email, above).
+which is never stored in GitHub. `org/mailgun/_setup` runs the same way in
+`mailgun-setup-cd`, with the Mailgun admin key from the `setup` environment and no
+pull-request plan (Email, above).
 
 Where a `_setup` root's inputs come from changes once. The first apply reads a
 `terraform.tfvars` copied from the example, because the repository variables do not exist
@@ -165,7 +170,7 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
    Mailgun admin key as `MAILGUN_APPLY_API_KEY` on both `stg` and `setup`.
 5. Email, in this order, since each step needs the one before: set `MAILGUN_ENABLED` to
    `true` and run `stg-cd` by hand (Actions → stg-cd → Run workflow), which registers the
-   domain; run `setup-cd` by hand and approve it, which mints the domain's sending key and
+   domain; run `mailgun-setup-cd` by hand and approve it, which mints the domain's sending key and
    writes it into `email/api-key` (Secret Manager id `frubble_<env>_email_api-key`: the
    module joins the path with underscores, since an id cannot hold `/`); copy the mailgun
    apply's `dkim_record_name` and `dkim_record_value` outputs into
@@ -196,7 +201,8 @@ only.
 | `pr-template`  | every PR, edits | conventional title on every PR; every template section filled and checklist answered, except for bots |
 | `stg-cd`       | merge to `dev` | applies stg GCP, Cloudflare and Mailgun                 |
 | `org-cd`       | merge to `dev` | applies org Cloudflare and PostHog                    |
-| `setup-cd`     | merge to `dev` | applies the three GCP `_setup` roots and the Mailgun one, once a reviewer approves the run |
+| `setup-cd`     | merge to `dev` | applies the three GCP `_setup` roots, once a reviewer approves the run |
+| `mailgun-setup-cd` | merge to `dev` | applies the Mailgun `_setup` root, once a reviewer approves the run |
 | `*-prd-*`      | every push     | switched off                                           |
 
 Required checks: `Plan stg / plan`, `Plan prd / plan`, `Plan org setup / plan`, `Plan stg setup / plan`, `Plan prd setup / plan`, `Code Quality Summary`, `pr template`.

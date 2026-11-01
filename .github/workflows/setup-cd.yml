@@ -8,15 +8,10 @@ on:
     branches: [dev]
     # The modules listed are the ones a _setup root sources. Any other module
     # change applies nowhere here and must not hold a reviewer, or a stg-cd
-    # waiting on this run. scripts/workflows/wait-for-setup-cd.sh mirrors this
-    # list; change both.
+    # waiting on this run. The wait in _gcp-live-apply.yml mirrors this list;
+    # change both.
     paths:
       - terraform/live/*/gcp/_setup/**
-      - terraform/live/org/mailgun/_setup/**
-      # The Mailgun root keys each environment's sending domain, which it
-      # takes from these.
-      - terraform/live/*/shared/**
-      - terraform/modules/naming/**
       - terraform/modules/gcp/developer-access/**
       - terraform/modules/gcp/plan-store/**
       - terraform/modules/gcp/project/**
@@ -92,30 +87,6 @@ jobs:
       service_account: ${{ vars.GCP_BOOTSTRAP_SERVICE_ACCOUNT }}
       workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
       audience: ${{ vars.GCP_WIF_AUDIENCE }}
-    permissions:
-      contents: read
-      id-token: write
-
-  # The Mailgun sending keys, behind the same reviewer. Off until the admin key
-  # is in the `setup` environment and MAILGUN_ENABLED is true; a key is scoped
-  # to a domain that must already exist, so stg-cd's mailgun apply runs first
-  # (README, Bootstrap). Nothing here reads a GCP _setup output, so no `needs`.
-  mailgun:
-    name: apply mailgun setup
-    if: vars.MAILGUN_ENABLED == 'true'
-    uses: ./.github/workflows/_setup-apply.yml
-    with:
-      stack: mailgun
-      gh_environment: setup
-      root: terraform/live/org/mailgun/_setup
-      project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
-      management_project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
-      management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
-      service_account: ${{ vars.GCP_BOOTSTRAP_SERVICE_ACCOUNT }}
-      workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
-      audience: ${{ vars.GCP_WIF_AUDIENCE }}
-    secrets:
-      MAILGUN_APPLY_API_KEY: ${{ secrets.MAILGUN_APPLY_API_KEY }}
     permissions:
       contents: read
       id-token: write

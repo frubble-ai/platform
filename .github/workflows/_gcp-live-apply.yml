@@ -50,7 +50,7 @@ jobs:
   # below reads _setup outputs through remote state, so applying against the
   # old _setup state would miss a new output or use a stale one. This waits
   # for setup-cd's run on this same commit, when the push called for one, and
-  # fails if it did not succeed (scripts/workflows/wait-for-setup-cd.sh).
+  # fails if it did not succeed (scripts/workflows/wait-for-workflow.sh).
   # Here rather than in each caller so stg and prd cannot drift apart. If the
   # reviewer takes longer than the timeout, this fails and the caller is
   # re-run by hand once setup-cd has succeeded.
@@ -67,6 +67,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # PATHS mirrors setup-cd.yml's triggers; change both.
       - name: Wait for setup-cd on this commit
         shell: bash
         env:
@@ -74,8 +75,10 @@ jobs:
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
           BEFORE: ${{ github.event.before }}
+          WORKFLOW: setup-cd.yml
+          PATHS: '^(terraform/live/[^/]+/gcp/_setup/|terraform/modules/gcp/(developer-access|plan-store|project|project-pin|state-bucket|wif-hub|wif-spoke)/|\.github/workflows/(_setup-apply|setup-cd)\.yml$|\.github/scripts/terraform/)'
         run: |
-          "$GITHUB_WORKSPACE/.github/scripts/workflows/wait-for-setup-cd.sh"
+          "$GITHUB_WORKSPACE/.github/scripts/workflows/wait-for-workflow.sh"
 
   apply:
     name: apply
