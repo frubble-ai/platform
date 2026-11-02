@@ -6,6 +6,11 @@ terraform {
       source  = "cloudflare/cloudflare"
       version = "~> 5.0"
     }
+    # Only the handoff objects (handoff.tf).
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 6.0"
+    }
   }
 
   # Cloudflare state lives in the management bucket, like the _setup roots.
@@ -21,3 +26,8 @@ terraform {
 # job and revokes when the job ends — including when the job fails. A token in
 # tfvars would be long-lived and would end up in a file someone copies.
 provider "cloudflare" {}
+
+# The federated identity the workflow signs in with, which reads this root's
+# prefix in the management bucket and nothing else in Google (state_access.tf
+# in org/gcp/_setup).
+provider "google" {}

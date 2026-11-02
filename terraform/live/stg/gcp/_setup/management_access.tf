@@ -44,3 +44,46 @@ resource "google_kms_crypto_key_iam_member" "spokes_decrypt_management" {
   role          = "roles/cloudkms.cryptoKeyDecrypter"
   member        = "serviceAccount:${each.value}"
 }
+
+# ---------- the Cloudflare handoff ----------
+# What this environment's GCP root produces for its Cloudflare root crosses
+# as one object under the Cloudflare root's own prefix (README, "Crossing
+# roots"). The apply spoke writes it, the plan spoke refreshes it, and the
+# Cloudflare identities read that prefix already. The grant names the one
+# object: nothing else under the Cloudflare prefix, its state included, is
+# this environment's spokes' to touch.
+locals {
+  cloudflare_handoff = "projects/_/buckets/${var.management_state_bucket}/objects/${var.environment}/cloudflare/handoff/gcp.json"
+}
+
+resource "google_storage_bucket_iam_member" "apply_spoke_writes_handoff" {
+  bucket = var.management_state_bucket
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${module.apply_spoke.email}"
+
+  condition {
+    title       = "the Cloudflare handoff only"
+    description = "The one object the GCP root writes for the Cloudflare root."
+    expression  = "resource.name == '${local.cloudflare_handoff}'"
+  }
+}
+
+resource "google_storage_bucket_iam_member" "plan_spoke_reads_handoff" {
+  bucket = var.management_state_bucket
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${module.plan_spoke.email}"
+
+  condition {
+    title       = "the Cloudflare handoff only"
+    description = "The one object the GCP root writes for the Cloudflare root."
+    expression  = "resource.name == '${local.cloudflare_handoff}'"
+  }
+}
+
+# Writing into the CMEK bucket encrypts with its key; reading, above, only
+# decrypts.
+resource "google_kms_crypto_key_iam_member" "apply_spoke_encrypts_management" {
+  crypto_key_id = local.org.management_state_key
+  role          = "roles/cloudkms.cryptoKeyEncrypter"
+  member        = "serviceAccount:${module.apply_spoke.email}"
+}

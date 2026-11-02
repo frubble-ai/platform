@@ -6,7 +6,7 @@ module "shared" {
 
 # The sending domain. Mail from the stg worker leaves as noreply@ it; the
 # records that let receivers trust that mail are published by the Cloudflare
-# root, from the outputs here (README, "Email").
+# root, from the handoff object this root writes (handoff.tf).
 resource "mailgun_domain" "sending" {
   name          = module.shared.sending_domain
   region        = "us"
@@ -28,4 +28,8 @@ resource "mailgun_domain" "sending" {
 locals {
   dkim_selector = "mg"
   dkim_name     = "${local.dkim_selector}._domainkey.${module.shared.sending_domain}"
+  dkim_value = one([
+    for record in mailgun_domain.sending.sending_records_set : record.value
+    if record.record_type == "TXT" && record.name == local.dkim_name
+  ])
 }

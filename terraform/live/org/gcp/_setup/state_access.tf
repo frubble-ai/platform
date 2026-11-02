@@ -20,13 +20,18 @@ locals {
   # `org/cloudflare/` would hand the _setup state to these identities, and the
   # plan one is reachable from pull-request code. org/posthog/live follows the
   # same rule, and org/mailgun/setup has no live sibling and no entry at all.
+  #
+  # `handoff` is the one object a stack's apply writes for another root
+  # (README, "Crossing roots"): the mailgun roots hand the Cloudflare root of
+  # their environment the DKIM record, under that root's prefix, where its
+  # own identities already read.
   direct_state_stacks = {
-    cloudflare-org = { prefix = "org/cloudflare/live/", plan = local.cloudflare_plan_entries, apply = local.cloudflare_apply_entries.org }
-    cloudflare-stg = { prefix = "stg/cloudflare/", plan = local.cloudflare_plan_entries, apply = local.cloudflare_apply_entries.stg }
-    cloudflare-prd = { prefix = "prd/cloudflare/", plan = local.cloudflare_plan_entries, apply = local.cloudflare_apply_entries.prd }
-    mailgun-stg    = { prefix = "stg/mailgun/", plan = [], apply = local.mailgun_apply_entries.stg }
-    mailgun-prd    = { prefix = "prd/mailgun/", plan = [], apply = local.mailgun_apply_entries.prd }
-    posthog-org    = { prefix = "org/posthog/live/", plan = local.posthog_plan_entries, apply = local.posthog_apply_entries }
+    cloudflare-org = { prefix = "org/cloudflare/live/", plan = local.cloudflare_plan_entries, apply = local.cloudflare_apply_entries.org, handoff = null }
+    cloudflare-stg = { prefix = "stg/cloudflare/", plan = local.cloudflare_plan_entries, apply = local.cloudflare_apply_entries.stg, handoff = null }
+    cloudflare-prd = { prefix = "prd/cloudflare/", plan = local.cloudflare_plan_entries, apply = local.cloudflare_apply_entries.prd, handoff = null }
+    mailgun-stg    = { prefix = "stg/mailgun/", plan = [], apply = local.mailgun_apply_entries.stg, handoff = "stg/cloudflare/handoff/mailgun.json" }
+    mailgun-prd    = { prefix = "prd/mailgun/", plan = [], apply = local.mailgun_apply_entries.prd, handoff = "prd/cloudflare/handoff/mailgun.json" }
+    posthog-org    = { prefix = "org/posthog/live/", plan = local.posthog_plan_entries, apply = local.posthog_apply_entries, handoff = null }
   }
 
   direct_plan = merge([
@@ -45,6 +50,15 @@ locals {
         member = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.apply_entry/${entry}"
       }
     }
+  ]...)
+
+  direct_apply_handoff = merge([
+    for stack, s in local.direct_state_stacks : {
+      for entry in s.apply : "${stack}|${entry}" => {
+        object = s.handoff
+        member = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.apply_entry/${entry}"
+      }
+    } if s.handoff != null
   ]...)
 
   # The Cloudflare stacks share one plan workflow, so the same plan principal
@@ -138,4 +152,20 @@ resource "google_kms_crypto_key_iam_member" "direct_state_key" {
   crypto_key_id = module.management_state.kms_key_id
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   member        = each.value
+}
+
+# The handoff object, and nothing else under the other root's prefix: that
+# prefix holds the other root's state, which this identity must not read.
+resource "google_storage_bucket_iam_member" "direct_apply_handoff" {
+  for_each = local.direct_apply_handoff
+
+  bucket = module.management_state.name
+  role   = "roles/storage.objectAdmin"
+  member = each.value.member
+
+  condition {
+    title       = "this stack's handoff only"
+    description = "The object ${each.value.object}."
+    expression  = "resource.name == 'projects/_/buckets/${module.management_state.name}/objects/${each.value.object}'"
+  }
 }

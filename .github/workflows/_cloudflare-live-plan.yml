@@ -24,29 +24,6 @@ on:
       audience:
         required: true
         type: string
-      certificate_dns_authorization_name:
-        description: Name of the Certificate Manager authorization CNAME, from the GCP root's output. Empty for org, and until the first GCP apply.
-        required: false
-        type: string
-        default: ""
-      certificate_dns_authorization_target:
-        required: false
-        type: string
-        default: ""
-      origin_ip:
-        description: Address of the load balancer, from the GCP root's output. Empty for org, and until the first GCP apply.
-        required: false
-        type: string
-        default: ""
-      mailgun_dkim_name:
-        description: Name of the sending domain's DKIM record, from the mailgun root's output. Empty for org, and until the first mailgun apply.
-        required: false
-        type: string
-        default: ""
-      mailgun_dkim_value:
-        required: false
-        type: string
-        default: ""
     secrets:
       CLOUDFLARE_PLAN_TOKEN:
         required: true
@@ -152,11 +129,9 @@ jobs:
           TF_VAR_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           TF_VAR_zone_id: ${{ vars.CLOUDFLARE_ZONE_ID }}
           TF_VAR_domain: ${{ vars.CLOUDFLARE_DOMAIN }}
-          TF_VAR_certificate_dns_authorization_name: ${{ inputs.certificate_dns_authorization_name }}
-          TF_VAR_certificate_dns_authorization_target: ${{ inputs.certificate_dns_authorization_target }}
-          TF_VAR_origin_ip: ${{ inputs.origin_ip }}
-          TF_VAR_mailgun_dkim_name: ${{ inputs.mailgun_dkim_name }}
-          TF_VAR_mailgun_dkim_value: ${{ inputs.mailgun_dkim_value }}
+          # The environment roots read the other roots' handoff objects from
+          # here (README, "Crossing roots"); org declares no such variable.
+          TF_VAR_management_state_bucket: ${{ inputs.state_bucket }}
         # Raw output to plan.txt only; summary.txt feeds the log and comment.
         run: |
           set -euo pipefail

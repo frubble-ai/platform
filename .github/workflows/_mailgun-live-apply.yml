@@ -87,6 +87,8 @@ jobs:
         shell: bash
         env:
           PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
+          # Where the root writes its handoff for the Cloudflare root.
+          TF_VAR_management_state_bucket: ${{ inputs.state_bucket }}
         run: |
           set -euo pipefail
           scripts="$GITHUB_WORKSPACE/.github/scripts/terraform"

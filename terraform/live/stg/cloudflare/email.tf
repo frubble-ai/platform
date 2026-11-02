@@ -2,9 +2,8 @@
 # The domain itself is registered at Mailgun by the stg/mailgun root, from the
 # same shared value that names it here; what
 # receivers check lives here, DNS-only like every record in this root. SPF and
-# DMARC are fixed text. DKIM is the one record only Mailgun can give: it
-# crosses from that root's outputs as repository variables, the way the
-# certificate authorization does, and exists once both are set.
+# DMARC are fixed text. DKIM is the one record only Mailgun can give: it comes
+# from that root's handoff (handoff.tf), and exists once that root has applied.
 locals {
   sending_domain = module.shared.sending_domain
 }
@@ -35,12 +34,12 @@ module "email_dmarc" {
 
 module "email_dkim" {
   source = "../../../modules/cloudflare/dns-record"
-  count  = var.mailgun_dkim_name != "" && var.mailgun_dkim_value != "" ? 1 : 0
+  count  = local.mailgun == null ? 0 : 1
 
   zone_id  = var.zone_id
-  hostname = trimsuffix(var.mailgun_dkim_name, ".")
+  hostname = trimsuffix(local.mailgun.dkim_record.name, ".")
   type     = "TXT"
-  target   = var.mailgun_dkim_value
+  target   = local.mailgun.dkim_record.value
   proxied  = false
   comment  = "frubble stg email DKIM — managed by terraform"
 }

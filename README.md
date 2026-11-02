@@ -36,20 +36,38 @@ environment calls, and `modules/naming` is where the environment name and the zo
 the resource prefix, the API hostname (`api.stg.frubble.ai`) and the sending domain
 (`stg.frubble.ai`, a subdomain, never the apex). Nothing in them is secret, and a change to
 `shared/` is in scope for every plan of that environment. What crosses between roots is only
-what one root *produces* and another needs, as repository variables: a load balancer's
-address, a certificate authorization, a DKIM key.
+what one root *produces* and another needs, and it crosses as a handoff object (Crossing
+roots, below), never as a repository variable.
 
-The GCP workload root outputs two values for the Cloudflare root, which cross by repository
-variable the way `_setup` outputs do. `certificate_dns_authorization` as
-`GCP_CERT_DNS_AUTH_NAME_<ENV>` and `GCP_CERT_DNS_AUTH_TARGET_<ENV>`: the Cloudflare root
-publishes that CNAME, DNS-only, and Certificate Manager issues the load balancer's certificate
-against it; the record is permanent, since renewals reuse it. `load_balancer_ip` as
-`GCP_LB_IP_<ENV>`: the hostname's A record, DNS-only too, since proxied every client would
+## Crossing roots
+
+A value one root produces and another needs is written by the producer, during its apply,
+as one JSON object in the management bucket under the consumer's own prefix:
+`<env>/cloudflare/handoff/gcp.json`, `<env>/cloudflare/handoff/mailgun.json`. The consumer
+lists that prefix and reads what is there; an object that does not exist yet, before its
+producer's first apply, feeds nothing, and the resources it feeds do not exist yet either. The
+producer's apply identity may write its one object and nothing else under that prefix, which
+holds the consumer's state; the consumer's identities read the prefix already, since it is
+theirs. The workflow runs the consumer after its producers, so one run carries a value from
+the root that makes it to the root that publishes it.
+
+No repository variable ever carries a Terraform output to another root. A variable is set
+by a person, so it drifts from the output it copies, it is read at the start of a run so it
+lags the apply that changed it, and nothing reviews it. The variables that remain are CI's
+own configuration: which identities to sign in as, which projects and buckets exist, which
+features are switched on. The exception is `_setup` outputs copied once at bootstrap, before
+any pipeline exists to carry them.
+
+The GCP workload root hands the Cloudflare root two values. `certificate_dns_authorization`:
+the Cloudflare root publishes that CNAME, DNS-only, and Certificate Manager issues the load
+balancer's certificate against it; the record is permanent, since renewals reuse it.
+`load_balancer_ip`: the hostname's A record, DNS-only too, since proxied every client would
 arrive from Cloudflare's addresses and Cloud Armor's per-IP limit would be one budget for all
-of them. Until a variable is set the root creates its record not at all. For a new environment
-the order is the authorization first, the certificate active, then the A record. The
-Cloud Run service and the migration job start on a placeholder image; the application's
-deploy replaces it and Terraform ignores the image from then on.
+of them. Both arrive in one object, so a new environment's hostname serves Certificate
+Manager's provisioning certificate for the minutes until the authorization is seen, and
+nothing points at that hostname yet. The Cloud Run service and the migration job start on a
+placeholder image; the application's deploy replaces it and Terraform ignores the image from
+then on.
 
 The database is a Cloud SQL Postgres instance with a private address only, in the
 environment's VPC, reached by the service and the job through direct VPC egress and TLS
@@ -77,11 +95,9 @@ runs in `mailgun-setup-cd` behind the same reviewer as the GCP `_setup` roots, a
 `stg-cd` run that registers the domain when one commit changes both. A worker instance reads
 the secret when it starts and keeps that key until it stops, so a rotation keeps two keys
 alive: add the next generation in the root (the secret moves to it), roll the workers, then
-remove the old one; the root's comment spells the steps. Changing a sending domain is the
-Bootstrap email steps again, in their order, and ends the same way: the worker that `stg-cd`
-rolls onto the new domain still holds the old domain's key until it is rolled once more
-after `mailgun-setup-cd` has written the new one, and receivers trust the new domain only
-once its DKIM record is published, so the roll comes last. The credential both
+remove the old one; the root's comment spells the steps. Changing a sending domain ends the
+same way: the worker that `stg-cd` rolls onto the new domain still holds the old domain's
+key until it is rolled once more after `mailgun-setup-cd` has written the new one. The credential both
 use is the account's admin key, made once in the Mailgun dashboard and held as
 `MAILGUN_APPLY_API_KEY` by the `stg` and `setup` environments: Mailgun has no narrower role
 that creates domains or keys, so there is nothing to mint for CI, unlike Cloudflare. There
@@ -100,10 +116,10 @@ mailgun root registers it, the Cloudflare root publishes its records, the GCP ro
 to the worker, and none of the three spells it.
 
 The records receivers check are the Cloudflare root's: SPF and DMARC are fixed text, and
-DKIM, the one record only Mailgun can give, crosses from the mailgun root's outputs as the
-repository variables `MAILGUN_DKIM_NAME_<ENV>` and `MAILGUN_DKIM_VALUE_<ENV>`, the way the
-certificate authorization does. `MAILGUN_ENABLED` turns the mailgun applies on once the
-admin key is in the environments; until then they report nothing. The Mailgun provider records the
+DKIM, the one record only Mailgun can give, is the mailgun root's handoff to it (Crossing
+roots, above), published by the Cloudflare apply that follows the mailgun one in the same
+run. `MAILGUN_ENABLED` turns the mailgun applies on once the admin key is in the
+environments; until then they report nothing. The Mailgun provider records the
 domain's SMTP password in state; nothing here uses SMTP, and resetting it in the dashboard
 kills the recorded one.
 
@@ -175,13 +191,12 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
 5. Email, in this order, since each step needs the one before: set the repository variable
    `MAILGUN_ENABLED` to `true` (a repository variable, not an environment one: the jobs it
    gates read it before any environment is attached) and run `stg-cd` by hand
-   (Actions → stg-cd → Run workflow), which registers the domain; run `mailgun-setup-cd` by hand and approve it, which mints the domain's sending key and
-   writes it into `email/api-key` (Secret Manager id `frubble_<env>_email_api-key`: the
-   module joins the path with underscores, since an id cannot hold `/`); copy the mailgun
-   apply's `dkim_record_name` and `dkim_record_value` outputs into
-   `MAILGUN_DKIM_NAME_<ENV>` and `MAILGUN_DKIM_VALUE_<ENV>` and run `stg-cd` once more,
-   which publishes the record. A variable change starts no workflow on its own. The
-   generated secrets (Secrets, above) need nothing. A service reads a secret when an
+   (Actions → stg-cd → Run workflow), which registers the domain and publishes its DKIM
+   record; run `mailgun-setup-cd` by hand and approve it, which mints the domain's sending
+   key and writes it into `email/api-key` (Secret Manager id `frubble_<env>_email_api-key`:
+   the module joins the path with underscores, since an id cannot hold `/`). A variable
+   change starts no workflow on its own. The generated secrets (Secrets, above) need
+   nothing. A service reads a secret when an
    instance starts, so a new value is live on the next revision, which the next deploy
    creates.
 6. Sign up at PostHog with the owner account (never managed by Terraform; its email

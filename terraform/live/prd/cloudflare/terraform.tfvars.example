@@ -1,2 +1,5 @@
-zone_id                  = "<cloudflare zone id>"
-domain                   = "example.site"
+# Applied by CI only. The values below are passed as GitHub variables, not
+# committed — this file documents the shape.
+
+zone_id                 = "<cloudflare zone id>"
+management_state_bucket = "frubble-mgmt-tfstate"
