@@ -1,5 +1,5 @@
 # ---------- secrets ----------
-# Two kinds (README, "Secrets"). A generated value is made here, during the
+# Two kinds (docs/secrets.md). A generated value is made here, during the
 # apply, and written through write-only attributes: it reaches Secret Manager
 # (and the database, for the password) and never the state. A value that
 # comes from outside gets a container and a placeholder, and a person adds

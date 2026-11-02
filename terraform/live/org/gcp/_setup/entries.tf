@@ -55,7 +55,7 @@ locals {
   # The sending domains are per environment, so the Mailgun apply runs in the
   # environment, beside its GCP and Cloudflare applies. No plan entries:
   # Mailgun has no read-only key, so nothing reachable from pull-request code
-  # holds one (README, "Email"). The apply plans before it applies.
+  # holds one (docs/email.md). The apply plans before it applies.
   mailgun_apply_entries = {
     stg = ["${local.platform_repo}|${local.wf.mailgun_apply}|stg|refs/heads/dev"]
     prd = ["${local.platform_repo}|${local.wf.mailgun_apply}|prd|refs/heads/dev"]

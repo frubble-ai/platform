@@ -1,6 +1,6 @@
 # What every prd root agrees on, said once. The roots cannot read each
 # other's state, so a value they share lives here, with no provider and no
-# state of its own, and each root calls this module (README, "Shared values").
+# state of its own, and each root calls this module (docs/shared-values.md).
 # Nothing here is secret.
 module "naming" {
   source = "../../../modules/naming"

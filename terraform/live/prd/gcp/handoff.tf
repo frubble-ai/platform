@@ -1,5 +1,5 @@
 # What the Cloudflare root needs from here, as one object under that root's
-# prefix in the management bucket (README, "Crossing roots"): the address the
+# prefix in the management bucket (docs/crossing-roots.md): the address the
 # hostnames resolve to and, per hostname, the CNAME that proves it to
 # Certificate Manager. One object, so the Cloudflare root never sees one
 # value without the other. `certificate_dns_authorization` is the API's, from

@@ -14,9 +14,9 @@
 # (state_access.tf in org/gcp/_setup limits them to `<env>/mailgun/`).
 
 # The domains, from each environment's shared values: the same name its
-# mailgun root registers and its worker sends from (README, "Shared values").
+# mailgun root registers and its worker sends from (docs/shared-values.md).
 # Only the domains that exist: prd joins here once prd-cd has registered it
-# (README, Bootstrap), and until then the prd worker holds its placeholder.
+# (docs/getting-started.md), and until then the prd worker holds its placeholder.
 module "stg_shared" {
   source = "../../../stg/shared"
 }

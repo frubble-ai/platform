@@ -22,7 +22,7 @@ locals {
   # same rule, and org/mailgun/setup has no live sibling and no entry at all.
   #
   # `handoff` is the name prefix of the object a stack's apply writes for another root
-  # (README, "Crossing roots"): the mailgun roots hand the Cloudflare root of
+  # (docs/crossing-roots.md): the mailgun roots hand the Cloudflare root of
   # their environment the DKIM record, under that root's prefix, where its
   # own identities already read.
   direct_state_stacks = {
@@ -97,7 +97,7 @@ resource "google_storage_bucket_iam_member" "direct_apply_state" {
 # plan workflows run on unreviewed branches.
 #
 # It also means a new root's first plan cannot create its empty state; the
-# bootstrap admin does that once (README, Bootstrap).
+# bootstrap admin does that once (docs/getting-started.md).
 resource "google_storage_bucket_iam_member" "direct_plan_reads_state" {
   for_each = local.direct_plan
 

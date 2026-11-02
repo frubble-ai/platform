@@ -23,7 +23,7 @@ resource "google_secret_manager_secret" "this" {
   }
 }
 
-# A value Terraform generates (README, "Secrets"): written through the
+# A value Terraform generates (docs/secrets.md): written through the
 # write-only attribute, so it reaches Secret Manager and never the state.
 # Only `value_wo_version` is recorded; bumping it writes a new value.
 resource "google_secret_manager_secret_version" "managed" {

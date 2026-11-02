@@ -47,8 +47,7 @@ resource "google_kms_crypto_key_iam_member" "spokes_decrypt_management" {
 
 # ---------- the Cloudflare handoff ----------
 # What this environment's GCP root produces for its Cloudflare root crosses
-# as one object under the Cloudflare root's own prefix (README, "Crossing
-# roots"). The apply spoke writes it, the plan spoke refreshes it, and the
+# as one object under the Cloudflare root's own prefix (docs/crossing-roots.md). The apply spoke writes it, the plan spoke refreshes it, and the
 # Cloudflare identities read that prefix already. The grant names the GCP
 # root's handoff objects (`gcp.json`, `gcp-<hash>.json`, named by content) and
 # nothing else: the rest of the Cloudflare prefix, its state included, is not

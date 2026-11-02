@@ -4,8 +4,7 @@
 # handoff has the app's record; the A record once the handoff lists the app
 # as published, so the hostname never points at a load balancer that cannot
 # serve TLS for it yet. The certificate issues against the authorization, so
-# a new host's A record follows on the next run after (README, "Crossing
-# roots").
+# a new host's A record follows on the next run after (docs/crossing-roots.md).
 locals {
   app_authorization = local.gcp == null ? null : try(local.gcp.certificate_dns_authorizations.app, null)
 }

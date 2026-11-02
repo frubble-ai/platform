@@ -67,8 +67,8 @@ jobs:
             "${{ github.event.pull_request.head.sha }}")
           workflow='\.github/workflows/(_cloudflare-live-plan|live-plan)\.yml$'
           modules='terraform/modules/(cloudflare|naming)/'
-          # The environment's shared/ is part of every root in it (README,
-          # "Shared values").
+          # The environment's shared/ is part of every root in it
+          # (docs/shared-values.md).
           shared="$(dirname "${{ inputs.root }}")/shared/"
           if echo "$changed" | grep -qE "^(${{ inputs.root }}/|$shared|$modules|$workflow|\.github/scripts/terraform/)"; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
@@ -130,7 +130,7 @@ jobs:
           TF_VAR_zone_id: ${{ vars.CLOUDFLARE_ZONE_ID }}
           TF_VAR_domain: ${{ vars.CLOUDFLARE_DOMAIN }}
           # The environment roots read the other roots' handoff objects from
-          # here (README, "Crossing roots"); org declares no such variable.
+          # here (docs/crossing-roots.md); org declares no such variable.
           TF_VAR_management_state_bucket: ${{ inputs.state_bucket }}
         # Raw output to plan.txt only; summary.txt feeds the log and comment.
         run: |

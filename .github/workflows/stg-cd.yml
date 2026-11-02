@@ -40,8 +40,8 @@ jobs:
       id-token: write
       actions: read
 
-  # After the GCP and Mailgun applies: it reads what they hand off (README,
-  # "Crossing roots"), so one run registers a domain and publishes its
+  # After the GCP and Mailgun applies: it reads what they hand off
+  # (docs/crossing-roots.md), so one run registers a domain and publishes its
   # records. A skipped Mailgun job is fine, a failed one is not: the handoff
   # it would have rewritten may be stale.
   cloudflare:
@@ -65,8 +65,8 @@ jobs:
   # After the GCP apply, before the Cloudflare one: the GCP job is the one
   # that waits for setup-cd, and the grant that lets this identity write its
   # handoff is a _setup root's. Off until the admin key is in this environment
-  # and MAILGUN_ENABLED is true (README, Bootstrap). No pull-request plan
-  # exists for this root (README, "Email"): the plan this job makes before
+  # and MAILGUN_ENABLED is true (docs/getting-started.md). No pull-request plan
+  # exists for this root (docs/email.md): the plan this job makes before
   # applying is the only one.
   mailgun:
     name: apply stg mailgun

@@ -5,7 +5,7 @@ name: mailgun-setup-cd
 # file in the `setup` environment on dev, whoever calls it. A workflow of its
 # own rather than a job in setup-cd, so a Mailgun outage or a bad key holds
 # nothing but this, while the workload applies wait on setup-cd. Off until
-# MAILGUN_ENABLED is true (README, Bootstrap).
+# MAILGUN_ENABLED is true (docs/getting-started.md).
 on:
   push:
     branches: [dev]
