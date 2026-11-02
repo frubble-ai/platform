@@ -8,8 +8,8 @@ on:
     branches: [dev]
     # The modules listed are the ones a _setup root sources. Any other module
     # change applies nowhere here and must not hold a reviewer, or a stg-cd
-    # waiting on this run. scripts/workflows/wait-for-setup-cd.sh mirrors this
-    # list; change both.
+    # waiting on this run. The wait in _gcp-live-apply.yml mirrors this list;
+    # change both.
     paths:
       - terraform/live/*/gcp/_setup/**
       - terraform/modules/gcp/developer-access/**

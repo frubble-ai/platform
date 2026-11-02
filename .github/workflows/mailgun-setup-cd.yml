@@ -1,0 +1,85 @@
+name: mailgun-setup-cd
+
+# The Mailgun _setup root, applied on merge behind the same reviewer as the
+# GCP _setup roots, through the same _setup-apply.yml: the pool trusts that
+# file in the `setup` environment on dev, whoever calls it. A workflow of its
+# own rather than a job in setup-cd, so a Mailgun outage or a bad key holds
+# nothing but this, while the workload applies wait on setup-cd. Off until
+# MAILGUN_ENABLED is true (README, Bootstrap).
+on:
+  push:
+    branches: [dev]
+    # The root, the shared values it takes the sending domains from, the
+    # workflows and scripts that run it.
+    paths:
+      - terraform/live/org/mailgun/_setup/**
+      - terraform/live/*/shared/**
+      - terraform/modules/naming/**
+      - .github/workflows/_setup-apply.yml
+      - .github/workflows/mailgun-setup-cd.yml
+      - .github/scripts/terraform/**
+      - .github/scripts/workflows/wait-for-workflow.sh
+  workflow_dispatch:
+
+concurrency:
+  group: mailgun-setup-cd
+  cancel-in-progress: false
+
+# actions: read is for the wait on stg-cd below.
+permissions:
+  contents: read
+  id-token: write
+  actions: read
+
+jobs:
+  # A sending key is scoped to a domain that must already exist, and the
+  # domain is stg-cd's, which runs on every push to dev. This waits for its
+  # run on this same commit and fails if it did not succeed, so the key is
+  # never made for a domain that is not there yet
+  # (scripts/workflows/wait-for-workflow.sh). PATHS matches every path for
+  # that reason: whatever this push changed, stg-cd ran for it. JOBS names
+  # the one job that makes the domain, so the Cloudflare or GCP apply beside
+  # it failing holds nothing here.
+  wait:
+    name: wait for stg-cd
+    if: vars.MAILGUN_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Wait for stg-cd on this commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          BEFORE: ${{ github.event.before }}
+          BRANCH: ${{ github.ref_name }}
+          WORKFLOW: stg-cd.yml
+          PATHS: '.'
+          JOBS: 'apply stg mailgun / apply'
+        run: |
+          "$GITHUB_WORKSPACE/.github/scripts/workflows/wait-for-workflow.sh"
+
+  mailgun:
+    name: apply mailgun setup
+    needs: wait
+    uses: ./.github/workflows/_setup-apply.yml
+    with:
+      stack: mailgun
+      gh_environment: setup
+      root: terraform/live/org/mailgun/_setup
+      project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
+      management_project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
+      management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      service_account: ${{ vars.GCP_BOOTSTRAP_SERVICE_ACCOUNT }}
+      workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    secrets:
+      MAILGUN_APPLY_API_KEY: ${{ secrets.MAILGUN_APPLY_API_KEY }}
+    permissions:
+      contents: read
+      id-token: write

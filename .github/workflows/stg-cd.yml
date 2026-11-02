@@ -63,10 +63,10 @@ jobs:
       contents: read
       id-token: write
 
-  # Beside the other two for the same reason. Off until org/mailgun/_setup has
-  # been applied and its key is in GitHub (README, Bootstrap). No pull-request
-  # plan exists for this root (README, "Email"): the plan this job makes
-  # before applying is the only one.
+  # Beside the other two for the same reason. Off until the admin key is in
+  # this environment and MAILGUN_ENABLED is true (README, Bootstrap). No
+  # pull-request plan exists for this root (README, "Email"): the plan this
+  # job makes before applying is the only one.
   mailgun:
     name: apply stg mailgun
     if: vars.MAILGUN_ENABLED == 'true'
