@@ -21,7 +21,7 @@ locals {
   # plan one is reachable from pull-request code. org/posthog/live follows the
   # same rule, and org/mailgun/setup has no live sibling and no entry at all.
   #
-  # `handoff` is the one object a stack's apply writes for another root
+  # `handoff` is the name prefix of the object a stack's apply writes for another root
   # (README, "Crossing roots"): the mailgun roots hand the Cloudflare root of
   # their environment the DKIM record, under that root's prefix, where its
   # own identities already read.
@@ -29,8 +29,8 @@ locals {
     cloudflare-org = { prefix = "org/cloudflare/live/", plan = local.cloudflare_plan_entries, apply = local.cloudflare_apply_entries.org, handoff = null }
     cloudflare-stg = { prefix = "stg/cloudflare/", plan = local.cloudflare_plan_entries, apply = local.cloudflare_apply_entries.stg, handoff = null }
     cloudflare-prd = { prefix = "prd/cloudflare/", plan = local.cloudflare_plan_entries, apply = local.cloudflare_apply_entries.prd, handoff = null }
-    mailgun-stg    = { prefix = "stg/mailgun/", plan = [], apply = local.mailgun_apply_entries.stg, handoff = "stg/cloudflare/handoff/mailgun.json" }
-    mailgun-prd    = { prefix = "prd/mailgun/", plan = [], apply = local.mailgun_apply_entries.prd, handoff = "prd/cloudflare/handoff/mailgun.json" }
+    mailgun-stg    = { prefix = "stg/mailgun/", plan = [], apply = local.mailgun_apply_entries.stg, handoff = "stg/cloudflare/handoff/mailgun" }
+    mailgun-prd    = { prefix = "prd/mailgun/", plan = [], apply = local.mailgun_apply_entries.prd, handoff = "prd/cloudflare/handoff/mailgun" }
     posthog-org    = { prefix = "org/posthog/live/", plan = local.posthog_plan_entries, apply = local.posthog_apply_entries, handoff = null }
   }
 
@@ -165,7 +165,7 @@ resource "google_storage_bucket_iam_member" "direct_apply_handoff" {
 
   condition {
     title       = "this stack's handoff only"
-    description = "The object ${each.value.object}."
-    expression  = "resource.name == 'projects/_/buckets/${module.management_state.name}/objects/${each.value.object}'"
+    description = "The objects ${each.value.object}*: its handoff, named by content."
+    expression  = "resource.name.startsWith('projects/_/buckets/${module.management_state.name}/objects/${each.value.object}')"
   }
 }

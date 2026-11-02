@@ -49,11 +49,12 @@ resource "google_kms_crypto_key_iam_member" "spokes_decrypt_management" {
 # What this environment's GCP root produces for its Cloudflare root crosses
 # as one object under the Cloudflare root's own prefix (README, "Crossing
 # roots"). The apply spoke writes it, the plan spoke refreshes it, and the
-# Cloudflare identities read that prefix already. The grant names the one
-# object: nothing else under the Cloudflare prefix, its state included, is
+# Cloudflare identities read that prefix already. The grant names the GCP
+# root's handoff objects (`gcp.json`, `gcp-<hash>.json`, named by content) and
+# nothing else: the rest of the Cloudflare prefix, its state included, is not
 # this environment's spokes' to touch.
 locals {
-  cloudflare_handoff = "projects/_/buckets/${var.management_state_bucket}/objects/${var.environment}/cloudflare/handoff/gcp.json"
+  cloudflare_handoff = "projects/_/buckets/${var.management_state_bucket}/objects/${var.environment}/cloudflare/handoff/gcp"
 }
 
 resource "google_storage_bucket_iam_member" "apply_spoke_writes_handoff" {
@@ -63,8 +64,8 @@ resource "google_storage_bucket_iam_member" "apply_spoke_writes_handoff" {
 
   condition {
     title       = "the Cloudflare handoff only"
-    description = "The one object the GCP root writes for the Cloudflare root."
-    expression  = "resource.name == '${local.cloudflare_handoff}'"
+    description = "The objects the GCP root writes for the Cloudflare root."
+    expression  = "resource.name.startsWith('${local.cloudflare_handoff}')"
   }
 }
 
@@ -75,8 +76,8 @@ resource "google_storage_bucket_iam_member" "plan_spoke_reads_handoff" {
 
   condition {
     title       = "the Cloudflare handoff only"
-    description = "The one object the GCP root writes for the Cloudflare root."
-    expression  = "resource.name == '${local.cloudflare_handoff}'"
+    description = "The objects the GCP root writes for the Cloudflare root."
+    expression  = "resource.name.startsWith('${local.cloudflare_handoff}')"
   }
 }
 
