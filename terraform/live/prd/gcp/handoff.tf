@@ -4,11 +4,11 @@
 # Certificate Manager. One object, so the Cloudflare root never sees one
 # value without the other. `certificate_dns_authorization` is the API's, from
 # before there was a record per host; the Cloudflare root reads the map.
-# `published_hosts` names the hosts the Cloudflare root may point here: each
-# one joins once it serves TLS, and stays, so a renewal that shows its
-# certificate as provisioning again never takes its A record down. It is the
-# previous handoff's list, without hosts the load balancer no longer has, plus
-# the hosts serving now.
+# `published_hosts` names the hostnames whose A record the Cloudflare root
+# publishes, pointing them here. Each joins once it serves TLS, and stays, so
+# a renewal that shows its certificate as provisioning again never takes its
+# A record down. It is the previous handoff's list, without hosts the load
+# balancer no longer has, plus the hosts serving now.
 locals {
   handoff_name = "${module.shared.environment}/cloudflare/handoff/gcp.json"
   hosts        = keys(module.load_balancer.dns_authorization_records)

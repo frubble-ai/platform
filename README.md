@@ -65,7 +65,7 @@ the records are permanent, since renewals reuse them. A certificate per hostname
 never replaces the certificate another is serving with. `load_balancer_ip`: the hostnames' A
 records, DNS-only too, since proxied every client would arrive from Cloudflare's addresses and
 Cloud Armor's per-IP limit would be one budget for all of them. Both arrive in one object, with
-`published_hosts`: the hostnames whose A records the Cloudflare root may publish, for the API and
+`published_hosts`: the hostnames whose A records the Cloudflare root publishes, for the API and
 the app alike. A hostname joins once it serves TLS, its certificate issued and its certificate-map
 entry active, and stays: the GCP root keeps the previous handoff's list, so a renewal that shows a
 certificate as provisioning again never takes a record down. A new hostname's certificate issues
