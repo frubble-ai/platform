@@ -10,15 +10,3 @@ data "terraform_remote_state" "setup" {
     impersonate_service_account = var.spoke_service_account
   }
 }
-
-# The environment's shared values: its name, zone and hostnames (README,
-# "Shared values").
-module "shared" {
-  source = "../shared"
-}
-
-locals {
-  setup  = data.terraform_remote_state.setup.outputs
-  name   = module.shared.name
-  labels = module.shared.labels
-}

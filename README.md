@@ -24,7 +24,10 @@ terraform/
   modules/                    shared code, no state. gcp/cloud-run-service, gcp/https-load-balancer, gcp/cloud-armor and gcp/alerts are the API's stack; gcp/network, gcp/cloud-sql-postgres and gcp/cloud-run-job its database and migration; gcp/pubsub-queue the email queue; naming the rule the shared/ modules derive their names with
 ```
 
-One root per scope and provider, one state each.
+One root per scope and provider, one state each. In a root, `main.tf` holds only its wiring:
+the shared values module and root-wide locals. Every other resource and module sits in a
+sibling file named for what it is (`api.tf`, `load_balancer.tf`, `domain.tf`). A root with no
+wiring has no `main.tf`.
 
 ## Shared values
 

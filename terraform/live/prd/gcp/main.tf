@@ -1,105 +1,11 @@
-module "registry" {
-  source = "../../../modules/gcp/artifact-registry"
-
-  project_id  = var.project_id
-  name        = local.name
-  location    = var.region
-  description = "Container images for frubble (${module.shared.environment})"
-  labels      = merge(local.labels, { component = "registry" })
-
-  # Enough to roll back past a bad week of deploys.
-  keep_recent_versions = 30
+# The environment's shared values: its name, zone and hostnames (README,
+# "Shared values").
+module "shared" {
+  source = "../shared"
 }
 
-# ---------- the API on Cloud Run, behind a Google load balancer ----------
-module "api_service" {
-  source = "../../../modules/gcp/cloud-run-service"
-
-  project_id            = var.project_id
-  name                  = "${local.name}-api"
-  region                = var.region
-  service_account_email = local.setup.api_service_account
-  image                 = var.api_bootstrap_image
-  env = merge(local.database_env, {
-    APP_ENV         = module.shared.environment
-    BETTER_AUTH_URL = "https://${module.shared.api_hostname}"
-    # The browser origin that calls the API: the web app (app.tf)
-    CORS_ORIGIN         = "https://${module.shared.app_hostname}"
-    PUBSUB_EMAILS_TOPIC = module.emails_queue.topic
-  })
-  secret_env = merge(local.database_secret_env, {
-    BETTER_AUTH_SECRET = { secret = module.secrets["auth_secret"].secret_id }
-  })
-  vpc = local.vpc
-  # In prd a rollback takes one apply more: set this to false and apply, then
-  # remove this stack as a whole (service, load balancer, armor, alerts and
-  # their outputs) and apply, keeping the google-beta provider until then.
-  deletion_protection = module.shared.environment == "prd"
-  labels              = merge(local.labels, { component = "api" })
-
-  # The secrets' versions and the bindings on them both exist before the
-  # service does: Cloud Run checks a referenced secret when it creates the
-  # revision.
-  depends_on = [
-    module.secrets,
-    google_secret_manager_secret_iam_member.api_reads,
-  ]
-}
-
-module "armor" {
-  source = "../../../modules/gcp/cloud-armor"
-
-  project_id  = var.project_id
-  name        = "${local.name}-lb"
-  description = "WAF for the ${module.shared.environment} load balancer"
-
-  rate_limit = {
-    count            = 300
-    interval_seconds = 300
-  }
-
-  # No preconfigured rule sets for now; each is a monthly line item and the
-  # API has no public input to protect yet. Add them here, in preview first.
-}
-
-module "load_balancer" {
-  source = "../../../modules/gcp/https-load-balancer"
-
-  project_id      = var.project_id
-  name            = local.name
-  default_backend = "api"
-  security_policy = module.armor.self_link
-  labels          = merge(local.labels, { component = "lb" })
-
-  backends = {
-    api = {
-      service = module.api_service.name
-      region  = var.region
-      host    = module.shared.api_hostname
-    }
-    app = {
-      service = module.app_service.name
-      region  = var.region
-      host    = module.shared.app_hostname
-    }
-  }
-}
-
-# The single certificate every host shared became the API's own (the
-# load balancer module, one certificate per host): same name, kept.
-moved {
-  from = module.load_balancer.google_certificate_manager_certificate.this
-  to   = module.load_balancer.google_certificate_manager_certificate.this["api"]
-}
-
-module "alerts" {
-  source = "../../../modules/gcp/alerts"
-
-  project_id    = var.project_id
-  name          = local.name
-  email         = var.alert_email
-  service_name  = module.api_service.name
-  url_map_name  = module.load_balancer.url_map_name
-  max_instances = module.api_service.max_instances
-  labels        = merge(local.labels, { component = "alerts" })
+locals {
+  setup  = data.terraform_remote_state.setup.outputs
+  name   = module.shared.name
+  labels = module.shared.labels
 }
