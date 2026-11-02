@@ -187,7 +187,9 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
    secrets: `CLOUDFLARE_PLAN_TOKEN`,
    `POSTHOG_PLAN_API_KEY`, `POSTHOG_OWNER_EMAIL` and `POSTHOG_MEMBERS` on the repo;
    `CLOUDFLARE_MINT_TOKEN` and `POSTHOG_APPLY_API_KEY` on their environments, and the
-   Mailgun admin key as `MAILGUN_APPLY_API_KEY` on both `stg` and `setup`.
+   Mailgun admin key as `MAILGUN_APPLY_API_KEY` on `setup` and on every environment that
+   applies a mailgun root: `stg` today, `prd` before `TF_APPLY_ENABLE_PRD` is turned on,
+   since `MAILGUN_ENABLED` is one switch for both and a prd apply without its key fails.
 5. Email, in this order, since each step needs the one before: set the repository variable
    `MAILGUN_ENABLED` to `true` (a repository variable, not an environment one: the jobs it
    gates read it before any environment is attached) and run `stg-cd` by hand
@@ -196,7 +198,10 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
    key and writes it into `email/api-key` (Secret Manager id `frubble_<env>_email_api-key`:
    the module joins the path with underscores, since an id cannot hold `/`). A variable
    change starts no workflow on its own. The generated secrets (Secrets, above) need
-   nothing. A service reads a secret when an
+   nothing. Turning prd on later is the same again, plus one pull request first: `prd`
+   joins `sending_domains` in `org/mailgun/_setup`, which keys only the domains that
+   exist, and the prd worker holds its placeholder until that key is written and it is
+   rolled. A service reads a secret when an
    instance starts, so a new value is live on the next revision, which the next deploy
    creates.
 6. Sign up at PostHog with the owner account (never managed by Terraform; its email
