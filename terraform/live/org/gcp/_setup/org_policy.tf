@@ -30,3 +30,19 @@ resource "google_project_service" "management_orgpolicy" {
 
   disable_on_destroy = false
 }
+
+# The organization allows IAM members from its own Workspace domain only. stg
+# also takes people from outside it (var.stg_administrators), so this project
+# allows any member; prd keeps the organization's rule.
+resource "google_org_policy_policy" "stg_allows_outside_members" {
+  name   = "projects/${var.environment_projects["stg"]}/policies/iam.allowedPolicyMemberDomains"
+  parent = "projects/${var.environment_projects["stg"]}"
+
+  spec {
+    rules {
+      allow_all = "TRUE"
+    }
+  }
+
+  depends_on = [google_project_service.management_orgpolicy]
+}

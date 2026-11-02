@@ -191,7 +191,8 @@ yet. Step 4 copies those values into the variables. From then on CI reads the va
 and so does every hand apply, as `TF_VAR_*` in the environment; the file is deleted, or a
 stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_id`),
 `TF_SETUP_BILLING_ACCOUNT` (`billing_account`), `TF_SETUP_DEVELOPER_GROUP`
-(`developer_group`), `TF_SETUP_ADMINISTRATOR` (`administrator`), `GCP_MANAGEMENT_PROJECT`
+(`developer_group`), `TF_SETUP_ADMINISTRATOR` (`administrator`), `TF_SETUP_STG_ADMINISTRATORS`
+(`stg_administrators`, optional), `GCP_MANAGEMENT_PROJECT`
 (`management_project_id`), `GCP_PROJECT_STG` and `GCP_PROJECT_PRD` (`environment_projects`),
 `BACKEND_REPOSITORY` (`backend_repository`), and this repository's owner and name
 (`github_owner`, `platform_repository`). `gh variable list` prints them.

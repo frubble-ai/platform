@@ -33,10 +33,11 @@ resource "google_iam_deny_policy" "no_secret_values" {
 }
 
 # ---------- role 2: administration ----------
-# One named person, not a group, and deliberately not behind the deny above.
-# Every change made outside CI therefore has exactly one owner, which is the
+# Named people, never a group, and deliberately not behind the deny above.
+# Every change made outside CI therefore has a named owner, which is the
 # point: an incident asks "who did this", and the answer cannot be "somebody in
-# a group".
+# a group". `administrator` is the one who holds it everywhere; a project that
+# needs more hands names them in `additional_administrators`.
 #
 # Broad on purpose, because this role exists for the cases nobody listed in
 # advance — a stuck lock, a half-applied change, a resource CI cannot reach.
@@ -55,14 +56,30 @@ resource "google_iam_deny_policy" "no_secret_values" {
 # secretAccessor because neither of those reads a secret's value — editor
 # manages secrets but not their payloads. Owner would have included it, and a
 # recovery that needs a secret's value should not start with granting it.
-resource "google_project_iam_member" "administration" {
-  for_each = toset([
+locals {
+  administration_roles = toset([
     "roles/editor",
     "roles/resourcemanager.projectIamAdmin",
     "roles/secretmanager.secretAccessor",
   ])
+}
+
+resource "google_project_iam_member" "administration" {
+  for_each = local.administration_roles
 
   project = var.project_id
   role    = each.value
   member  = var.administrator
+}
+
+# The same role for the additional administrators, keyed `handle|role`.
+resource "google_project_iam_member" "additional_administration" {
+  for_each = {
+    for pair in setproduct(keys(var.additional_administrators), local.administration_roles) :
+    "${pair[0]}|${pair[1]}" => { member = var.additional_administrators[pair[0]], role = pair[1] }
+  }
+
+  project = var.project_id
+  role    = each.value.role
+  member  = each.value.member
 }

@@ -9,7 +9,9 @@ module "human_access" {
   group         = var.developer_group
   administrator = var.administrator
 
-  depends_on = [module.environment_project]
+  additional_administrators = each.key == "stg" ? var.stg_administrators : {}
+
+  depends_on = [module.environment_project, google_org_policy_policy.stg_allows_outside_members]
 }
 
 # This module was `developer_access` until the roles became read-only and

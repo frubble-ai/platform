@@ -32,3 +32,24 @@ variable "administrator" {
     error_message = "Must be one person, written as `user:address`. A group here would remove the single owner this role exists to give."
   }
 }
+
+variable "additional_administrators" {
+  description = <<-EOT
+    Other people given the same administration role, as `user:address`, keyed
+    by a short handle. The handle, never the address, is what a resource key
+    and a public plan show. Empty by default: the administrator above stays
+    the owner, and these are for a project that needs more hands.
+  EOT
+  type        = map(string)
+  default     = {}
+
+  validation {
+    condition     = alltrue([for k in keys(var.additional_administrators) : can(regex("^[a-z][a-z0-9_-]{0,31}$", k))])
+    error_message = "Each key must be a short handle: lowercase letters, digits, - or _, starting with a letter, at most 32 characters."
+  }
+
+  validation {
+    condition     = alltrue([for m in values(var.additional_administrators) : startswith(m, "user:")])
+    error_message = "Each must be one person, written as `user:address`."
+  }
+}

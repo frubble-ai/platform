@@ -69,6 +69,18 @@ variable "administrator" {
   type        = string
 }
 
+variable "stg_administrators" {
+  description = <<-EOT
+    People given the administration role on stg beside `administrator`, as
+    `user:address` keyed by a short handle. CI supplies it from the
+    TF_SETUP_STG_ADMINISTRATORS variable as JSON, e.g. {"alex":"user:..."};
+    no address is written in this repository. Accounts outside the
+    organization's domain are allowed on stg only (org_policy.tf).
+  EOT
+  type        = map(string)
+  default     = {}
+}
+
 variable "apis" {
   description = "APIs enabled on every environment project."
   type        = list(string)
