@@ -9,23 +9,10 @@ locals {
     database_password = { domain = "database", name = "password", generated = true }
     auth_secret       = { domain = "auth", name = "secret", generated = true }
     email_api_key     = { domain = "email", name = "api-key", generated = false }
-
-    composio_api_key               = { domain = "composio", name = "api-key", generated = false }
-    composio_github_auth_config_id = { domain = "composio", name = "github-auth-config-id", generated = false }
-    composio_linear_auth_config_id = { domain = "composio", name = "linear-auth-config-id", generated = false }
-    composio_slack_auth_config_id  = { domain = "composio", name = "slack-auth-config-id", generated = false }
-    composio_figma_auth_config_id  = { domain = "composio", name = "figma-auth-config-id", generated = false }
+    composio_api_key  = { domain = "composio", name = "api-key", generated = false }
   }
 
-  api_secrets = [
-    "database_password",
-    "auth_secret",
-    "composio_api_key",
-    "composio_github_auth_config_id",
-    "composio_linear_auth_config_id",
-    "composio_slack_auth_config_id",
-    "composio_figma_auth_config_id",
-  ]
+  api_secrets    = ["database_password", "auth_secret", "composio_api_key"]
   worker_secrets = ["email_api_key"]
 }
 

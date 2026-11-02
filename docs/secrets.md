@@ -11,12 +11,9 @@ key) gets a container and a placeholder from Terraform, and the root that holds 
 writes the real version the same write-only way (`org/mailgun/_setup`, email.md). Each
 service reads only the secrets bound to its identity, per secret.
 
-Composio's project API key and its auth config ids (one per provider) have no root that writes
-them: after the apply, add each value by hand, then roll the API so its next revision reads them.
+Composio's project API key has no root that writes it: after the apply, add the value by hand,
+then roll the API so its next revision reads it.
 
 ```sh
-printf '%s' "$VALUE" | gcloud secrets versions add frubble_stg_composio_api-key --data-file=- --project frubble-stg
+printf '%s' "$KEY" | gcloud secrets versions add frubble_stg_composio_api-key --data-file=- --project frubble-stg
 ```
-
-The ids are `frubble_<env>_composio_<name>`, with `<name>` one of `api-key`,
-`github-auth-config-id`, `linear-auth-config-id`, `slack-auth-config-id`, `figma-auth-config-id`.
