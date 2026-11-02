@@ -1,0 +1,90 @@
+name: prd-cd
+
+# The prd applies, in the order stg-cd runs them: GCP, then Mailgun, then
+# Cloudflare, which reads what the other two hand off (README, "Crossing
+# roots"). One workflow so that order holds; the applies themselves are
+# behind a switch, the repository variable TF_APPLY_ENABLE_PRD. prd is planned
+# on every pull request and applied only when someone decides to: a problem
+# shows up early, a change does not happen by merging. Unset, every job
+# reports as skipped, and turning prd on is a setting someone changes
+# deliberately, not a commit that has to pass review to take effect.
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+# cancel-in-progress stays false, as in stg-cd: a queued run is replaced, a
+# started apply is never interrupted.
+concurrency:
+  group: prd-cd
+  cancel-in-progress: false
+
+# actions: read is for the wait on setup-cd inside _gcp-live-apply.yml; a
+# called workflow can hold no token permission its caller did not pass.
+permissions:
+  contents: read
+  id-token: write
+  actions: read
+
+jobs:
+  gcp:
+    name: apply prd gcp
+    if: vars.TF_APPLY_ENABLE_PRD == 'true'
+    uses: ./.github/workflows/_gcp-live-apply.yml
+    with:
+      environment: prd
+      gh_environment: prd
+      root: terraform/live/prd/gcp
+      project_id: ${{ vars.GCP_PROJECT_PRD }}
+      state_bucket: ${{ vars.STATE_BUCKET_PRD }}
+      management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      spoke_service_account: ${{ vars.GCP_APPLY_SPOKE_PRD }}
+      service_account: ${{ vars.GCP_APPLY_HUB_PRD }}
+      workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    permissions:
+      contents: read
+      id-token: write
+      actions: read
+
+  # After the GCP apply, before the Cloudflare one, for the reasons stg-cd
+  # gives. Off until prd itself is on, the admin key is in this environment
+  # and MAILGUN_ENABLED is true.
+  mailgun:
+    name: apply prd mailgun
+    needs: gcp
+    if: ${{ !cancelled() && needs.gcp.result == 'success' && vars.MAILGUN_ENABLED == 'true' }}
+    uses: ./.github/workflows/_mailgun-live-apply.yml
+    with:
+      stack: prd
+      gh_environment: prd
+      root: terraform/live/prd/mailgun
+      state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    secrets:
+      MAILGUN_APPLY_API_KEY: ${{ secrets.MAILGUN_APPLY_API_KEY }}
+    permissions:
+      contents: read
+      id-token: write
+
+  # After both: it publishes what they hand off, and must never plan against
+  # a handoff the GCP apply has not written. A skipped Mailgun job is fine, a
+  # failed one is not.
+  cloudflare:
+    name: apply prd cloudflare
+    needs: [gcp, mailgun]
+    if: ${{ !cancelled() && needs.gcp.result == 'success' && contains(fromJSON('["success", "skipped"]'), needs.mailgun.result) }}
+    uses: ./.github/workflows/_cloudflare-live-apply.yml
+    with:
+      stack: prd
+      gh_environment: prd
+      root: terraform/live/prd/cloudflare
+      state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    secrets:
+      CLOUDFLARE_MINT_TOKEN: ${{ secrets.CLOUDFLARE_MINT_TOKEN }}
+    permissions:
+      contents: read
+      id-token: write
