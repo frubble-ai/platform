@@ -267,6 +267,7 @@ to, which never gets a level.
 { "alex": { "email": "alex@example.com", "gcp": { "stg": ["administration"], "prd": ["read_only"] }, "posthog": "member" } }
 ```
 
-GCP profiles are `read_only`, `administration` and `logs`; PostHog levels are `member` and
+GCP profiles are `read_only`, `administration` and `logs`, granted to `gcp.account` when the
+Google account's primary address differs from `email`; PostHog levels are `member` and
 `admin`, once the person has accepted an invite. After editing it, run
 `organization-member-access-cd`.
