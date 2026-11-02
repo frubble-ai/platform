@@ -1,6 +1,6 @@
 # A global external Application Load Balancer in front of Cloud Run services:
-# one address, one certificate covering every host, host-based routing to a
-# serverless NEG per backend.
+# one address, a certificate per host, host-based routing to a serverless NEG
+# per backend.
 
 resource "google_compute_global_address" "this" {
   project    = var.project_id
@@ -22,18 +22,27 @@ resource "google_certificate_manager_dns_authorization" "this" {
   labels   = var.labels
 }
 
+# One per host, so adding a host issues its own certificate and never
+# replaces the one an existing host is serving with. A certificate's domains
+# cannot change in place, and one covering every host would be replaced, its
+# host without TLS until the new one was issued.
 resource "google_certificate_manager_certificate" "this" {
-  project  = var.project_id
-  name     = "${var.name}-lb"
+  for_each = var.backends
+
+  project = var.project_id
+  # The default backend keeps the name the single certificate had, so a
+  # root's `moved` onto its key keeps that certificate instead of replacing it.
+  name     = each.key == var.default_backend ? "${var.name}-lb" : "${var.name}-${each.key}"
   location = "global"
   scope    = "DEFAULT"
   labels   = var.labels
 
   managed {
-    domains            = [for b in var.backends : b.host]
-    dns_authorizations = [for a in google_certificate_manager_dns_authorization.this : a.id]
+    domains            = [each.value.host]
+    dns_authorizations = [google_certificate_manager_dns_authorization.this[each.key].id]
   }
 }
+
 
 resource "google_certificate_manager_certificate_map" "this" {
   project = var.project_id
@@ -47,7 +56,7 @@ resource "google_certificate_manager_certificate_map_entry" "this" {
   project      = var.project_id
   name         = "${var.name}-${each.key}"
   map          = google_certificate_manager_certificate_map.this.name
-  certificates = [google_certificate_manager_certificate.this.id]
+  certificates = [google_certificate_manager_certificate.this[each.key].id]
   hostname     = each.value.host
   labels       = var.labels
 }

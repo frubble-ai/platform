@@ -17,8 +17,8 @@ terraform/
     org/mailgun/_setup        the sending keys the workers use, written into each environment's secret
     stg/shared                what every stg root agrees on: its name, zone and hostnames; no state
     stg/gcp/_setup            stg state bucket, spokes, deny policies
-    stg/gcp                   the stg API service, load balancer, WAF, alerts, registry, network, database, secrets, migration job, email queue, worker service, and the trust rules of its deploy identities
-    stg/cloudflare            the stg API's DNS: its A record, its certificate authorization, and the sending domain's SPF, DKIM and DMARC
+    stg/gcp                   the stg API service, web app service, load balancer, WAF, alerts, registry, network, database, secrets, migration job, email queue, worker service, and the trust rules of its deploy identities
+    stg/cloudflare            the stg hostnames' DNS (the API's and the web app's A records and certificate authorizations), and the sending domain's SPF, DKIM and DMARC
     stg/mailgun               the stg sending domain at Mailgun
     prd/…                     the same, not yet applied
   modules/                    shared code, no state. gcp/cloud-run-service, gcp/https-load-balancer, gcp/cloud-armor and gcp/alerts are the API's stack; gcp/network, gcp/cloud-sql-postgres and gcp/cloud-run-job its database and migration; gcp/pubsub-queue the email queue; naming the rule the shared/ modules derive their names with
@@ -58,16 +58,28 @@ own configuration: which identities to sign in as, which projects and buckets ex
 features are switched on. The exception is `_setup` outputs copied once at bootstrap, before
 any pipeline exists to carry them.
 
-The GCP workload root hands the Cloudflare root two values. `certificate_dns_authorization`:
-the Cloudflare root publishes that CNAME, DNS-only, and Certificate Manager issues the load
-balancer's certificate against it; the record is permanent, since renewals reuse it.
-`load_balancer_ip`: the hostname's A record, DNS-only too, since proxied every client would
-arrive from Cloudflare's addresses and Cloud Armor's per-IP limit would be one budget for all
-of them. Both arrive in one object, so a new environment's hostname serves Certificate
-Manager's provisioning certificate for the minutes until the authorization is seen, and
-nothing points at that hostname yet. The Cloud Run service and the migration job start on a
-placeholder image; the application's deploy replaces it and Terraform ignores the image from
+The GCP workload root hands the Cloudflare root two values. `certificate_dns_authorizations`,
+one CNAME per hostname (the API's, `api.`, and the web app's, `app.`): the Cloudflare root
+publishes each, DNS-only, and Certificate Manager issues that hostname's certificate against it;
+the records are permanent, since renewals reuse them. A certificate per hostname, so adding one
+never replaces the certificate another is serving with. `load_balancer_ip`: the hostnames' A
+records, DNS-only too, since proxied every client would arrive from Cloudflare's addresses and
+Cloud Armor's per-IP limit would be one budget for all of them. Both arrive in one object, with
+`published_hosts`: the hostnames whose A records the Cloudflare root publishes, for the API and
+the app alike. A hostname joins once it serves TLS, its certificate issued and its certificate-map
+entry active, and stays: the GCP root keeps the previous handoff's list, so a renewal that shows a
+certificate as provisioning again never takes a record down. A new hostname's certificate issues
+against its authorization, which the same run publishes, so its A record follows on the next
+`stg-cd` run after the certificate is issued (Actions → stg-cd → Run workflow, a few minutes
+later). The handoff also keeps `certificate_dns_authorization`, the API's alone,
+which it carried before the map. The Cloud Run services and the migration job start on a
+placeholder image; the application's deploys replace it and Terraform ignores the image from
 then on.
+
+A handoff object changes the way a schema does: a field is added, and the consumer reads it
+only when present, so the consumer's plan on the pull request, which still sees the object
+the last apply wrote, plans nothing for what the field will bring. A field goes once no
+consumer reads it.
 
 The database is a Cloud SQL Postgres instance with a private address only, in the
 environment's VPC, reached by the service and the job through direct VPC egress and TLS

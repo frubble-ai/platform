@@ -38,3 +38,7 @@ output "emails_dead_letter_subscription" {
   description = "Where emails the worker gave up on wait."
   value       = module.emails_queue.dead_letter_subscription
 }
+
+output "app_service_name" {
+  value = module.app_service.name
+}

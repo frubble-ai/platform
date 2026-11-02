@@ -13,9 +13,13 @@ locals {
 
   # The application deploys from its own branch, in an environment named
   # after the component, since that name is what GitHub lists the deployment
-  # under. Only stg: the application deploys nowhere else.
+  # under: the backend's workflow and the web app's, each with its own, and
+  # the database reset, which runs the migration job in the backend's
+  # environment. Only stg: the application deploys nowhere else.
   backend_deploy_entries = module.shared.environment == "stg" ? [
     "${local.repos.backend}|${local.repos.backend}/.github/workflows/backend-cd.yml|backend-stg|refs/heads/stg",
+    "${local.repos.backend}|${local.repos.backend}/.github/workflows/db-reset.yml|backend-stg|refs/heads/stg",
+    "${local.repos.backend}|${local.repos.backend}/.github/workflows/app-cd.yml|app-stg|refs/heads/stg",
   ] : []
 }
 

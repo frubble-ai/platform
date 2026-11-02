@@ -25,6 +25,11 @@ output "api_hostname" {
   value       = "api.${local.host_prefix}${var.zone}"
 }
 
+output "app_hostname" {
+  description = "Public hostname of the web app: `app.stg.frubble.ai`, `app.frubble.ai`."
+  value       = "app.${local.host_prefix}${var.zone}"
+}
+
 output "sending_domain" {
   description = "Domain the worker sends from. A subdomain, never the apex, whose mail belongs to the people at it: `stg.frubble.ai`, `mail.frubble.ai`."
   value       = var.environment == "prd" ? "mail.${var.zone}" : "${var.environment}.${var.zone}"
