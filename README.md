@@ -198,10 +198,12 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
    key and writes it into `email/api-key` (Secret Manager id `frubble_<env>_email_api-key`:
    the module joins the path with underscores, since an id cannot hold `/`). A variable
    change starts no workflow on its own. The generated secrets (Secrets, above) need
-   nothing. Turning prd on later is the same again, plus one pull request first: `prd`
-   joins `sending_domains` in `org/mailgun/_setup`, which keys only the domains that
-   exist, and the prd worker holds its placeholder until that key is written and it is
-   rolled. A service reads a secret when an
+   nothing. Turning prd on later is the same in this order: the admin key on `prd`, then
+   `TF_APPLY_ENABLE_PRD` and a `prd-cd` run, which registers the domain, then a pull
+   request adding `prd` to `sending_domains` in `org/mailgun/_setup`, whose merge mints the
+   key and writes it, then a roll of the prd worker, which holds its placeholder until
+   then. The setup root keys every domain it lists, so the domain must exist before it is
+   listed. A service reads a secret when an
    instance starts, so a new value is live on the next revision, which the next deploy
    creates.
 6. Sign up at PostHog with the owner account (never managed by Terraform; its email
