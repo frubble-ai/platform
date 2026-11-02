@@ -30,6 +30,11 @@ output "api_service_account" {
   value       = google_service_account.api.email
 }
 
+output "app_service_account" {
+  description = "Identity the web app's Cloud Run service runs as."
+  value       = google_service_account.app.email
+}
+
 output "worker_service_account" {
   description = "Identity the email worker's Cloud Run service runs as."
   value       = google_service_account.worker.email
