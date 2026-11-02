@@ -15,7 +15,12 @@ module "api_service" {
     PUBSUB_EMAILS_TOPIC = module.emails_queue.topic
   })
   secret_env = merge(local.database_secret_env, {
-    BETTER_AUTH_SECRET = { secret = module.secrets["auth_secret"].secret_id }
+    BETTER_AUTH_SECRET             = { secret = module.secrets["auth_secret"].secret_id }
+    COMPOSIO_API_KEY               = { secret = module.secrets["composio_api_key"].secret_id }
+    COMPOSIO_GITHUB_AUTH_CONFIG_ID = { secret = module.secrets["composio_github_auth_config_id"].secret_id }
+    COMPOSIO_LINEAR_AUTH_CONFIG_ID = { secret = module.secrets["composio_linear_auth_config_id"].secret_id }
+    COMPOSIO_SLACK_AUTH_CONFIG_ID  = { secret = module.secrets["composio_slack_auth_config_id"].secret_id }
+    COMPOSIO_FIGMA_AUTH_CONFIG_ID  = { secret = module.secrets["composio_figma_auth_config_id"].secret_id }
   })
   vpc = local.vpc
   # In prd a rollback takes one apply more: set this to false and apply, then
