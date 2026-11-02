@@ -54,6 +54,12 @@ that prefix, which holds the consumer's state; the consumer's identities read th
 already, since it is theirs. The workflow runs the consumer after its producers, so one run carries a value from
 the root that makes it to the root that publishes it.
 
+To roll back to fixed handoff names, keep the prefix grants until the producers have moved:
+apply the reverted GCP and Mailgun roots first, so they write `gcp.json` and `mailgun.json` and
+delete their hashed objects, and only then apply the setup roots that narrow the grants to the
+exact names. Narrowing first leaves each producer unable to read its own hashed object, and its
+plan fails.
+
 No repository variable ever carries a Terraform output to another root. A variable is set
 by a person, so it drifts from the output it copies, it is read at the start of a run so it
 lags the apply that changed it, and nothing reviews it. The variables that remain are CI's
