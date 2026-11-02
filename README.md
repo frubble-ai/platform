@@ -259,7 +259,8 @@ Required checks: `Plan stg / plan`, `Plan prd / plan`, `Plan org setup / plan`, 
 values. One named administrator has full access. Nobody gets a shell.
 
 Everyone else is listed, with their access, in the `ORG_MEMBERS_ACCESS` secret of the
-`organization-member-access` environment, keyed by a short handle:
+`organization-member-access` environment, which also holds its own `POSTHOG_APPLY_API_KEY`,
+keyed by a short handle:
 
 ```json
 { "alex": { "email": "alex@example.com", "gcp": { "stg": ["administration"], "prd": ["read_only"] }, "posthog": "member" } }
