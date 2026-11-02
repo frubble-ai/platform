@@ -82,7 +82,7 @@ resource "google_storage_bucket_iam_member" "developers_read_plan_text" {
 
   condition {
     title       = "rendered plans only"
-    description = "plan.txt and apply.txt. Not tfplan, which holds sensitive values in clear."
-    expression  = "resource.name.startsWith('${local.plan_store_objects}/') && resource.name.endsWith('.txt')"
+    description = "plan.txt and apply.txt, except member access, which names people. Not tfplan."
+    expression  = "resource.name.startsWith('${local.plan_store_objects}/') && resource.name.endsWith('.txt') && !resource.name.startsWith('${local.plan_store_objects}/apply/setup-organization-member-access/') && !resource.name.startsWith('${local.plan_store_objects}/apply/posthog-org-members/')"
   }
 }

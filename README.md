@@ -230,8 +230,9 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
 6. Sign up at PostHog with the owner account (never managed by Terraform), create the
    two personal API keys, and invite the human members (Human access, below).
 
-Environments `stg`, `prd`, `cloudflare-org`, `posthog-org` and `setup` must exist and
-accept deployments from `dev` only; `setup` also requires a reviewer and bars self-review,
+Environments `stg`, `prd`, `cloudflare-org`, `posthog-org`, `setup` and
+`organization-member-access` must exist and accept deployments from `dev` only; `setup` and
+`organization-member-access` also require a reviewer and bar self-review,
 which `_setup-apply.yml` checks before it runs. Their names are part of the trust rules,
 and so is the `backend-stg` environment on `app`, which accepts deployments from `stg`
 only.
@@ -248,6 +249,7 @@ only.
 | `setup-cd`     | merge to `dev` | applies the three GCP `_setup` roots, once a reviewer approves the run |
 | `mailgun-setup-cd` | merge to `dev` | applies the Mailgun `_setup` root, once a reviewer approves the run |
 | `prd-cd`       | merge to `dev` | the same three for prd, behind `TF_APPLY_ENABLE_PRD`; off |
+| `organization-member-access-cd` | by hand | applies `ORG_MEMBERS_ACCESS` (Human access, below) |
 
 Required checks: `Plan stg / plan`, `Plan prd / plan`, `Plan org setup / plan`, `Plan stg setup / plan`, `Plan prd setup / plan`, `Code Quality Summary`, `pr template`.
 
