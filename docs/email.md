@@ -4,7 +4,9 @@ Mail goes out through Mailgun, in the shape every provider here has. `stg/mailgu
 `prd/mailgun` each register one sending domain, their state in the management bucket under
 `<env>/mailgun/`. `org/mailgun/_setup` mints one sending key per domain (role `sending`,
 scoped to that domain, the worker's only credential) and writes it into the environment's
-`email/api-key` secret through a write-only attribute, so no key is printed or copied; it
+`email/api-key` secret through a write-only attribute, so no key is printed or copied and
+the secret version's state holds none. The key does stay in the setup root's own state,
+which no CI identity can read; it
 runs in `mailgun-setup-cd` behind the same reviewer as the GCP `_setup` roots, after the
 `stg-cd` run that registers the domain when one commit changes both. A worker instance reads
 the secret when it starts and keeps that key until it stops, so a rotation keeps two keys
