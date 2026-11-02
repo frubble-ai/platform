@@ -26,7 +26,6 @@ on:
       # An environment secret on posthog-org. A job that declares an
       # environment reads that environment's value, so the caller has nothing
       # to pass; the declaration only names it.
-      # Environment secrets, read directly by the job.
       POSTHOG_APPLY_API_KEY:
         required: false
       # Secrets so the step env header masks them.

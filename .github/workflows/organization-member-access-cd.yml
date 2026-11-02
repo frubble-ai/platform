@@ -27,6 +27,9 @@ jobs:
       service_account: ${{ vars.GCP_BOOTSTRAP_SERVICE_ACCOUNT }}
       workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
       audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    # Environment secrets: named here, filled from the job's environment.
+    secrets:
+      ORG_MEMBERS_ACCESS: ${{ secrets.ORG_MEMBERS_ACCESS }}
     permissions:
       contents: read
       id-token: write
@@ -42,6 +45,10 @@ jobs:
       state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
       workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
       audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    secrets:
+      POSTHOG_APPLY_API_KEY: ${{ secrets.POSTHOG_APPLY_API_KEY }}
+      ORG_MEMBERS_ACCESS: ${{ secrets.ORG_MEMBERS_ACCESS }}
+      POSTHOG_OWNER_EMAIL: ${{ secrets.POSTHOG_OWNER_EMAIL }}
     permissions:
       contents: read
       id-token: write
