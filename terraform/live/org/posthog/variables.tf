@@ -18,40 +18,40 @@ variable "owner_email" {
   }
 }
 
-variable "members" {
+variable "access" {
   description = <<-EOT
-    Human members of the organization and their level, keyed by a short handle.
-    Each must already have joined (main.tf explains why). Level is member or
-    admin; the owner account is never listed.
-
-    CI supplies it from the POSTHOG_MEMBERS secret as JSON:
-    {"daniel":{"email":"...","level":"admin"}}
-
-    Handles appear in resource addresses, and so in plan output: lowercase
-    letters, digits, "-" or "_", starting with a letter, at most 32
-    characters. A name, never an email or an id.
+    The organization's people and what each may do, keyed by a short handle,
+    never an address. One entry per person covers every system: `gcp` lists
+    profiles per environment (modules/gcp/developer-access), `posthog` is a
+    level (member or admin). CI supplies it from the ACCESS secret as JSON:
+    {"alex":{"email":"...","gcp":{"stg":["administration"]},"posthog":"member"}}
+    The same list is all of README "Human access".
   EOT
   type = map(object({
     email = string
-    level = string
+    gcp = optional(object({
+      stg = optional(list(string), [])
+      prd = optional(list(string), [])
+    }), {})
+    posthog = optional(string)
   }))
   default   = {}
   sensitive = true
 
   validation {
-    condition     = alltrue([for k in keys(var.members) : can(regex("^[a-z][a-z0-9_-]{0,31}$", k))])
-    error_message = "Each members key must be a short handle: lowercase letters, digits, - or _, starting with a letter, at most 32 characters."
+    condition     = alltrue([for k in nonsensitive(keys(var.access)) : can(regex("^[a-z][a-z0-9_-]{0,31}$", k))])
+    error_message = "Each key must be a short handle: lowercase letters, digits, - or _, starting with a letter, at most 32 characters."
   }
 
   validation {
-    condition     = alltrue([for m in values(var.members) : contains(["member", "admin"], m.level)])
-    error_message = "Level must be member or admin. The owner account is not managed here."
+    condition     = alltrue([for p in values(var.access) : p.posthog == null || contains(["member", "admin"], p.posthog)])
+    error_message = "posthog must be member or admin. The owner account is not managed here."
   }
 
   # PostHog rejects any change to one's own level, even a no-op, so listing the
   # owner would bring back the apply failure main.tf's removed block avoids.
   validation {
-    condition     = alltrue([for m in values(var.members) : lower(trimspace(m.email)) != lower(trimspace(var.owner_email))])
-    error_message = "The owner account is not managed here; remove it from members."
+    condition     = alltrue([for p in values(var.access) : p.posthog == null || lower(trimspace(p.email)) != lower(trimspace(var.owner_email))])
+    error_message = "The owner account is not managed here; give it no posthog level."
   }
 }

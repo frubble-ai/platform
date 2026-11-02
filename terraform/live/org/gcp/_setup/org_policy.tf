@@ -37,7 +37,7 @@ resource "google_project_service" "management_orgpolicy" {
 # refuse the people who do the work and admit anyone given a seat later.
 #
 # People and groups are named one by one: administrator, developer_group and
-# everyone in var.access (the TF_SETUP_ACCESS secret). The organization principal set admits
+# everyone in var.access (the ACCESS secret). The organization principal set admits
 # what the organization makes itself: service accounts and workload identity
 # pools in its projects, and its service agents. allUsers and
 # allAuthenticatedUsers stay refused.
@@ -49,7 +49,7 @@ resource "google_org_policy_policy" "allowed_iam_members" {
     rules {
       enforce = "TRUE"
       parameters = jsonencode({
-        allowedMemberSubjects = distinct(concat([var.administrator, var.developer_group], [for person in values(var.access) : person.member]))
+        allowedMemberSubjects = distinct(concat([var.administrator, var.developer_group], [for person in values(var.access) : "user:${person.email}"]))
         allowedPrincipalSets  = ["//cloudresourcemanager.googleapis.com/organizations/${var.org_id}"]
       })
     }

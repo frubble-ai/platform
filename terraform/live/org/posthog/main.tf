@@ -29,17 +29,15 @@ removed {
 }
 
 # ---------- the people ----------
-# Humans are members at the level `var.members` gives them. The owner account
+# Humans are members at the level `var.access` gives them. The owner account
 # is deliberately not among them (see `removed` above).
 #
 # The provider has no invite resource: posthog_organization_member only adopts
 # someone who has already joined. So a person reaches this map in two steps:
 #   1. Invite them from PostHog → Settings → Members, as the owner account,
 #      and wait for them to accept.
-#   2. Add them to the POSTHOG_MEMBERS repository secret (a JSON object) under
-#      a short handle, e.g.
-#      {"daniel":{"email":"...","level":"admin"},"alex":{"email":"...","level":"member"}}
-#      and merge.
+#   2. Give them a `posthog` level in the ACCESS repository secret (README,
+#      "Human access") and run org-cd.
 #      The import below adopts the existing membership instead of changing
 #      it, and from then on their level is whatever the map says.
 # Someone in the map who has not joined fails the plan at the user lookup,
@@ -47,14 +45,19 @@ removed {
 #
 # Keyed by handle, never by email: plans are posted on pull requests of a
 # public repository, and a key is printed in every resource address.
-data "posthog_user" "member" {
-  for_each = toset(nonsensitive(keys(var.members)))
+# Everyone in var.access with a PostHog level.
+locals {
+  members = { for handle, person in var.access : handle => { email = person.email, level = person.posthog } if person.posthog != null }
+}
 
-  email = var.members[each.key].email
+data "posthog_user" "member" {
+  for_each = toset(nonsensitive(keys(local.members)))
+
+  email = local.members[each.key].email
 }
 
 import {
-  for_each = toset(nonsensitive(keys(var.members)))
+  for_each = toset(nonsensitive(keys(local.members)))
 
   to = posthog_organization_member.member[each.key]
   id = "${var.organization_id}/${data.posthog_user.member[each.key].uuid}"
@@ -64,9 +67,9 @@ import {
 # it does not remove them from the organization. Removing a person is done in
 # PostHog, on purpose, by the owner.
 resource "posthog_organization_member" "member" {
-  for_each = toset(nonsensitive(keys(var.members)))
+  for_each = toset(nonsensitive(keys(local.members)))
 
   user_uuid         = data.posthog_user.member[each.key].uuid
-  level             = var.members[each.key].level
+  level             = local.members[each.key].level
   retain_on_destroy = true
 }

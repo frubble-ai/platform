@@ -191,8 +191,8 @@ yet. Step 4 copies those values into the variables. From then on CI reads the va
 and so does every hand apply, as `TF_VAR_*` in the environment; the file is deleted, or a
 stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_id`),
 `TF_SETUP_BILLING_ACCOUNT` (`billing_account`), `TF_SETUP_DEVELOPER_GROUP`
-(`developer_group`), `TF_SETUP_ADMINISTRATOR` (`administrator`), the `TF_SETUP_ACCESS` secret
-(`access`, below), `GCP_MANAGEMENT_PROJECT`
+(`developer_group`), `TF_SETUP_ADMINISTRATOR` (`administrator`), the `ACCESS` secret
+(`access`, Human access below), `GCP_MANAGEMENT_PROJECT`
 (`management_project_id`), `GCP_PROJECT_STG` and `GCP_PROJECT_PRD` (`environment_projects`),
 `BACKEND_REPOSITORY` (`backend_repository`), and this repository's owner and name
 (`github_owner`, `platform_repository`). `gh variable list` prints them.
@@ -210,7 +210,7 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
    `TF_SETUP_ORG_ID`, `TF_SETUP_BILLING_ACCOUNT`, `TF_SETUP_DEVELOPER_GROUP`,
    `TF_SETUP_ADMINISTRATOR`, `GCP_MANAGEMENT_PROJECT` and `BACKEND_REPOSITORY`, and the
    secrets: `CLOUDFLARE_PLAN_TOKEN`,
-   `POSTHOG_PLAN_API_KEY`, `POSTHOG_OWNER_EMAIL` and `POSTHOG_MEMBERS` on the repo;
+   `POSTHOG_PLAN_API_KEY`, `POSTHOG_OWNER_EMAIL` and `ACCESS` on the repo;
    `CLOUDFLARE_MINT_TOKEN` and `POSTHOG_APPLY_API_KEY` on their environments, and the
    Mailgun admin key as `MAILGUN_APPLY_API_KEY` on `setup` and on every environment that
    applies a mailgun root: `stg` today, `prd` before `TF_APPLY_ENABLE_PRD` is turned on,
@@ -233,10 +233,8 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
    creates.
 6. Sign up at PostHog with the owner account (never managed by Terraform; its email
    goes in `POSTHOG_OWNER_EMAIL`), create the two personal API keys, invite the
-   human members, and once they have joined list them in `POSTHOG_MEMBERS` as a JSON
-   object keyed by handle:
-   `{"daniel":{"email":"...","level":"admin"},"alex":{"email":"...","level":"member"}}`
-   (see `org/posthog/main.tf`).
+   human members, and once they have joined give them a `posthog` level in `ACCESS`
+   (Human access, below; `org/posthog/main.tf`).
 
 Environments `stg`, `prd`, `cloudflare-org`, `posthog-org` and `setup` must exist and
 accept deployments from `dev` only; `setup` also requires a reviewer and bars self-review,
@@ -264,20 +262,21 @@ Required checks: `Plan stg / plan`, `Plan prd / plan`, `Plan org setup / plan`, 
 `gcloud auth login`, no keys. The developer group is read-only and cannot read secret
 values. One named administrator has full access on stg and prd. Nobody gets a shell.
 
-Everyone else holds access per environment, as profiles: `read_only` (sees everything, no
-secret values), `administration` (the administrator's role) and `logs` (reads logs only),
-defined in `modules/gcp/developer-access`. A new kind of access is a new profile there. Who
-holds what is the `TF_SETUP_ACCESS` secret, so no address is written here, as JSON keyed by
-a short handle:
+Everyone else, in every system, is one entry in the `ACCESS` secret, keyed by a short
+handle so no address is written here. In GCP a person holds profiles per environment:
+`read_only` (sees everything, no secret values), `administration` (the administrator's
+role) and `logs` (reads logs only), defined in `modules/gcp/developer-access`; a new kind
+of access is a new profile there. In PostHog a person holds a level, `member` or `admin`.
 
 ```json
 {
-  "alex": { "member": "user:alex@example.com", "stg": ["administration"], "prd": ["read_only"] },
-  "sam":  { "member": "user:sam@example.com",  "stg": ["logs"], "prd": ["logs"] }
+  "alex": { "email": "alex@example.com", "gcp": { "stg": ["administration"], "prd": ["read_only"] }, "posthog": "member" },
+  "sam":  { "email": "sam@example.com",  "gcp": { "stg": ["logs"], "prd": ["logs"] } }
 }
 ```
 
-That secret, with the administrator and the developer group, is also the organization's
+That list, with the administrator and the developer group, is also the organization's
 whole list of allowed IAM members (`iam.managed.allowedPolicyMembers`, in
-`org/gcp/_setup/org_policy.tf`): nobody else can be granted a role anywhere in it. Changing
-it is editing the secret and re-running `setup-cd`. Billing access stays out of Terraform.
+`org/gcp/_setup/org_policy.tf`): nobody else can be granted a role anywhere in it. A
+change is editing the secret, then `setup-cd` for GCP and `org-cd` for PostHog. Billing
+access stays out of Terraform.

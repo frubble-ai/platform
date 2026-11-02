@@ -12,9 +12,9 @@ module "human_access" {
   # Only who holds something in this environment.
   people = {
     for handle, person in var.access : handle => {
-      member   = person.member
-      profiles = each.key == "stg" ? person.stg : person.prd
-    } if length(each.key == "stg" ? person.stg : person.prd) > 0
+      member   = "user:${person.email}"
+      profiles = person.gcp[each.key]
+    } if length(person.gcp[each.key]) > 0
   }
 
   depends_on = [module.environment_project, google_org_policy_policy.no_domain_rule]

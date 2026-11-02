@@ -71,19 +71,20 @@ variable "administrator" {
 
 variable "access" {
   description = <<-EOT
-    Every person or group, beyond administrator and developer_group, that may
-    hold a role in the organization, and what they hold: per environment, a
-    list of profiles from modules/gcp/developer-access (read_only,
-    administration, logs). Keyed by a short handle, never an address. CI
-    supplies it from the TF_SETUP_ACCESS secret as JSON, e.g.
-    {"alex":{"member":"user:...","stg":["administration"],"prd":["read_only"]}}
-    It is also the organization's whole list of allowed IAM members
-    (org_policy.tf): nobody outside it can be granted a role.
+    The organization's people and what each may do, keyed by a short handle,
+    never an address. One entry per person covers every system: `gcp` lists
+    profiles per environment (modules/gcp/developer-access), `posthog` is a
+    level (member or admin). CI supplies it from the ACCESS secret as JSON:
+    {"alex":{"email":"...","gcp":{"stg":["administration"]},"posthog":"member"}}
+    The same list is all of README "Human access".
   EOT
   type = map(object({
-    member = string
-    stg    = optional(list(string), [])
-    prd    = optional(list(string), [])
+    email = string
+    gcp = optional(object({
+      stg = optional(list(string), [])
+      prd = optional(list(string), [])
+    }), {})
+    posthog = optional(string)
   }))
   default   = {}
   sensitive = true
@@ -94,8 +95,8 @@ variable "access" {
   }
 
   validation {
-    condition     = alltrue([for p in values(var.access) : can(regex("^(user|group):[^@\\s]+@[^@\\s]+$", p.member))])
-    error_message = "Each member must be `user:address` or `group:address`."
+    condition     = alltrue([for p in values(var.access) : can(regex("^[^@\\s]+@[^@\\s]+$", p.email))])
+    error_message = "Each email must be an address."
   }
 }
 

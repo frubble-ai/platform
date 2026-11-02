@@ -52,7 +52,7 @@ jobs:
       workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
       audience: ${{ vars.GCP_WIF_AUDIENCE }}
     secrets:
-      TF_SETUP_ACCESS: ${{ secrets.TF_SETUP_ACCESS }}
+      ACCESS: ${{ secrets.ACCESS }}
     permissions:
       contents: read
       id-token: write
