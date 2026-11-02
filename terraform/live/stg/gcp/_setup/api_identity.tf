@@ -1,6 +1,5 @@
 # The identity the API's Cloud Run service runs as. Runtime identities are
-# created in _setup and bound in the workload root (README, "How CI
-# authenticates").
+# created in _setup and bound in the workload root (docs/ci-authentication.md).
 resource "google_service_account" "api" {
   account_id   = "frubble-${var.environment}-api"
   project      = var.project_id

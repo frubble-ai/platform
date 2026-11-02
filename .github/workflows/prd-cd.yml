@@ -1,8 +1,7 @@
 name: prd-cd
 
 # The prd applies, in the order stg-cd runs them: GCP, then Mailgun, then
-# Cloudflare, which reads what the other two hand off (README, "Crossing
-# roots"). One workflow so that order holds; the applies themselves are
+# Cloudflare, which reads what the other two hand off (docs/crossing-roots.md). One workflow so that order holds; the applies themselves are
 # behind a switch, the repository variable TF_APPLY_ENABLE_PRD. prd is planned
 # on every pull request and applied only when someone decides to: a problem
 # shows up early, a change does not happen by merging. Unset, every job

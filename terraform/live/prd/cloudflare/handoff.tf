@@ -1,6 +1,6 @@
 # What the other roots of this environment produce for this one, read back
-# from the handoff objects they write under this root's prefix (README,
-# "Crossing roots"): the GCP root's load balancer address and certificate
+# from the handoff objects they write under this root's prefix
+# (docs/crossing-roots.md): the GCP root's load balancer address and certificate
 # authorization, the mailgun root's DKIM record. A root that has not applied
 # yet has written nothing, and the records it feeds do not exist yet; a
 # field never arrives without the others in its object.

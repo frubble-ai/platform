@@ -22,7 +22,7 @@ terraform {
 }
 
 # The key comes from MAILGUN_API_KEY, which the workflow fills from the
-# environment's secret (README, "Email").
+# environment's secret (docs/email.md).
 provider "mailgun" {}
 
 # The federated identity the workflow signs in with, which may write the one

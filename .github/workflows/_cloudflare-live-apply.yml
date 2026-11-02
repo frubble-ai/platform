@@ -143,7 +143,7 @@ jobs:
           TF_VAR_zone_id: ${{ vars.CLOUDFLARE_ZONE_ID }}
           TF_VAR_domain: ${{ vars.CLOUDFLARE_DOMAIN }}
           # The environment roots read the other roots' handoff objects from
-          # here (README, "Crossing roots"); org declares no such variable.
+          # here (docs/crossing-roots.md); org declares no such variable.
           TF_VAR_management_state_bucket: ${{ inputs.state_bucket }}
         run: |
           set -euo pipefail

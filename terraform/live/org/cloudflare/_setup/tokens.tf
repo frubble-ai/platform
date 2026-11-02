@@ -24,7 +24,7 @@
 # Both values land in this root's state. `org/cloudflare/setup` lives in the
 # management bucket, and the IAM condition in org/gcp/_setup limits the
 # Cloudflare CI identities to `org/cloudflare/live/`, so only the bootstrap
-# admin can read this prefix. The README lists both as secrets that reach
+# admin can read this prefix. docs/secrets.md lists both as secrets that reach
 # state, as the standard asks.
 
 # Permission groups are addressed by UUID, and the UUIDs are not stable to

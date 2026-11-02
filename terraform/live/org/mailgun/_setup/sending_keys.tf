@@ -1,5 +1,5 @@
 # The domain must exist at Mailgun before a key can be scoped to it, so the
-# environment's mailgun root applies first (README, Bootstrap).
+# environment's mailgun root applies first (docs/getting-started.md).
 resource "mailgun_api_key" "sending" {
   for_each = local.sending_keys
 

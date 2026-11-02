@@ -1,5 +1,5 @@
 # What the Cloudflare root needs from here, as one object under that root's
-# prefix in the management bucket (README, "Crossing roots"): the DKIM record,
+# prefix in the management bucket (docs/crossing-roots.md): the DKIM record,
 # the one record only Mailgun can give. The object is named by its content
 # (`mailgun-<hash>.json`), and the new one is written before the old one is
 # deleted: there is always a handoff, and a changed content is always a new

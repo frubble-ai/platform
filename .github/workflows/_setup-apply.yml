@@ -39,7 +39,7 @@ on:
         type: string
     secrets:
       # The Mailgun root's credential, an environment secret the `setup`
-      # environment holds; the other roots pass nothing (README, "Email").
+      # environment holds; the other roots pass nothing (docs/email.md).
       MAILGUN_APPLY_API_KEY:
         required: false
       ORG_MEMBERS_ACCESS:

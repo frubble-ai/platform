@@ -84,7 +84,7 @@ resource "google_sql_database" "this" {
 
 # The application's user. The password is the generated value the matching
 # secret holds, written through the write-only attribute: it reaches Cloud SQL
-# and never the state (README, "Secrets").
+# and never the state (docs/secrets.md).
 resource "google_sql_user" "application" {
   project             = var.project_id
   instance            = google_sql_database_instance.this.name
