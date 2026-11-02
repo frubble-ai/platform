@@ -69,13 +69,29 @@ variable "administrator" {
   type        = string
 }
 
+variable "allowed_iam_members" {
+  description = <<-EOT
+    Every person and group that may be granted a role anywhere in the
+    organization, as IAM members (`user:address`, `group:address`). CI supplies
+    it from the TF_SETUP_ALLOWED_IAM_MEMBERS secret as a JSON list. It must
+    include administrator, developer_group and every stg administrator.
+  EOT
+  type        = list(string)
+  sensitive   = true
+
+  validation {
+    condition     = alltrue([for m in var.allowed_iam_members : can(regex("^(user|group):[^@\\s]+@[^@\\s]+$", m))])
+    error_message = "Each entry must be `user:address` or `group:address`."
+  }
+}
+
 variable "stg_administrators" {
   description = <<-EOT
     People given the administration role on stg beside `administrator`, as
     `user:address` keyed by a short handle. CI supplies it from the
     TF_SETUP_STG_ADMINISTRATORS variable as JSON, e.g. {"alex":"user:..."};
-    no address is written in this repository. Accounts outside the
-    organization's domain are allowed on stg only (org_policy.tf).
+    no address is written in this repository. Each must also be in
+    allowed_iam_members.
   EOT
   type        = map(string)
   default     = {}

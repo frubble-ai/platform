@@ -42,6 +42,10 @@ on:
       # environment holds; the other roots pass nothing (README, "Email").
       MAILGUN_APPLY_API_KEY:
         required: false
+      # org/gcp/_setup's allowed IAM members (org_policy.tf); the other roots
+      # ignore it.
+      TF_SETUP_ALLOWED_IAM_MEMBERS:
+        required: false
 
 permissions:
   contents: read
@@ -125,6 +129,7 @@ jobs:
           TF_VAR_billing_account: ${{ vars.TF_SETUP_BILLING_ACCOUNT }}
           TF_VAR_developer_group: ${{ vars.TF_SETUP_DEVELOPER_GROUP }}
           TF_VAR_administrator: ${{ vars.TF_SETUP_ADMINISTRATOR }}
+          TF_VAR_allowed_iam_members: ${{ secrets.TF_SETUP_ALLOWED_IAM_MEMBERS }}
           TF_VAR_stg_administrators: ${{ vars.TF_SETUP_STG_ADMINISTRATORS || '{}' }}
           TF_VAR_environment_projects: '{"stg":"${{ vars.GCP_PROJECT_STG }}","prd":"${{ vars.GCP_PROJECT_PRD }}"}'
           TF_VAR_github_owner: ${{ github.repository_owner }}

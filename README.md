@@ -192,12 +192,16 @@ and so does every hand apply, as `TF_VAR_*` in the environment; the file is dele
 stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_id`),
 `TF_SETUP_BILLING_ACCOUNT` (`billing_account`), `TF_SETUP_DEVELOPER_GROUP`
 (`developer_group`), `TF_SETUP_ADMINISTRATOR` (`administrator`), `TF_SETUP_STG_ADMINISTRATORS`
-(`stg_administrators`, optional), `GCP_MANAGEMENT_PROJECT`
+(`stg_administrators`, optional), the `TF_SETUP_ALLOWED_IAM_MEMBERS` secret
+(`allowed_iam_members`), `GCP_MANAGEMENT_PROJECT`
 (`management_project_id`), `GCP_PROJECT_STG` and `GCP_PROJECT_PRD` (`environment_projects`),
 `BACKEND_REPOSITORY` (`backend_repository`), and this repository's owner and name
 (`github_owner`, `platform_repository`). `gh variable list` prints them.
 
 1. Create the management project and the developer Google Group.
+   As the organization admin, grant the setup plan identity `roles/orgpolicy.policyViewer` on
+   the organization, so plans can read the organization policies `org/gcp/_setup` manages; the
+   bootstrap admin cannot grant roles on the organization.
 2. Apply `org/gcp/_setup` without a backend, then migrate its state into the bucket it
    created.
 3. Apply `org/cloudflare/_setup`, `stg/gcp/_setup`, `prd/gcp/_setup`, each with its own

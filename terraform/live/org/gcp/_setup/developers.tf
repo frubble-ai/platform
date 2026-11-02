@@ -11,7 +11,7 @@ module "human_access" {
 
   additional_administrators = each.key == "stg" ? var.stg_administrators : {}
 
-  depends_on = [module.environment_project, google_org_policy_policy.stg_allows_outside_members]
+  depends_on = [module.environment_project, google_org_policy_policy.no_domain_rule]
 }
 
 # This module was `developer_access` until the roles became read-only and

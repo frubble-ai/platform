@@ -158,6 +158,8 @@ jobs:
       service_account: ${{ vars.GCP_SETUP_PLAN_IDENTITY }}
       workload_identity_provider: ${{ vars.GCP_PLAN_PROVIDER }}
       audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    secrets:
+      TF_SETUP_ALLOWED_IAM_MEMBERS: ${{ secrets.TF_SETUP_ALLOWED_IAM_MEMBERS }}
     permissions:
       contents: read
       id-token: write
