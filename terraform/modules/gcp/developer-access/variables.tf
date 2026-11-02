@@ -51,4 +51,16 @@ variable "people" {
     condition     = alltrue([for p in values(var.people) : can(regex("^(user|group):", p.member))])
     error_message = "Each member must be `user:address` or `group:address`."
   }
+
+  # A group's managers would decide who administers the project, outside
+  # this configuration.
+  validation {
+    condition     = alltrue([for p in values(var.people) : startswith(p.member, "user:") || !contains(p.profiles, "administration")])
+    error_message = "administration is for a person (`user:`), never a group."
+  }
+
+  validation {
+    condition     = alltrue([for p in values(var.people) : alltrue([for profile in p.profiles : contains(["read_only", "administration", "logs"], profile)])])
+    error_message = "Unknown profile. The profiles are read_only, administration and logs (main.tf, local.profiles)."
+  }
 }

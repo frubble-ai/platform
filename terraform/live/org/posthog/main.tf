@@ -29,7 +29,7 @@ removed {
 }
 
 # ---------- the people ----------
-# Humans are members at the level `var.org_members_access` gives them. The owner account
+# Humans are members at the level ORG_MEMBERS_ACCESS gives them (people.tf). The owner account
 # is deliberately not among them (see `removed` above).
 #
 # The provider has no invite resource: posthog_organization_member only adopts
@@ -45,9 +45,10 @@ removed {
 #
 # Keyed by handle, never by email: plans are posted on pull requests of a
 # public repository, and a key is printed in every resource address.
-# Everyone in var.org_members_access with a PostHog level.
+# Everyone with a PostHog level. The owner account never has one: PostHog
+# rejects any change to one's own level, even a no-op.
 locals {
-  members = { for handle, person in var.org_members_access : handle => { email = person.email, level = person.posthog } if person.posthog != null }
+  members = { for handle, person in local.people : handle => { email = person.email, level = person.posthog } if person.posthog != null }
 }
 
 data "posthog_user" "member" {

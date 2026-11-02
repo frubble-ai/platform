@@ -71,32 +71,52 @@ variable "administrator" {
 
 variable "org_members_access" {
   description = <<-EOT
-    The organization's people and what each may do, keyed by a short handle,
-    never an address. One entry per person covers every system: `gcp` lists
-    profiles per environment (modules/gcp/developer-access), `posthog` is a
-    level (member or admin). CI supplies it from the ORG_MEMBERS_ACCESS secret as JSON:
-    {"alex":{"email":"...","gcp":{"stg":["administration"]},"posthog":"member"}}
-    The same list is all of README "Human access".
+    The organization's people and what each may do, as the JSON the
+    ORG_MEMBERS_ACCESS secret holds (README, "Human access"): keyed by a short
+    handle, never an address; per person an `email`, `gcp` profiles per
+    environment (modules/gcp/developer-access) and a `posthog` level (member or
+    admin). Taken as a string and decoded here, so a misspelled key fails the
+    plan instead of being dropped, and an unset secret fails instead of
+    reading as nobody.
   EOT
-  type = map(object({
-    email = string
-    gcp = optional(object({
-      stg = optional(list(string), [])
-      prd = optional(list(string), [])
-    }), {})
-    posthog = optional(string)
-  }))
-  default   = {}
-  sensitive = true
+  type        = string
+  sensitive   = true
 
   validation {
-    condition     = alltrue([for k in nonsensitive(keys(var.org_members_access)) : can(regex("^[a-z][a-z0-9_-]{0,31}$", k))])
+    condition     = can(tomap(jsondecode(var.org_members_access)))
+    error_message = "Must be a JSON object keyed by handle."
+  }
+
+  validation {
+    condition     = alltrue([for k in nonsensitive(keys(try(jsondecode(var.org_members_access), {}))) : can(regex("^[a-z][a-z0-9_-]{0,31}$", k))])
     error_message = "Each key must be a short handle: lowercase letters, digits, - or _, starting with a letter, at most 32 characters."
   }
 
   validation {
-    condition     = alltrue([for p in values(var.org_members_access) : can(regex("^[^@\\s]+@[^@\\s]+$", p.email))])
-    error_message = "Each email must be an address."
+    condition = alltrue([
+      for p in values(try(jsondecode(var.org_members_access), {})) :
+      can(regex("^[^@\\s]+@[^@\\s]+$", p.email))
+      && length(setsubtract(keys(p), ["email", "gcp", "posthog"])) == 0
+      && length(setsubtract(keys(try(p.gcp, {})), ["stg", "prd"])) == 0
+      && contains(["member", "admin", "none"], try(p.posthog, "none"))
+    ])
+    error_message = "Each person needs an `email` and may have only `gcp` (with `stg` and `prd`) and `posthog` (member or admin)."
+  }
+
+  validation {
+    condition = length(distinct([
+      for p in values(try(jsondecode(var.org_members_access), {})) : lower(trimspace(p.email))
+    ])) == length(try(jsondecode(var.org_members_access), {}))
+    error_message = "Each email may appear once."
+  }
+
+  # Two resources for one grant: removing either would revoke it for both.
+  validation {
+    condition = alltrue([
+      for p in values(try(jsondecode(var.org_members_access), {})) :
+      "user:${lower(trimspace(p.email))}" != lower(var.administrator)
+    ])
+    error_message = "The administrator already holds administration everywhere; leave them out of ORG_MEMBERS_ACCESS."
   }
 }
 

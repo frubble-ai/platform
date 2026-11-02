@@ -3,10 +3,10 @@ organization_id = "<frubble organization UUID, from Settings â†’ Organization â†
 # The owner account, never managed here; members may not name it.
 owner_email = "<owner account email>"
 
-# The organization's people (README, "Human access"); here only `posthog`, a
-# level, matters, for people who have already joined. Keyed by a short handle,
-# never an email. CI reads both values from the POSTHOG_OWNER_EMAIL and ORG_MEMBERS_ACCESS
-# secrets.
-org_members_access = {
-  daniel = { email = "<email they joined with>", posthog = "admin" }
-}
+# The organization's people (README, "Human access"), as the JSON the
+# ORG_MEMBERS_ACCESS secret holds; here only `posthog`, a level, matters, for
+# people who have already joined. CI reads both values from the
+# POSTHOG_OWNER_EMAIL and ORG_MEMBERS_ACCESS secrets.
+org_members_access = <<-EOT
+  {"daniel": {"email": "<email they joined with>", "posthog": "admin"}}
+EOT

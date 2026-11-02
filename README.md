@@ -198,9 +198,10 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
 (`github_owner`, `platform_repository`). `gh variable list` prints them.
 
 1. Create the management project and the developer Google Group.
-   As the organization admin, grant the setup plan identity `roles/orgpolicy.policyViewer` on
-   the organization, so plans can read the organization policies `org/gcp/_setup` manages; the
-   bootstrap admin cannot grant roles on the organization.
+   As the organization admin, grant on the organization the bootstrap admin
+   `roles/orgpolicy.policyAdmin`, so it can set the organization policies `org/gcp/_setup`
+   manages, and the setup plan identity `roles/orgpolicy.policyViewer`, so plans can read
+   them. The bootstrap admin cannot grant roles on the organization itself.
 2. Apply `org/gcp/_setup` without a backend, then migrate its state into the bucket it
    created.
 3. Apply `org/cloudflare/_setup`, `stg/gcp/_setup`, `prd/gcp/_setup`, each with its own
