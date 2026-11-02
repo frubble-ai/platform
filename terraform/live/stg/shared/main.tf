@@ -25,6 +25,10 @@ output "api_hostname" {
   value = module.naming.api_hostname
 }
 
+output "app_hostname" {
+  value = module.naming.app_hostname
+}
+
 output "sending_domain" {
   value = module.naming.sending_domain
 }

@@ -39,3 +39,35 @@ module "certificate_authorization" {
   comment  = "frubble ${module.shared.environment} certificate authorization — managed by terraform"
 }
 
+
+# ---------- the web app's hostname ----------
+# The same load balancer as the API, DNS-only for the same reason, and its own
+# certificate authorization. Both exist once the GCP root's handoff has the
+# app's record; before that apply wrote it, the map is absent and so are they.
+locals {
+  app_authorization = local.gcp == null ? null : try(local.gcp.certificate_dns_authorizations.app, null)
+}
+
+module "app" {
+  source = "../../../modules/cloudflare/dns-record"
+  count  = local.app_authorization == null ? 0 : 1
+
+  zone_id  = var.zone_id
+  hostname = module.shared.app_hostname
+  type     = "A"
+  target   = local.gcp.load_balancer_ip
+  proxied  = false
+  comment  = "frubble ${module.shared.environment} app — managed by terraform"
+}
+
+module "app_certificate_authorization" {
+  source = "../../../modules/cloudflare/dns-record"
+  count  = local.app_authorization == null ? 0 : 1
+
+  zone_id  = var.zone_id
+  hostname = trimsuffix(local.app_authorization.name, ".")
+  type     = "CNAME"
+  target   = trimsuffix(local.app_authorization.data, ".")
+  proxied  = false
+  comment  = "frubble ${module.shared.environment} app certificate authorization — managed by terraform"
+}

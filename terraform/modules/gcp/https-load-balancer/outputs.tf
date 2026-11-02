@@ -14,9 +14,9 @@ output "dns_authorization_records" {
   }
 }
 
-output "certificate_id" {
-  description = "The managed certificate, for checking its state."
-  value       = google_certificate_manager_certificate.this.id
+output "certificate_ids" {
+  description = "Per backend, its managed certificate, for checking its state."
+  value       = { for key, cert in google_certificate_manager_certificate.this : key => cert.id }
 }
 
 output "url_map_name" {

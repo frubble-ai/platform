@@ -21,8 +21,10 @@ module "api_service" {
   service_account_email = local.setup.api_service_account
   image                 = var.api_bootstrap_image
   env = merge(local.database_env, {
-    APP_ENV             = module.shared.environment
-    BETTER_AUTH_URL     = "https://${module.shared.api_hostname}"
+    APP_ENV         = module.shared.environment
+    BETTER_AUTH_URL = "https://${module.shared.api_hostname}"
+    # The browser origin that calls the API: the web app (app.tf)
+    CORS_ORIGIN         = "https://${module.shared.app_hostname}"
     PUBSUB_EMAILS_TOPIC = module.emails_queue.topic
   })
   secret_env = merge(local.database_secret_env, {
@@ -75,7 +77,19 @@ module "load_balancer" {
       region  = var.region
       host    = module.shared.api_hostname
     }
+    app = {
+      service = module.app_service.name
+      region  = var.region
+      host    = module.shared.app_hostname
+    }
   }
+}
+
+# The single certificate every host shared became the API's own (the
+# load balancer module, one certificate per host): same name, kept.
+moved {
+  from = module.load_balancer.google_certificate_manager_certificate.this
+  to   = module.load_balancer.google_certificate_manager_certificate.this["api"]
 }
 
 module "alerts" {
