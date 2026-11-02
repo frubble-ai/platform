@@ -262,7 +262,6 @@ Everyone else is listed, with their access, in the `ORG_MEMBERS_ACCESS` secret o
 `organization-member-access` environment, keyed by a short handle. The environment also
 holds its own `POSTHOG_APPLY_API_KEY`.
 
-
 ```json
 { "alex": { "email": "alex@example.com", "gcp": { "stg": ["administration"], "prd": ["read_only"] }, "posthog": "member" } }
 ```
