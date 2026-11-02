@@ -23,3 +23,8 @@ output "url_map_name" {
   description = "Label the balancer's metrics carry; the alerts filter on it."
   value       = google_compute_url_map.this.name
 }
+
+output "active_hosts" {
+  description = "The backends whose certificate is issued (ACTIVE): their hostname can point here and serve TLS. A new host's certificate is still provisioning on the apply that creates it."
+  value       = [for key, cert in google_certificate_manager_certificate.this : key if cert.managed[0].state == "ACTIVE"]
+}

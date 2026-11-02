@@ -64,9 +64,12 @@ publishes each, DNS-only, and Certificate Manager issues that hostname's certifi
 the records are permanent, since renewals reuse them. A certificate per hostname, so adding one
 never replaces the certificate another is serving with. `load_balancer_ip`: the hostnames' A
 records, DNS-only too, since proxied every client would arrive from Cloudflare's addresses and
-Cloud Armor's per-IP limit would be one budget for all of them. Both arrive in one object, so a
-new hostname serves Certificate Manager's provisioning certificate for the minutes until its
-authorization is seen. The handoff also keeps `certificate_dns_authorization`, the API's alone,
+Cloud Armor's per-IP limit would be one budget for all of them. Both arrive in one object, with
+`active_hosts`, the hostnames whose certificate is issued: a hostname's A record is published only
+once it is among them, so it never points at the load balancer before TLS works for it. A new
+hostname's certificate issues against its authorization, which the same run publishes, so its A
+record follows on the next `stg-cd` run after the certificate is issued (Actions → stg-cd → Run
+workflow, a few minutes later). The handoff also keeps `certificate_dns_authorization`, the API's alone,
 which it carried before the map. The Cloud Run services and the migration job start on a
 placeholder image; the application's deploys replace it and Terraform ignores the image from
 then on.

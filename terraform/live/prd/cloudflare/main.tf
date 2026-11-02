@@ -42,15 +42,20 @@ module "certificate_authorization" {
 
 # ---------- the web app's hostname ----------
 # The same load balancer as the API, DNS-only for the same reason, and its own
-# certificate authorization. Both exist once the GCP root's handoff has the
-# app's record; before that apply wrote it, the map is absent and so are they.
+# certificate authorization. The authorization exists once the GCP root's
+# handoff has the app's record; the A record only once the handoff says the
+# app's certificate is issued, so the hostname never points at a load
+# balancer that cannot serve TLS for it yet. The certificate issues against
+# the authorization, so a new host's A record follows on the next run after
+# (README, "Crossing roots").
 locals {
   app_authorization = local.gcp == null ? null : try(local.gcp.certificate_dns_authorizations.app, null)
+  app_active        = local.gcp == null ? false : contains(try(local.gcp.active_hosts, []), "app")
 }
 
 module "app" {
   source = "../../../modules/cloudflare/dns-record"
-  count  = local.app_authorization == null ? 0 : 1
+  count  = local.app_active ? 1 : 0
 
   zone_id  = var.zone_id
   hostname = module.shared.app_hostname
