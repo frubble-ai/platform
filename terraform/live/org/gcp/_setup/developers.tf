@@ -23,3 +23,12 @@ moved {
   from = module.developer_access
   to   = module.human_access
 }
+
+# Moved to org/organization-member-access/gcp.
+removed {
+  from = module.human_access.google_iam_deny_policy.no_secret_values
+
+  lifecycle {
+    destroy = false
+  }
+}

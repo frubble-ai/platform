@@ -8,7 +8,7 @@ on:
   workflow_call:
     inputs:
       stack:
-        description: Which _setup root — org, stg, prd or mailgun. Names the plan-store prefix.
+        description: Which root — org, stg, prd, mailgun or organization-member-access. Names the plan-store prefix.
         required: true
         type: string
       gh_environment:
@@ -41,6 +41,8 @@ on:
       # The Mailgun root's credential, an environment secret the `setup`
       # environment holds; the other roots pass nothing (README, "Email").
       MAILGUN_APPLY_API_KEY:
+        required: false
+      ORG_MEMBERS_ACCESS:
         required: false
 
 permissions:
@@ -125,6 +127,7 @@ jobs:
           TF_VAR_billing_account: ${{ vars.TF_SETUP_BILLING_ACCOUNT }}
           TF_VAR_developer_group: ${{ vars.TF_SETUP_DEVELOPER_GROUP }}
           TF_VAR_administrator: ${{ vars.TF_SETUP_ADMINISTRATOR }}
+          TF_VAR_org_members_access: ${{ secrets.ORG_MEMBERS_ACCESS }}
           TF_VAR_environment_projects: '{"stg":"${{ vars.GCP_PROJECT_STG }}","prd":"${{ vars.GCP_PROJECT_PRD }}"}'
           TF_VAR_github_owner: ${{ github.repository_owner }}
           TF_VAR_platform_repository: ${{ github.event.repository.name }}

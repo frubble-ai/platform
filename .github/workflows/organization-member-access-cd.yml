@@ -1,0 +1,47 @@
+# Applies ORG_MEMBERS_ACCESS. Run by hand after editing it.
+name: organization-member-access-cd
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: organization-member-access-cd
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  gcp:
+    name: apply organization member access (gcp)
+    if: github.ref == 'refs/heads/dev'
+    uses: ./.github/workflows/_setup-apply.yml
+    with:
+      stack: organization-member-access
+      gh_environment: organization-member-access
+      root: terraform/live/org/organization-member-access/gcp
+      project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
+      management_project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
+      management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      service_account: ${{ vars.GCP_BOOTSTRAP_SERVICE_ACCOUNT }}
+      workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    permissions:
+      contents: read
+      id-token: write
+
+  posthog:
+    name: apply organization member access (posthog)
+    if: github.ref == 'refs/heads/dev'
+    uses: ./.github/workflows/_posthog-live-apply.yml
+    with:
+      stack: org-members
+      gh_environment: organization-member-access
+      root: terraform/live/org/organization-member-access/posthog
+      state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    permissions:
+      contents: read
+      id-token: write

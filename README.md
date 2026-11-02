@@ -206,7 +206,7 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
    `TF_SETUP_ORG_ID`, `TF_SETUP_BILLING_ACCOUNT`, `TF_SETUP_DEVELOPER_GROUP`,
    `TF_SETUP_ADMINISTRATOR`, `GCP_MANAGEMENT_PROJECT` and `BACKEND_REPOSITORY`, and the
    secrets: `CLOUDFLARE_PLAN_TOKEN`,
-   `POSTHOG_PLAN_API_KEY`, `POSTHOG_OWNER_EMAIL` and `POSTHOG_MEMBERS` on the repo;
+   `POSTHOG_PLAN_API_KEY` on the repo;
    `CLOUDFLARE_MINT_TOKEN` and `POSTHOG_APPLY_API_KEY` on their environments, and the
    Mailgun admin key as `MAILGUN_APPLY_API_KEY` on `setup` and on every environment that
    applies a mailgun root: `stg` today, `prd` before `TF_APPLY_ENABLE_PRD` is turned on,
@@ -227,15 +227,12 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
    listed. A service reads a secret when an
    instance starts, so a new value is live on the next revision, which the next deploy
    creates.
-6. Sign up at PostHog with the owner account (never managed by Terraform; its email
-   goes in `POSTHOG_OWNER_EMAIL`), create the two personal API keys, invite the
-   human members, and once they have joined list them in `POSTHOG_MEMBERS` as a JSON
-   object keyed by handle:
-   `{"daniel":{"email":"...","level":"admin"},"alex":{"email":"...","level":"member"}}`
-   (see `org/posthog/main.tf`).
+6. Sign up at PostHog with the owner account (never managed by Terraform), create the
+   two personal API keys, and invite the human members (Human access, below).
 
-Environments `stg`, `prd`, `cloudflare-org`, `posthog-org` and `setup` must exist and
-accept deployments from `dev` only; `setup` also requires a reviewer and bars self-review,
+Environments `stg`, `prd`, `cloudflare-org`, `posthog-org`, `setup` and
+`organization-member-access` must exist and accept deployments from `dev` only; `setup` and
+`organization-member-access` also require a reviewer and bar self-review,
 which `_setup-apply.yml` checks before it runs. Their names are part of the trust rules,
 and so is the `backend-stg` environment on `app`, which accepts deployments from `stg`
 only.
@@ -252,6 +249,7 @@ only.
 | `setup-cd`     | merge to `dev` | applies the three GCP `_setup` roots, once a reviewer approves the run |
 | `mailgun-setup-cd` | merge to `dev` | applies the Mailgun `_setup` root, once a reviewer approves the run |
 | `prd-cd`       | merge to `dev` | the same three for prd, behind `TF_APPLY_ENABLE_PRD`; off |
+| `organization-member-access-cd` | by hand | applies `ORG_MEMBERS_ACCESS` (Human access, below) |
 
 Required checks: `Plan stg / plan`, `Plan prd / plan`, `Plan org setup / plan`, `Plan stg setup / plan`, `Plan prd setup / plan`, `Code Quality Summary`, `pr template`.
 
@@ -259,3 +257,16 @@ Required checks: `Plan stg / plan`, `Plan prd / plan`, `Plan org setup / plan`, 
 
 `gcloud auth login`, no keys. The developer group is read-only and cannot read secret
 values. One named administrator has full access. Nobody gets a shell.
+
+Everyone else is listed, with their access, in the `ORG_MEMBERS_ACCESS` secret of the
+`organization-member-access` environment, keyed by a short handle. The environment also
+holds its own `POSTHOG_APPLY_API_KEY` and `POSTHOG_OWNER_EMAIL`, the account that key belongs
+to, which never gets a level.
+
+```json
+{ "alex": { "email": "alex@example.com", "gcp": { "stg": ["administration"], "prd": ["read_only"] }, "posthog": "member" } }
+```
+
+GCP profiles are `read_only`, `administration` and `logs`; PostHog levels are `member` and
+`admin`, once the person has accepted an invite. After editing it, run
+`organization-member-access-cd`.
