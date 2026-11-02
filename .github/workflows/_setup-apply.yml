@@ -8,7 +8,7 @@ on:
   workflow_call:
     inputs:
       stack:
-        description: Which _setup root — org, stg, prd or mailgun. Names the plan-store prefix.
+        description: Which root — org, stg, prd, mailgun or organization-member-access. Names the plan-store prefix.
         required: true
         type: string
       gh_environment:
@@ -42,8 +42,7 @@ on:
       # environment holds; the other roots pass nothing (README, "Email").
       MAILGUN_APPLY_API_KEY:
         required: false
-      # The organization's people and their access (README, "Human access"); the other roots
-      # ignore it.
+      # The people, for org/organization-member-access/gcp only.
       ORG_MEMBERS_ACCESS:
         required: false
 

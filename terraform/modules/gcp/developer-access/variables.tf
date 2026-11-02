@@ -32,35 +32,3 @@ variable "administrator" {
     error_message = "Must be one person, written as `user:address`. A group here would remove the single owner this role exists to give."
   }
 }
-
-variable "people" {
-  description = <<-EOT
-    People with access to this project beyond the group and the
-    administrator, keyed by a short handle: each names an IAM member and the
-    profiles (main.tf, local.profiles) it holds here. The handle, never the
-    address, is what a resource key shows.
-  EOT
-  type = map(object({
-    member   = string
-    profiles = list(string)
-  }))
-  default   = {}
-  sensitive = true
-
-  validation {
-    condition     = alltrue([for p in values(var.people) : can(regex("^(user|group):", p.member))])
-    error_message = "Each member must be `user:address` or `group:address`."
-  }
-
-  # A group's managers would decide who administers the project, outside
-  # this configuration.
-  validation {
-    condition     = alltrue([for p in values(var.people) : startswith(p.member, "user:") || !contains(p.profiles, "administration")])
-    error_message = "administration is for a person (`user:`), never a group."
-  }
-
-  validation {
-    condition     = alltrue([for p in values(var.people) : alltrue([for profile in p.profiles : contains(["read_only", "administration", "logs"], profile)])])
-    error_message = "Unknown profile. The profiles are read_only, administration and logs (main.tf, local.profiles)."
-  }
-}

@@ -38,11 +38,3 @@ developer_group = "group:frubble-platform-developers@googlegroups.com"
 # The administration role: full access on stg and prd, for what CI cannot do.
 # One person, so every change made outside CI has an owner.
 administrator = "user:daniel@example.com"
-
-# The organization's people and their access (README, "Human access"), as the
-# JSON the ORG_MEMBERS_ACCESS secret holds. With the administrator and the
-# developer group it is also the organization's whole list of allowed IAM
-# members, so set it before the first apply. "{}" is nobody else.
-org_members_access = <<-EOT
-  {"alex": {"email": "alex@example.com", "gcp": {"stg": ["read_only"]}}}
-EOT

@@ -1,0 +1,63 @@
+# Applies ORG_MEMBERS_ACCESS (README, "Human access"): who may be granted a
+# role in the organization, every person's GCP profiles per environment, and
+# their PostHog level. A secret change starts no workflow, so this runs on
+# demand, after the secret is edited: Actions → organization-member-access-cd
+# → Run workflow, from dev.
+#
+# Each apply leaves access exactly as the list says: someone added gets theirs,
+# someone removed loses theirs, an unchanged list changes nothing.
+#
+# The list never reaches pull-request code: these roots have no pull-request
+# plan, and their plan runs inside the apply job, after its reviewer.
+name: organization-member-access-cd
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: organization-member-access-cd
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  gcp:
+    name: apply organization member access (gcp)
+    if: github.ref == 'refs/heads/dev'
+    uses: ./.github/workflows/_setup-apply.yml
+    with:
+      stack: organization-member-access
+      gh_environment: setup
+      root: terraform/live/org/organization-member-access/gcp
+      project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
+      management_project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
+      management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      service_account: ${{ vars.GCP_BOOTSTRAP_SERVICE_ACCOUNT }}
+      workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    secrets:
+      ORG_MEMBERS_ACCESS: ${{ secrets.ORG_MEMBERS_ACCESS }}
+    permissions:
+      contents: read
+      id-token: write
+
+  posthog:
+    name: apply organization member access (posthog)
+    if: github.ref == 'refs/heads/dev'
+    uses: ./.github/workflows/_posthog-live-apply.yml
+    with:
+      stack: org-members
+      gh_environment: posthog-org
+      root: terraform/live/org/organization-member-access/posthog
+      state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    secrets:
+      POSTHOG_APPLY_API_KEY: ${{ secrets.POSTHOG_APPLY_API_KEY }}
+      ORG_MEMBERS_ACCESS: ${{ secrets.ORG_MEMBERS_ACCESS }}
+      POSTHOG_OWNER_EMAIL: ${{ secrets.POSTHOG_OWNER_EMAIL }}
+    permissions:
+      contents: read
+      id-token: write

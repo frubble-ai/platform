@@ -29,10 +29,12 @@ on:
       POSTHOG_APPLY_API_KEY:
         required: true
       # Secrets so the step env header masks them.
+      # The people and the owner, for org/organization-member-access/posthog
+      # only; org/posthog declares neither.
       ORG_MEMBERS_ACCESS:
-        required: true
+        required: false
       POSTHOG_OWNER_EMAIL:
-        required: true
+        required: false
 
 permissions:
   contents: read

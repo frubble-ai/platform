@@ -9,15 +9,7 @@ module "human_access" {
   group         = var.developer_group
   administrator = var.administrator
 
-  # Only who holds something in this environment.
-  people = {
-    for handle, person in local.people : handle => {
-      member   = "user:${person.email}"
-      profiles = person.gcp[each.key]
-    } if length(person.gcp[each.key]) > 0
-  }
-
-  depends_on = [module.environment_project, google_org_policy_policy.no_domain_rule]
+  depends_on = [module.environment_project]
 }
 
 # This module was `developer_access` until the roles became read-only and

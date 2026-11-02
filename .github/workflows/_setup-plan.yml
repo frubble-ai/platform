@@ -36,11 +36,6 @@ on:
       audience:
         required: true
         type: string
-    secrets:
-      # The organization's people and their access (README, "Human access"); the other roots
-      # ignore it.
-      ORG_MEMBERS_ACCESS:
-        required: false
 
 permissions:
   contents: read
@@ -108,8 +103,7 @@ jobs:
           terraform init -lockfile=readonly \
             -backend-config="bucket=${{ inputs.management_state_bucket }}"
 
-      # The _setup inputs come from repository variables, and the people with
-      # access from a secret;
+      # The _setup inputs come from repository variables, none of them secret;
       # a root ignores the ones it does not declare. This repository's own
       # name comes from the run itself, so a trust entry can never name a
       # platform repository other than the one that applied it; the
@@ -129,7 +123,6 @@ jobs:
           TF_VAR_billing_account: ${{ vars.TF_SETUP_BILLING_ACCOUNT }}
           TF_VAR_developer_group: ${{ vars.TF_SETUP_DEVELOPER_GROUP }}
           TF_VAR_administrator: ${{ vars.TF_SETUP_ADMINISTRATOR }}
-          TF_VAR_org_members_access: ${{ secrets.ORG_MEMBERS_ACCESS }}
           TF_VAR_environment_projects: '{"stg":"${{ vars.GCP_PROJECT_STG }}","prd":"${{ vars.GCP_PROJECT_PRD }}"}'
           TF_VAR_github_owner: ${{ github.repository_owner }}
           TF_VAR_platform_repository: ${{ github.event.repository.name }}

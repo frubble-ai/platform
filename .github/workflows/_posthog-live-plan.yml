@@ -23,11 +23,6 @@ on:
     secrets:
       POSTHOG_PLAN_API_KEY:
         required: true
-      # Secrets so the step env header masks them.
-      ORG_MEMBERS_ACCESS:
-        required: true
-      POSTHOG_OWNER_EMAIL:
-        required: true
 
 # No pull-requests: write — see _gcp-live-plan.yml. The aggregating job in
 # live-plan.yml owns the comment.
@@ -110,13 +105,10 @@ jobs:
         env:
           PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
           TF_VAR_organization_id: ${{ vars.POSTHOG_ORGANIZATION_ID }}
-          TF_VAR_org_members_access: ${{ secrets.ORG_MEMBERS_ACCESS }}
-          TF_VAR_owner_email: ${{ secrets.POSTHOG_OWNER_EMAIL }}
         # Raw output to plan.txt only; summary.txt feeds the log and comment.
         run: |
           set -euo pipefail
           echo "::add-mask::$TF_VAR_organization_id"
-          "$GITHUB_WORKSPACE/.github/scripts/posthog/posthog-mask-members.sh"
           "$GITHUB_WORKSPACE/.github/scripts/terraform/terraform-quiet.sh" plan.txt \
             plan -no-color -input=false -lock=false -out=tfplan
           "$GITHUB_WORKSPACE/.github/scripts/terraform/terraform-plan-summary.sh" tfplan \

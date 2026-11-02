@@ -191,8 +191,7 @@ yet. Step 4 copies those values into the variables. From then on CI reads the va
 and so does every hand apply, as `TF_VAR_*` in the environment; the file is deleted, or a
 stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_id`),
 `TF_SETUP_BILLING_ACCOUNT` (`billing_account`), `TF_SETUP_DEVELOPER_GROUP`
-(`developer_group`), `TF_SETUP_ADMINISTRATOR` (`administrator`), the `ORG_MEMBERS_ACCESS` secret
-(`org_members_access`, Human access below), `GCP_MANAGEMENT_PROJECT`
+(`developer_group`), `TF_SETUP_ADMINISTRATOR` (`administrator`), `GCP_MANAGEMENT_PROJECT`
 (`management_project_id`), `GCP_PROJECT_STG` and `GCP_PROJECT_PRD` (`environment_projects`),
 `BACKEND_REPOSITORY` (`backend_repository`), and this repository's owner and name
 (`github_owner`, `platform_repository`). `gh variable list` prints them.
@@ -200,7 +199,8 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
 1. Create the management project and the developer Google Group.
    As the organization admin, grant on the organization the bootstrap admin
    `roles/orgpolicy.policyAdmin`, so it can set the organization policies `org/gcp/_setup`
-   manages, and the setup plan identity `roles/orgpolicy.policyViewer`, so plans can read
+   and `org/organization-member-access/gcp` manage, and the setup plan identity
+   `roles/orgpolicy.policyViewer`, so plans can read
    them. The bootstrap admin cannot grant roles on the organization itself.
 2. Apply `org/gcp/_setup` without a backend, then migrate its state into the bucket it
    created.
@@ -234,8 +234,8 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
    creates.
 6. Sign up at PostHog with the owner account (never managed by Terraform; its email
    goes in `POSTHOG_OWNER_EMAIL`), create the two personal API keys, invite the
-   human members, and once they have joined give them a `posthog` level in `ORG_MEMBERS_ACCESS`
-   (Human access, below; `org/posthog/main.tf`).
+   human members, and once they have joined give them a `posthog` level in
+   `ORG_MEMBERS_ACCESS` (Human access, below).
 
 Environments `stg`, `prd`, `cloudflare-org`, `posthog-org` and `setup` must exist and
 accept deployments from `dev` only; `setup` also requires a reviewer and bars self-review,
@@ -263,11 +263,12 @@ Required checks: `Plan stg / plan`, `Plan prd / plan`, `Plan org setup / plan`, 
 `gcloud auth login`, no keys. The developer group is read-only and cannot read secret
 values. One named administrator has full access on stg and prd. Nobody gets a shell.
 
-Everyone else, in every system, is one entry in the `ORG_MEMBERS_ACCESS` secret, keyed by a short
-handle so no address is written here. In GCP a person holds profiles per environment:
+Everyone else, in every system, is one entry in the `ORG_MEMBERS_ACCESS` secret, keyed by a
+short handle so no address is written here. In GCP a person holds profiles per environment:
 `read_only` (sees everything, no secret values), `administration` (the administrator's
-role) and `logs` (reads logs only), defined in `modules/gcp/developer-access`; a new kind
-of access is a new profile there. In PostHog a person holds a level, `member` or `admin`.
+role) and `logs` (reads logs only), defined in `modules/gcp/member-access`; a new kind of
+access is a new profile there. In PostHog a person holds a level, `member` or `admin`, once
+they have accepted the owner's invite (the provider cannot invite).
 
 ```json
 {
@@ -276,8 +277,15 @@ of access is a new profile there. In PostHog a person holds a level, `member` or
 }
 ```
 
-That list, with the administrator and the developer group, is also the organization's
-whole list of allowed IAM members (`iam.managed.allowedPolicyMembers`, in
-`org/gcp/_setup/org_policy.tf`): nobody else can be granted a role anywhere in it. A
-change is editing the secret, then `setup-cd` for GCP and `org-cd` for PostHog. Billing
-access stays out of Terraform.
+The list is also who may be granted a role at all (`iam.managed.allowedPolicyMembers`): in
+the organization, everyone on it with the administrator and the developer group; in each
+environment, only those with a profile there. The organization's old rule, its own Workspace
+domain only, is lifted.
+
+`org/organization-member-access/gcp` and `org/organization-member-access/posthog` apply it.
+Editing the secret starts nothing, so after each edit run `organization-member-access-cd`
+(Actions → Run workflow, from `dev`); the GCP job waits for the `setup` reviewer. Every
+apply leaves access exactly as the list says: someone added gets theirs, someone removed
+loses theirs, PostHog membership included, and an unchanged list changes nothing. The
+list never reaches pull-request code: the two roots have no pull-request plan, and plan
+inside the apply job. Billing access stays out of Terraform.

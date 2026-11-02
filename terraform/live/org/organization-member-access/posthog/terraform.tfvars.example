@@ -1,0 +1,8 @@
+# Applied by organization-member-access-cd from the POSTHOG_OWNER_EMAIL and
+# ORG_MEMBERS_ACCESS secrets; this file is for a hand run only.
+organization_id = "<frubble organization UUID, from Settings → Organization → General>"
+owner_email     = "<owner account email>"
+
+org_members_access = <<-EOT
+  {"alex": {"email": "alex@example.com", "posthog": "member"}}
+EOT
