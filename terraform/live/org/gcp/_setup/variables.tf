@@ -69,12 +69,12 @@ variable "administrator" {
   type        = string
 }
 
-variable "access" {
+variable "org_members_access" {
   description = <<-EOT
     The organization's people and what each may do, keyed by a short handle,
     never an address. One entry per person covers every system: `gcp` lists
     profiles per environment (modules/gcp/developer-access), `posthog` is a
-    level (member or admin). CI supplies it from the ACCESS secret as JSON:
+    level (member or admin). CI supplies it from the ORG_MEMBERS_ACCESS secret as JSON:
     {"alex":{"email":"...","gcp":{"stg":["administration"]},"posthog":"member"}}
     The same list is all of README "Human access".
   EOT
@@ -90,12 +90,12 @@ variable "access" {
   sensitive = true
 
   validation {
-    condition     = alltrue([for k in nonsensitive(keys(var.access)) : can(regex("^[a-z][a-z0-9_-]{0,31}$", k))])
+    condition     = alltrue([for k in nonsensitive(keys(var.org_members_access)) : can(regex("^[a-z][a-z0-9_-]{0,31}$", k))])
     error_message = "Each key must be a short handle: lowercase letters, digits, - or _, starting with a letter, at most 32 characters."
   }
 
   validation {
-    condition     = alltrue([for p in values(var.access) : can(regex("^[^@\\s]+@[^@\\s]+$", p.email))])
+    condition     = alltrue([for p in values(var.org_members_access) : can(regex("^[^@\\s]+@[^@\\s]+$", p.email))])
     error_message = "Each email must be an address."
   }
 }

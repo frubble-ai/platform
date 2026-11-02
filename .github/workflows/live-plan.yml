@@ -135,7 +135,7 @@ jobs:
       audience: ${{ vars.GCP_WIF_AUDIENCE }}
     secrets:
       POSTHOG_PLAN_API_KEY: ${{ secrets.POSTHOG_PLAN_API_KEY }}
-      ACCESS: ${{ secrets.ACCESS }}
+      ORG_MEMBERS_ACCESS: ${{ secrets.ORG_MEMBERS_ACCESS }}
       POSTHOG_OWNER_EMAIL: ${{ secrets.POSTHOG_OWNER_EMAIL }}
     permissions:
       contents: read
@@ -159,7 +159,7 @@ jobs:
       workload_identity_provider: ${{ vars.GCP_PLAN_PROVIDER }}
       audience: ${{ vars.GCP_WIF_AUDIENCE }}
     secrets:
-      ACCESS: ${{ secrets.ACCESS }}
+      ORG_MEMBERS_ACCESS: ${{ secrets.ORG_MEMBERS_ACCESS }}
     permissions:
       contents: read
       id-token: write

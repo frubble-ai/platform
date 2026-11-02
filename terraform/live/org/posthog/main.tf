@@ -29,14 +29,14 @@ removed {
 }
 
 # ---------- the people ----------
-# Humans are members at the level `var.access` gives them. The owner account
+# Humans are members at the level `var.org_members_access` gives them. The owner account
 # is deliberately not among them (see `removed` above).
 #
 # The provider has no invite resource: posthog_organization_member only adopts
 # someone who has already joined. So a person reaches this map in two steps:
 #   1. Invite them from PostHog → Settings → Members, as the owner account,
 #      and wait for them to accept.
-#   2. Give them a `posthog` level in the ACCESS repository secret (README,
+#   2. Give them a `posthog` level in the ORG_MEMBERS_ACCESS repository secret (README,
 #      "Human access") and run org-cd.
 #      The import below adopts the existing membership instead of changing
 #      it, and from then on their level is whatever the map says.
@@ -45,9 +45,9 @@ removed {
 #
 # Keyed by handle, never by email: plans are posted on pull requests of a
 # public repository, and a key is printed in every resource address.
-# Everyone in var.access with a PostHog level.
+# Everyone in var.org_members_access with a PostHog level.
 locals {
-  members = { for handle, person in var.access : handle => { email = person.email, level = person.posthog } if person.posthog != null }
+  members = { for handle, person in var.org_members_access : handle => { email = person.email, level = person.posthog } if person.posthog != null }
 }
 
 data "posthog_user" "member" {

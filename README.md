@@ -191,8 +191,8 @@ yet. Step 4 copies those values into the variables. From then on CI reads the va
 and so does every hand apply, as `TF_VAR_*` in the environment; the file is deleted, or a
 stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_id`),
 `TF_SETUP_BILLING_ACCOUNT` (`billing_account`), `TF_SETUP_DEVELOPER_GROUP`
-(`developer_group`), `TF_SETUP_ADMINISTRATOR` (`administrator`), the `ACCESS` secret
-(`access`, Human access below), `GCP_MANAGEMENT_PROJECT`
+(`developer_group`), `TF_SETUP_ADMINISTRATOR` (`administrator`), the `ORG_MEMBERS_ACCESS` secret
+(`org_members_access`, Human access below), `GCP_MANAGEMENT_PROJECT`
 (`management_project_id`), `GCP_PROJECT_STG` and `GCP_PROJECT_PRD` (`environment_projects`),
 `BACKEND_REPOSITORY` (`backend_repository`), and this repository's owner and name
 (`github_owner`, `platform_repository`). `gh variable list` prints them.
@@ -210,7 +210,7 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
    `TF_SETUP_ORG_ID`, `TF_SETUP_BILLING_ACCOUNT`, `TF_SETUP_DEVELOPER_GROUP`,
    `TF_SETUP_ADMINISTRATOR`, `GCP_MANAGEMENT_PROJECT` and `BACKEND_REPOSITORY`, and the
    secrets: `CLOUDFLARE_PLAN_TOKEN`,
-   `POSTHOG_PLAN_API_KEY`, `POSTHOG_OWNER_EMAIL` and `ACCESS` on the repo;
+   `POSTHOG_PLAN_API_KEY`, `POSTHOG_OWNER_EMAIL` and `ORG_MEMBERS_ACCESS` on the repo;
    `CLOUDFLARE_MINT_TOKEN` and `POSTHOG_APPLY_API_KEY` on their environments, and the
    Mailgun admin key as `MAILGUN_APPLY_API_KEY` on `setup` and on every environment that
    applies a mailgun root: `stg` today, `prd` before `TF_APPLY_ENABLE_PRD` is turned on,
@@ -233,7 +233,7 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
    creates.
 6. Sign up at PostHog with the owner account (never managed by Terraform; its email
    goes in `POSTHOG_OWNER_EMAIL`), create the two personal API keys, invite the
-   human members, and once they have joined give them a `posthog` level in `ACCESS`
+   human members, and once they have joined give them a `posthog` level in `ORG_MEMBERS_ACCESS`
    (Human access, below; `org/posthog/main.tf`).
 
 Environments `stg`, `prd`, `cloudflare-org`, `posthog-org` and `setup` must exist and
@@ -262,7 +262,7 @@ Required checks: `Plan stg / plan`, `Plan prd / plan`, `Plan org setup / plan`, 
 `gcloud auth login`, no keys. The developer group is read-only and cannot read secret
 values. One named administrator has full access on stg and prd. Nobody gets a shell.
 
-Everyone else, in every system, is one entry in the `ACCESS` secret, keyed by a short
+Everyone else, in every system, is one entry in the `ORG_MEMBERS_ACCESS` secret, keyed by a short
 handle so no address is written here. In GCP a person holds profiles per environment:
 `read_only` (sees everything, no secret values), `administration` (the administrator's
 role) and `logs` (reads logs only), defined in `modules/gcp/developer-access`; a new kind

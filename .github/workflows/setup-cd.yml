@@ -52,7 +52,7 @@ jobs:
       workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
       audience: ${{ vars.GCP_WIF_AUDIENCE }}
     secrets:
-      ACCESS: ${{ secrets.ACCESS }}
+      ORG_MEMBERS_ACCESS: ${{ secrets.ORG_MEMBERS_ACCESS }}
     permissions:
       contents: read
       id-token: write

@@ -47,7 +47,7 @@ jobs:
       audience: ${{ vars.GCP_WIF_AUDIENCE }}
     secrets:
       POSTHOG_APPLY_API_KEY: ${{ secrets.POSTHOG_APPLY_API_KEY }}
-      ACCESS: ${{ secrets.ACCESS }}
+      ORG_MEMBERS_ACCESS: ${{ secrets.ORG_MEMBERS_ACCESS }}
       POSTHOG_OWNER_EMAIL: ${{ secrets.POSTHOG_OWNER_EMAIL }}
     permissions:
       contents: read

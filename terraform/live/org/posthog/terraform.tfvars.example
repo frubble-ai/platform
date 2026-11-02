@@ -5,8 +5,8 @@ owner_email = "<owner account email>"
 
 # The organization's people (README, "Human access"); here only `posthog`, a
 # level, matters, for people who have already joined. Keyed by a short handle,
-# never an email. CI reads both values from the POSTHOG_OWNER_EMAIL and ACCESS
+# never an email. CI reads both values from the POSTHOG_OWNER_EMAIL and ORG_MEMBERS_ACCESS
 # secrets.
-access = {
+org_members_access = {
   daniel = { email = "<email they joined with>", posthog = "admin" }
 }

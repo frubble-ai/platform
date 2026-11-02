@@ -11,7 +11,7 @@ module "human_access" {
 
   # Only who holds something in this environment.
   people = {
-    for handle, person in var.access : handle => {
+    for handle, person in var.org_members_access : handle => {
       member   = "user:${person.email}"
       profiles = person.gcp[each.key]
     } if length(person.gcp[each.key]) > 0

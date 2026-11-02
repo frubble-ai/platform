@@ -39,7 +39,7 @@ on:
     secrets:
       # The organization's people and their access (README, "Human access"); the other roots
       # ignore it.
-      ACCESS:
+      ORG_MEMBERS_ACCESS:
         required: false
 
 permissions:
@@ -129,7 +129,7 @@ jobs:
           TF_VAR_billing_account: ${{ vars.TF_SETUP_BILLING_ACCOUNT }}
           TF_VAR_developer_group: ${{ vars.TF_SETUP_DEVELOPER_GROUP }}
           TF_VAR_administrator: ${{ vars.TF_SETUP_ADMINISTRATOR }}
-          TF_VAR_access: ${{ secrets.ACCESS || '{}' }}
+          TF_VAR_org_members_access: ${{ secrets.ORG_MEMBERS_ACCESS || '{}' }}
           TF_VAR_environment_projects: '{"stg":"${{ vars.GCP_PROJECT_STG }}","prd":"${{ vars.GCP_PROJECT_PRD }}"}'
           TF_VAR_github_owner: ${{ github.repository_owner }}
           TF_VAR_platform_repository: ${{ github.event.repository.name }}
