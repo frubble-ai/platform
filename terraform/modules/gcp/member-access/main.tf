@@ -29,10 +29,16 @@ locals {
     ]) : grant.key => grant
   }
 
-  # Everyone without administration is refused secret values.
-  denied = [
+  # The developer group and everyone without administration are refused
+  # secret values. People with administration are spared, even as members of
+  # the group.
+  denied = concat(
+    [replace(var.developer_group, "group:", "principalSet://goog/group/")],
+    [for m in values(var.members) : "principal://goog/subject/${trimprefix(m.member, "user:")}" if !contains(m.profiles, "administration")],
+  )
+  spared = [
     for m in values(var.members) : "principal://goog/subject/${trimprefix(m.member, "user:")}"
-    if !contains(m.profiles, "administration")
+    if contains(m.profiles, "administration")
   ]
 }
 
@@ -46,19 +52,21 @@ resource "google_project_iam_member" "member" {
   depends_on = [google_org_policy_policy.allowed_members]
 }
 
-# The same guarantee the developer group has (modules/gcp/developer-access):
-# deny beats allow, so a role granted by hand later still reads no value.
+# Deny beats allow, always and everywhere: a role granted by hand later still
+# reads no value. Created by modules/gcp/developer-access, adopted here (the
+# root's import), since only this list knows who must be spared.
 resource "google_iam_deny_policy" "no_secret_values" {
-  count = nonsensitive(length(local.denied)) > 0 ? 1 : 0
-
   parent       = urlencode("cloudresourcemanager.googleapis.com/projects/${var.project_id}")
-  name         = "frubble-members-no-secret-values"
-  display_name = "Members without administration never read a secret's value"
+  name         = "frubble-developers-no-secret-values"
+  display_name = "Developers may see that a secret exists, never its value"
 
   rules {
     deny_rule {
-      denied_principals  = local.denied
-      denied_permissions = ["secretmanager.googleapis.com/versions.access"]
+      denied_principals    = local.denied
+      exception_principals = local.spared
+      denied_permissions = [
+        "secretmanager.googleapis.com/versions.access",
+      ]
     }
   }
 }

@@ -23,3 +23,14 @@ moved {
   from = module.developer_access
   to   = module.human_access
 }
+
+# The developer group's deny on secret values moved to
+# org/organization-member-access/gcp, which knows who holds administration and
+# must be spared it. Dropped from this state only; that root adopts it.
+removed {
+  from = module.human_access.google_iam_deny_policy.no_secret_values
+
+  lifecycle {
+    destroy = false
+  }
+}

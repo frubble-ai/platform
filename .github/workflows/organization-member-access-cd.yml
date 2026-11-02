@@ -1,14 +1,20 @@
 # Applies ORG_MEMBERS_ACCESS (README, "Human access"): who may be granted a
 # role in the organization, every person's GCP profiles per environment, and
 # their PostHog level. A secret change starts no workflow, so this runs on
-# demand, after the secret is edited: Actions → organization-member-access-cd
+# demand, after the list is edited: Actions → organization-member-access-cd
 # → Run workflow, from dev.
 #
-# Each apply leaves access exactly as the list says: someone added gets theirs,
-# someone removed loses theirs, an unchanged list changes nothing.
+# Each apply makes what the list manages match it: someone added gets theirs,
+# someone removed loses theirs, an unchanged list changes nothing. A role
+# granted by hand, or a PostHog member who joined outside the list, is not
+# the list's and stays.
 #
-# The list never reaches pull-request code: these roots have no pull-request
-# plan, and their plan runs inside the apply job, after its reviewer.
+# The list never reaches pull-request code, nor any job outside the
+# `organization-member-access` environment, which holds it (with
+# POSTHOG_OWNER_EMAIL and its own POSTHOG_APPLY_API_KEY), takes deployments
+# from dev only and requires a reviewer. Its secrets reach the reusable jobs
+# that run in it directly; this file passes none. These roots have no
+# pull-request plan: each plans inside its apply job, after the reviewer.
 name: organization-member-access-cd
 
 on:
@@ -29,7 +35,7 @@ jobs:
     uses: ./.github/workflows/_setup-apply.yml
     with:
       stack: organization-member-access
-      gh_environment: setup
+      gh_environment: organization-member-access
       root: terraform/live/org/organization-member-access/gcp
       project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
       management_project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
@@ -37,8 +43,6 @@ jobs:
       service_account: ${{ vars.GCP_BOOTSTRAP_SERVICE_ACCOUNT }}
       workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
       audience: ${{ vars.GCP_WIF_AUDIENCE }}
-    secrets:
-      ORG_MEMBERS_ACCESS: ${{ secrets.ORG_MEMBERS_ACCESS }}
     permissions:
       contents: read
       id-token: write
@@ -49,15 +53,11 @@ jobs:
     uses: ./.github/workflows/_posthog-live-apply.yml
     with:
       stack: org-members
-      gh_environment: posthog-org
+      gh_environment: organization-member-access
       root: terraform/live/org/organization-member-access/posthog
       state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
       workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
       audience: ${{ vars.GCP_WIF_AUDIENCE }}
-    secrets:
-      POSTHOG_APPLY_API_KEY: ${{ secrets.POSTHOG_APPLY_API_KEY }}
-      ORG_MEMBERS_ACCESS: ${{ secrets.ORG_MEMBERS_ACCESS }}
-      POSTHOG_OWNER_EMAIL: ${{ secrets.POSTHOG_OWNER_EMAIL }}
     permissions:
       contents: read
       id-token: write

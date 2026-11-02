@@ -42,7 +42,8 @@ on:
       # environment holds; the other roots pass nothing (README, "Email").
       MAILGUN_APPLY_API_KEY:
         required: false
-      # The people, for org/organization-member-access/gcp only.
+      # The people, for org/organization-member-access/gcp only: an
+      # environment secret of organization-member-access.
       ORG_MEMBERS_ACCESS:
         required: false
 

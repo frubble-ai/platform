@@ -42,3 +42,8 @@ variable "org_id" {
   description = "The organization, whose principal set admits its own service accounts, workload identity pools and service agents."
   type        = string
 }
+
+variable "developer_group" {
+  description = "The read-only developer group, as `group:address`, refused secret values here."
+  type        = string
+}

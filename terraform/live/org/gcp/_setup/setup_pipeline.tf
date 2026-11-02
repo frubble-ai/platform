@@ -33,9 +33,9 @@ locals {
     "${pair[0]}|${pair[1]}" => { project = local.setup_plan_projects[pair[0]], role = pair[1] }
   }
 
-  # The state prefixes of the roots the setup pipeline applies, with the trailing slash so that
+  # The state prefixes of the three roots, with the trailing slash so that
   # `stg/gcp/setup` does not also match a future `stg/gcp/setup-anything`.
-  setup_state_prefixes = toset(["org/gcp/setup/", "stg/gcp/setup/", "prd/gcp/setup/", "org/organization-member-access/gcp/"])
+  setup_state_prefixes = toset(["org/gcp/setup/", "stg/gcp/setup/", "prd/gcp/setup/"])
 }
 
 # Not a hub. A hub is powerless and becomes a spoke in the project it

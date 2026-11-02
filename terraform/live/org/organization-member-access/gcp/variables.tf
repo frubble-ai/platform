@@ -57,7 +57,7 @@ variable "org_members_access" {
       can(regex("^[^@\\s]+@[^@\\s]+$", p.email))
       && length(setsubtract(keys(p), ["email", "gcp", "posthog"])) == 0
       && length(setsubtract(keys(try(p.gcp, {})), ["stg", "prd"])) == 0
-      && contains(["member", "admin", "none"], try(p.posthog, "none"))
+      && (try(p.posthog, null) == null ? true : contains(["member", "admin"], p.posthog))
     ])
     error_message = "Each person needs an `email` and may have only `gcp` (with `stg` and `prd`) and `posthog` (member or admin)."
   }

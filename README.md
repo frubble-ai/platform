@@ -211,7 +211,7 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
    `TF_SETUP_ORG_ID`, `TF_SETUP_BILLING_ACCOUNT`, `TF_SETUP_DEVELOPER_GROUP`,
    `TF_SETUP_ADMINISTRATOR`, `GCP_MANAGEMENT_PROJECT` and `BACKEND_REPOSITORY`, and the
    secrets: `CLOUDFLARE_PLAN_TOKEN`,
-   `POSTHOG_PLAN_API_KEY`, `POSTHOG_OWNER_EMAIL` and `ORG_MEMBERS_ACCESS` on the repo;
+   `POSTHOG_PLAN_API_KEY` on the repo;
    `CLOUDFLARE_MINT_TOKEN` and `POSTHOG_APPLY_API_KEY` on their environments, and the
    Mailgun admin key as `MAILGUN_APPLY_API_KEY` on `setup` and on every environment that
    applies a mailgun root: `stg` today, `prd` before `TF_APPLY_ENABLE_PRD` is turned on,
@@ -233,7 +233,7 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
    instance starts, so a new value is live on the next revision, which the next deploy
    creates.
 6. Sign up at PostHog with the owner account (never managed by Terraform; its email
-   goes in `POSTHOG_OWNER_EMAIL`), create the two personal API keys, invite the
+   goes in `POSTHOG_OWNER_EMAIL` on `organization-member-access`), create the two personal API keys, invite the
    human members, and once they have joined give them a `posthog` level in
    `ORG_MEMBERS_ACCESS` (Human access, below).
 
@@ -283,9 +283,17 @@ environment, only those with a profile there. The organization's old rule, its o
 domain only, is lifted.
 
 `org/organization-member-access/gcp` and `org/organization-member-access/posthog` apply it.
-Editing the secret starts nothing, so after each edit run `organization-member-access-cd`
-(Actions → Run workflow, from `dev`); the GCP job waits for the `setup` reviewer. Every
-apply leaves access exactly as the list says: someone added gets theirs, someone removed
-loses theirs, PostHog membership included, and an unchanged list changes nothing. The
-list never reaches pull-request code: the two roots have no pull-request plan, and plan
-inside the apply job. Billing access stays out of Terraform.
+Editing the list starts nothing, so after each edit run `organization-member-access-cd`
+(Actions → Run workflow, from `dev`). Both jobs run in the `organization-member-access`
+environment, which holds the list as `ORG_MEMBERS_ACCESS` with `POSTHOG_OWNER_EMAIL` and its
+own `POSTHOG_APPLY_API_KEY`, takes deployments from `dev` only and requires a reviewer. The
+list reaches no other job and no pull-request code: the two roots have no pull-request plan
+and plan inside the apply job.
+
+Each apply makes what the list manages match it: someone added gets their grants and
+PostHog level, someone removed loses them, PostHog membership included, and an unchanged
+list changes nothing. What the list never managed stays: a role granted by hand, or a
+PostHog member who joined and was never listed. The allowed-members rule stops a grant by
+hand to anyone off the list, not one to someone on it. The developer group's deny on secret
+values lives in `modules/gcp/member-access` too, so people with `administration` are spared
+it. Billing access stays out of Terraform.

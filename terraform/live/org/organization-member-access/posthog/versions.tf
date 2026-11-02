@@ -8,10 +8,10 @@ terraform {
     }
   }
 
-  # Under org/posthog/live/, the prefix the PostHog apply identity may use
-  # (state_access.tf in org/gcp/_setup), so no new grant is needed.
+  # Its own prefix, reachable only from the organization-member-access
+  # environment (state_access.tf in org/gcp/_setup).
   backend "gcs" {
-    prefix = "org/posthog/live/members"
+    prefix = "org/organization-member-access/posthog"
   }
 }
 

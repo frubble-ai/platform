@@ -79,7 +79,14 @@ locals {
     "${local.platform_repo}|${local.wf.setup_plan}|refs/heads/dev",
   ]
 
-  setup_apply_entries = ["${local.platform_repo}|${local.wf.setup_apply}|setup|refs/heads/dev"]
+  # `organization-member-access` is the environment that holds the
+  # organization's people (ORG_MEMBERS_ACCESS), for
+  # organization-member-access-cd.yml; it requires a reviewer like `setup`.
+  setup_apply_entries = [
+    "${local.platform_repo}|${local.wf.setup_apply}|setup|refs/heads/dev",
+    "${local.platform_repo}|${local.wf.setup_apply}|organization-member-access|refs/heads/dev",
+  ]
+  posthog_members_apply_entries = ["${local.platform_repo}|${local.wf.posthog_apply}|organization-member-access|refs/heads/dev"]
 
   # Not here: the entry for the backend deploy hub. It is reached by one
   # environment's deploy, so its rule changes when that environment's

@@ -8,8 +8,8 @@ terraform {
     }
   }
 
-  # Beside the _setup states, and applied by the same pipeline
-  # (organization-member-access-cd.yml calls _setup-apply.yml).
+  # Applied by the setup pipeline's apply (organization-member-access-cd.yml
+  # calls _setup-apply.yml) as the bootstrap admin, which owns the bucket.
   backend "gcs" {
     prefix = "org/organization-member-access/gcp"
   }
