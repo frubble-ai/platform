@@ -36,14 +36,31 @@ locals {
   )))
 }
 
-resource "google_storage_bucket_object" "cloudflare_handoff" {
-  bucket       = var.management_state_bucket
-  name         = local.handoff_name
-  content_type = "application/json"
-  content = jsonencode({
+locals {
+  handoff_content = jsonencode({
     load_balancer_ip               = module.load_balancer.ip_address
     certificate_dns_authorization  = module.load_balancer.dns_authorization_records["api"]
     certificate_dns_authorizations = module.load_balancer.dns_authorization_records
     published_hosts                = local.published_hosts
   })
+}
+
+# Changes with the content. The object is replaced rather than updated when
+# its content changes: an update whose content is only known during the apply
+# (a new host's records) fails in the provider, which keeps the object's
+# checksums known in the plan and then finds them unknown ("Provider produced
+# inconsistent final plan" on md5hash, crc32c, generation).
+resource "terraform_data" "cloudflare_handoff_content" {
+  input = local.handoff_content
+}
+
+resource "google_storage_bucket_object" "cloudflare_handoff" {
+  bucket       = var.management_state_bucket
+  name         = local.handoff_name
+  content_type = "application/json"
+  content      = local.handoff_content
+
+  lifecycle {
+    replace_triggered_by = [terraform_data.cloudflare_handoff_content]
+  }
 }
