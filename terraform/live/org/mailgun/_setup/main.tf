@@ -15,7 +15,8 @@
 
 # The domains, from each environment's shared values: the same name its
 # mailgun root registers and its worker sends from (README, "Shared values").
-# prd joins once prd/mailgun has applied.
+# Only the domains that exist: prd joins here once prd-cd has registered it
+# (README, Bootstrap), and until then the prd worker holds its placeholder.
 module "stg_shared" {
   source = "../../../stg/shared"
 }

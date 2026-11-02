@@ -3,7 +3,7 @@ output "registry_url" {
 }
 
 output "load_balancer_ip" {
-  description = "Address api_hostname must resolve to. Copied into the repository variable the Cloudflare root reads."
+  description = "Address api_hostname must resolve to. The Cloudflare root reads it from the handoff object (handoff.tf)."
   value       = module.load_balancer.ip_address
 }
 
