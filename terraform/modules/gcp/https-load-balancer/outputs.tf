@@ -24,7 +24,10 @@ output "url_map_name" {
   value       = google_compute_url_map.this.name
 }
 
-output "active_hosts" {
-  description = "The backends whose certificate is issued (ACTIVE): their hostname can point here and serve TLS. A new host's certificate is still provisioning on the apply that creates it."
-  value       = [for key, cert in google_certificate_manager_certificate.this : key if cert.managed[0].state == "ACTIVE"]
+output "serving_hosts" {
+  description = "The backends that serve TLS now: their certificate is issued and its map entry is active. A new host's are still provisioning on the apply that creates them, and a renewal can show a certificate as provisioning again."
+  value = [
+    for key, cert in google_certificate_manager_certificate.this : key
+    if cert.managed[0].state == "ACTIVE" && google_certificate_manager_certificate_map_entry.this[key].state == "ACTIVE"
+  ]
 }
