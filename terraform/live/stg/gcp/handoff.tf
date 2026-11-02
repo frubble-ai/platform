@@ -9,41 +9,60 @@
 # a renewal that shows its certificate as provisioning again never takes its
 # A record down. It is the previous handoff's list, without hosts the load
 # balancer no longer has, plus the hosts serving now.
+#
+# The object is named by its content (`gcp-<hash>.json`), and the new one is
+# written before the old one is deleted: there is always a handoff, and a
+# changed content is always a new object, never an update the provider cannot
+# plan.
 locals {
-  handoff_name = "${module.shared.environment}/cloudflare/handoff/gcp.json"
-  hosts        = keys(module.load_balancer.dns_authorization_records)
+  handoff_prefix = "${module.shared.environment}/cloudflare/handoff/"
+  hosts          = keys(module.load_balancer.dns_authorization_records)
 }
 
 data "google_storage_bucket_objects" "previous_handoff" {
-  bucket     = var.management_state_bucket
-  match_glob = local.handoff_name
+  bucket = var.management_state_bucket
+  prefix = "${local.handoff_prefix}gcp"
 }
 
+# Every earlier GCP handoff there: one normally, two after an apply that wrote
+# the new one and failed before deleting the old, `gcp.json` from before the
+# objects were named by content.
 data "google_storage_bucket_object_content" "previous_handoff" {
-  count = length(data.google_storage_bucket_objects.previous_handoff.bucket_objects) > 0 ? 1 : 0
+  for_each = toset([
+    for object in data.google_storage_bucket_objects.previous_handoff.bucket_objects : object.name
+    if can(regex("^${local.handoff_prefix}gcp(-[0-9a-f]{16})?\\.json$", object.name))
+  ])
 
   bucket = var.management_state_bucket
-  name   = local.handoff_name
+  name   = each.value
 }
 
 locals {
-  previous_handoff = try(jsondecode(data.google_storage_bucket_object_content.previous_handoff[0].content), null)
   # A handoff written before the list existed published the API's record
-  previously_published = local.previous_handoff == null ? [] : try(local.previous_handoff.published_hosts, ["api"])
+  previously_published = flatten([
+    for object in data.google_storage_bucket_object_content.previous_handoff :
+    try(jsondecode(object.content).published_hosts, ["api"])
+  ])
   published_hosts = sort(distinct(concat(
     [for host in local.previously_published : host if contains(local.hosts, host)],
     module.load_balancer.serving_hosts,
   )))
-}
 
-resource "google_storage_bucket_object" "cloudflare_handoff" {
-  bucket       = var.management_state_bucket
-  name         = local.handoff_name
-  content_type = "application/json"
-  content = jsonencode({
+  handoff_content = jsonencode({
     load_balancer_ip               = module.load_balancer.ip_address
     certificate_dns_authorization  = module.load_balancer.dns_authorization_records["api"]
     certificate_dns_authorizations = module.load_balancer.dns_authorization_records
     published_hosts                = local.published_hosts
   })
+}
+
+resource "google_storage_bucket_object" "cloudflare_handoff" {
+  bucket       = var.management_state_bucket
+  name         = "${local.handoff_prefix}gcp-${substr(sha256(local.handoff_content), 0, 16)}.json"
+  content_type = "application/json"
+  content      = local.handoff_content
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }

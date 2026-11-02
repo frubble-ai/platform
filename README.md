@@ -42,14 +42,23 @@ roots, below), never as a repository variable.
 ## Crossing roots
 
 A value one root produces and another needs is written by the producer, during its apply,
-as one JSON object in the management bucket under the consumer's own prefix:
-`<env>/cloudflare/handoff/gcp.json`, `<env>/cloudflare/handoff/mailgun.json`. The consumer
-lists that prefix and reads what is there; an object that does not exist yet, before its
-producer's first apply, feeds nothing, and the resources it feeds do not exist yet either. The
-producer's apply identity may write its one object and nothing else under that prefix, which
-holds the consumer's state; the consumer's identities read the prefix already, since it is
-theirs. The workflow runs the consumer after its producers, so one run carries a value from
+as one JSON object in the management bucket under the consumer's own prefix, named by its
+content: `<env>/cloudflare/handoff/gcp-<hash>.json`, `<env>/cloudflare/handoff/mailgun-<hash>.json`.
+A new content is a new object, written before the old one is deleted, so there is always a
+handoff to read, and the provider never has to plan an update to content it learns only during
+the apply. The consumer lists that prefix and reads each producer's object; one that does not
+exist yet, before its producer's first apply, feeds nothing, and the resources it feeds do not
+exist yet either, while two of one producer's fail the plan until that producer's next apply has
+deleted the old. The producer's apply identity may write its own objects and nothing else under
+that prefix, which holds the consumer's state; the consumer's identities read the prefix
+already, since it is theirs. The workflow runs the consumer after its producers, so one run carries a value from
 the root that makes it to the root that publishes it.
+
+To roll back to fixed handoff names, keep the prefix grants until the producers have moved:
+apply the reverted GCP and Mailgun roots first, so they write `gcp.json` and `mailgun.json` and
+delete their hashed objects, and only then apply the setup roots that narrow the grants to the
+exact names. Narrowing first leaves each producer unable to read its own hashed object, and its
+plan fails.
 
 No repository variable ever carries a Terraform output to another root. A variable is set
 by a person, so it drifts from the output it copies, it is read at the start of a run so it
