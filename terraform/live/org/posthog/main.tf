@@ -29,9 +29,7 @@ removed {
 }
 
 # ---------- the people ----------
-# Members and their levels moved to org/organization-member-access/posthog,
-# applied from the ORG_MEMBERS_ACCESS list (README, "Human access"). Dropped
-# from this state only; that root adopts every membership again.
+# Moved to org/organization-member-access/posthog.
 removed {
   from = posthog_organization_member.member
 

@@ -1,4 +1,3 @@
-# Everyone in ORG_MEMBERS_ACCESS (variables.tf) with a PostHog level.
 locals {
   members = {
     for handle, p in jsondecode(var.org_members_access) : handle => {

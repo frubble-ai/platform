@@ -79,9 +79,6 @@ locals {
     "${local.platform_repo}|${local.wf.setup_plan}|refs/heads/dev",
   ]
 
-  # `organization-member-access` is the environment that holds the
-  # organization's people (ORG_MEMBERS_ACCESS), for
-  # organization-member-access-cd.yml; it requires a reviewer like `setup`.
   setup_apply_entries = [
     "${local.platform_repo}|${local.wf.setup_apply}|setup|refs/heads/dev",
     "${local.platform_repo}|${local.wf.setup_apply}|organization-member-access|refs/heads/dev",

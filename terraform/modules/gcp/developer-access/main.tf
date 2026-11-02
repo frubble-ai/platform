@@ -14,8 +14,7 @@ resource "google_project_iam_member" "read_only" {
   member  = var.group
 }
 
-# The group's deny on secret values lives with the people it must spare:
-# modules/gcp/member-access, applied by org/organization-member-access/gcp.
+# The group's deny on secret values is in modules/gcp/member-access.
 
 # ---------- role 2: administration ----------
 # One named person, not a group, and deliberately not behind the group's deny.

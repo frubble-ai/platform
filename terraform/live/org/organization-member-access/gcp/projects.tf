@@ -1,5 +1,3 @@
-# Each environment gets only the people with a profile there, and allows only
-# them, the administrator and the developer group.
 module "project" {
   for_each = var.environment_projects
   source   = "../../../../modules/gcp/member-access"
@@ -20,8 +18,7 @@ module "project" {
   depends_on = [google_org_policy_policy.no_domain_rule]
 }
 
-# The developer group's deny, created by org/gcp/_setup before this root took
-# it over (modules/gcp/member-access).
+# Created by org/gcp/_setup before this root took it over.
 import {
   for_each = var.environment_projects
 

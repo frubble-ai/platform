@@ -1,20 +1,4 @@
-# Applies ORG_MEMBERS_ACCESS (README, "Human access"): who may be granted a
-# role in the organization, every person's GCP profiles per environment, and
-# their PostHog level. A secret change starts no workflow, so this runs on
-# demand, after the list is edited: Actions → organization-member-access-cd
-# → Run workflow, from dev.
-#
-# Each apply makes what the list manages match it: someone added gets theirs,
-# someone removed loses theirs, an unchanged list changes nothing. A role
-# granted by hand, or a PostHog member who joined outside the list, is not
-# the list's and stays.
-#
-# The list never reaches pull-request code, nor any job outside the
-# `organization-member-access` environment, which holds it (with
-# POSTHOG_OWNER_EMAIL and its own POSTHOG_APPLY_API_KEY), takes deployments
-# from dev only and requires a reviewer. Its secrets reach the reusable jobs
-# that run in it directly; this file passes none. These roots have no
-# pull-request plan: each plans inside its apply job, after the reviewer.
+# Applies ORG_MEMBERS_ACCESS. Run by hand after editing it.
 name: organization-member-access-cd
 
 on:

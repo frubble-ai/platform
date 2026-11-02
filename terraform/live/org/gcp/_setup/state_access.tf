@@ -32,8 +32,6 @@ locals {
     mailgun-stg    = { prefix = "stg/mailgun/", plan = [], apply = local.mailgun_apply_entries.stg, handoff = "stg/cloudflare/handoff/mailgun" }
     mailgun-prd    = { prefix = "prd/mailgun/", plan = [], apply = local.mailgun_apply_entries.prd, handoff = "prd/cloudflare/handoff/mailgun" }
     posthog-org    = { prefix = "org/posthog/live/", plan = local.posthog_plan_entries, apply = local.posthog_apply_entries, handoff = null }
-    # The PostHog members root (org/organization-member-access/posthog): no
-    # pull-request plan, so the people list never reaches pull-request code.
     posthog-org-members = { prefix = "org/organization-member-access/posthog/", plan = [], apply = local.posthog_members_apply_entries, handoff = null }
   }
 
