@@ -260,7 +260,8 @@ values. One named administrator has full access. Nobody gets a shell.
 
 Everyone else is listed, with their access, in the `ORG_MEMBERS_ACCESS` secret of the
 `organization-member-access` environment, keyed by a short handle. The environment also
-holds its own `POSTHOG_APPLY_API_KEY`.
+holds its own `POSTHOG_APPLY_API_KEY` and `POSTHOG_OWNER_EMAIL`, the account that key belongs
+to, which never gets a level.
 
 ```json
 { "alex": { "email": "alex@example.com", "gcp": { "stg": ["administration"], "prd": ["read_only"] }, "posthog": "member" } }

@@ -2,6 +2,17 @@ variable "organization_id" {
   type = string
 }
 
+# The owner holds the apply key and PostHog refuses a change to one's own level.
+variable "owner_email" {
+  type      = string
+  sensitive = true
+
+  validation {
+    condition     = length(trimspace(var.owner_email)) > 0
+    error_message = "Set POSTHOG_OWNER_EMAIL."
+  }
+}
+
 variable "org_members_access" {
   description = "The ORG_MEMBERS_ACCESS JSON, decoded in main.tf."
   type        = string
@@ -33,5 +44,13 @@ variable "org_members_access" {
       for p in values(try(jsondecode(var.org_members_access), {})) : lower(trimspace(p.email))
     ])) == length(try(jsondecode(var.org_members_access), {}))
     error_message = "Each email may appear once."
+  }
+
+  validation {
+    condition = alltrue([
+      for p in values(try(jsondecode(var.org_members_access), {})) :
+      try(p.posthog, null) == null || lower(trimspace(p.email)) != lower(trimspace(var.owner_email))
+    ])
+    error_message = "The PostHog owner gets no posthog level."
   }
 }
