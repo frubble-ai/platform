@@ -27,10 +27,9 @@ data "google_storage_bucket_object_content" "previous_handoff" {
 }
 
 locals {
-  previously_published = try(
-    jsondecode(data.google_storage_bucket_object_content.previous_handoff[0].content).published_hosts,
-    [],
-  )
+  previous_handoff = try(jsondecode(data.google_storage_bucket_object_content.previous_handoff[0].content), null)
+  # A handoff written before the list existed published the API's record
+  previously_published = local.previous_handoff == null ? [] : try(local.previous_handoff.published_hosts, ["api"])
   published_hosts = sort(distinct(concat(
     [for host in local.previously_published : host if contains(local.hosts, host)],
     module.load_balancer.serving_hosts,
