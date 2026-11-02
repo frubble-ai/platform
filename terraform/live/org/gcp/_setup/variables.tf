@@ -69,32 +69,34 @@ variable "administrator" {
   type        = string
 }
 
-variable "allowed_iam_members" {
+variable "access" {
   description = <<-EOT
-    Every person and group that may be granted a role anywhere in the
-    organization, as IAM members (`user:address`, `group:address`). CI supplies
-    it from the TF_SETUP_ALLOWED_IAM_MEMBERS secret as a JSON list. It must
-    include administrator, developer_group and every stg administrator.
+    Every person or group, beyond administrator and developer_group, that may
+    hold a role in the organization, and what they hold: per environment, a
+    list of profiles from modules/gcp/developer-access (read_only,
+    administration, logs). Keyed by a short handle, never an address. CI
+    supplies it from the TF_SETUP_ACCESS secret as JSON, e.g.
+    {"alex":{"member":"user:...","stg":["administration"],"prd":["read_only"]}}
+    It is also the organization's whole list of allowed IAM members
+    (org_policy.tf): nobody outside it can be granted a role.
   EOT
-  type        = list(string)
-  sensitive   = true
+  type = map(object({
+    member = string
+    stg    = optional(list(string), [])
+    prd    = optional(list(string), [])
+  }))
+  default   = {}
+  sensitive = true
 
   validation {
-    condition     = alltrue([for m in var.allowed_iam_members : can(regex("^(user|group):[^@\\s]+@[^@\\s]+$", m))])
-    error_message = "Each entry must be `user:address` or `group:address`."
+    condition     = alltrue([for k in nonsensitive(keys(var.access)) : can(regex("^[a-z][a-z0-9_-]{0,31}$", k))])
+    error_message = "Each key must be a short handle: lowercase letters, digits, - or _, starting with a letter, at most 32 characters."
   }
-}
 
-variable "stg_administrators" {
-  description = <<-EOT
-    People given the administration role on stg beside `administrator`, as
-    `user:address` keyed by a short handle. CI supplies it from the
-    TF_SETUP_STG_ADMINISTRATORS variable as JSON, e.g. {"alex":"user:..."};
-    no address is written in this repository. Each must also be in
-    allowed_iam_members.
-  EOT
-  type        = map(string)
-  default     = {}
+  validation {
+    condition     = alltrue([for p in values(var.access) : can(regex("^(user|group):[^@\\s]+@[^@\\s]+$", p.member))])
+    error_message = "Each member must be `user:address` or `group:address`."
+  }
 }
 
 variable "apis" {

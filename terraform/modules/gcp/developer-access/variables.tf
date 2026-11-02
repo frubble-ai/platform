@@ -33,23 +33,22 @@ variable "administrator" {
   }
 }
 
-variable "additional_administrators" {
+variable "people" {
   description = <<-EOT
-    Other people given the same administration role, as `user:address`, keyed
-    by a short handle. The handle, never the address, is what a resource key
-    and a public plan show. Empty by default: the administrator above stays
-    the owner, and these are for a project that needs more hands.
+    People with access to this project beyond the group and the
+    administrator, keyed by a short handle: each names an IAM member and the
+    profiles (main.tf, local.profiles) it holds here. The handle, never the
+    address, is what a resource key shows.
   EOT
-  type        = map(string)
-  default     = {}
+  type = map(object({
+    member   = string
+    profiles = list(string)
+  }))
+  default   = {}
+  sensitive = true
 
   validation {
-    condition     = alltrue([for k in keys(var.additional_administrators) : can(regex("^[a-z][a-z0-9_-]{0,31}$", k))])
-    error_message = "Each key must be a short handle: lowercase letters, digits, - or _, starting with a letter, at most 32 characters."
-  }
-
-  validation {
-    condition     = alltrue([for m in values(var.additional_administrators) : startswith(m, "user:")])
-    error_message = "Each must be one person, written as `user:address`."
+    condition     = alltrue([for p in values(var.people) : can(regex("^(user|group):", p.member))])
+    error_message = "Each member must be `user:address` or `group:address`."
   }
 }

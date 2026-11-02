@@ -9,7 +9,12 @@ module "human_access" {
   group         = var.developer_group
   administrator = var.administrator
 
-  additional_administrators = each.key == "stg" ? var.stg_administrators : {}
+  people = {
+    for handle, person in var.access : handle => {
+      member   = person.member
+      profiles = each.key == "stg" ? person.stg : person.prd
+    }
+  }
 
   depends_on = [module.environment_project, google_org_policy_policy.no_domain_rule]
 }

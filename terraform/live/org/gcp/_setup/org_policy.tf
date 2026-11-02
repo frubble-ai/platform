@@ -36,8 +36,8 @@ resource "google_project_service" "management_orgpolicy" {
 # needs a Workspace seat to work in it, so "anyone in frubble.ai" would both
 # refuse the people who do the work and admit anyone given a seat later.
 #
-# People and groups are named one by one in var.allowed_iam_members (the
-# TF_SETUP_ALLOWED_IAM_MEMBERS secret). The organization principal set admits
+# People and groups are named one by one: administrator, developer_group and
+# everyone in var.access (the TF_SETUP_ACCESS secret). The organization principal set admits
 # what the organization makes itself: service accounts and workload identity
 # pools in its projects, and its service agents. allUsers and
 # allAuthenticatedUsers stay refused.
@@ -49,21 +49,9 @@ resource "google_org_policy_policy" "allowed_iam_members" {
     rules {
       enforce = "TRUE"
       parameters = jsonencode({
-        allowedMemberSubjects = var.allowed_iam_members
+        allowedMemberSubjects = distinct(concat([var.administrator, var.developer_group], [for person in values(var.access) : person.member]))
         allowedPrincipalSets  = ["//cloudresourcemanager.googleapis.com/organizations/${var.org_id}"]
       })
-    }
-  }
-
-  # Anyone this root grants a role to must be on the list, or the grant fails
-  # half way through an apply; fail the plan instead.
-  lifecycle {
-    precondition {
-      condition = alltrue([
-        for member in concat([var.administrator, var.developer_group], values(var.stg_administrators)) :
-        contains(var.allowed_iam_members, member)
-      ])
-      error_message = "administrator, developer_group and every stg_administrators entry must be in allowed_iam_members."
     }
   }
 }

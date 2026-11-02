@@ -24,7 +24,10 @@ resource "google_iam_deny_policy" "no_secret_values" {
 
   rules {
     deny_rule {
-      denied_principals = [replace(var.group, "group:", "principalSet://goog/group/")]
+      denied_principals = concat(
+        [replace(var.group, "group:", "principalSet://goog/group/")],
+        [for member in local.denied_people : replace(replace(member, "user:", "principal://goog/subject/"), "group:", "principalSet://goog/group/")],
+      )
       denied_permissions = [
         "secretmanager.googleapis.com/versions.access",
       ]
@@ -36,8 +39,8 @@ resource "google_iam_deny_policy" "no_secret_values" {
 # Named people, never a group, and deliberately not behind the deny above.
 # Every change made outside CI therefore has a named owner, which is the
 # point: an incident asks "who did this", and the answer cannot be "somebody in
-# a group". `administrator` is the one who holds it everywhere; a project that
-# needs more hands names them in `additional_administrators`.
+# a group". `administrator` holds it everywhere; others hold it per project
+# through the `administration` profile below.
 #
 # Broad on purpose, because this role exists for the cases nobody listed in
 # advance — a stuck lock, a half-applied change, a resource CI cannot reach.
@@ -72,14 +75,54 @@ resource "google_project_iam_member" "administration" {
   member  = var.administrator
 }
 
-# The same role for the additional administrators, keyed `handle|role`.
-resource "google_project_iam_member" "additional_administration" {
-  for_each = {
-    for pair in setproduct(keys(var.additional_administrators), local.administration_roles) :
-    "${pair[0]}|${pair[1]}" => { member = var.additional_administrators[pair[0]], role = pair[1] }
+# ---------- people, by profile ----------
+# What a person may do in a project is a list of profiles, each a fixed set of
+# roles. A new kind of access is a new profile here, reviewed like any change;
+# who holds it is data (var.people), kept out of the repository.
+locals {
+  profiles = {
+    # Sees everything, changes nothing, never a secret's value (the deny below).
+    read_only = ["roles/viewer"]
+
+    # The administrator's role, for people who need it on one project.
+    administration = tolist(local.administration_roles)
+
+    # Reads the logs, nothing else.
+    logs = ["roles/logging.viewer"]
   }
+
+  # Handles and profiles are not secret; the members are.
+  person_grants = {
+    for grant in flatten([
+      for handle, person in nonsensitive({ for h, p in var.people : h => p.profiles }) : [
+        for profile in person : [
+          for role in local.profiles[profile] : { key = "${handle}|${profile}|${role}", handle = handle, role = role }
+        ]
+      ]
+    ]) : grant.key => grant
+  }
+
+  # Everyone without administration is refused secret values, like the group.
+  denied_people = [
+    for handle, person in var.people : person.member
+    if !contains(person.profiles, "administration")
+  ]
+}
+
+check "profiles_exist" {
+  assert {
+    condition = alltrue([
+      for profiles in nonsensitive([for p in values(var.people) : p.profiles]) :
+      alltrue([for profile in profiles : contains(keys(local.profiles), profile)])
+    ])
+    error_message = "A person names a profile that does not exist; see local.profiles."
+  }
+}
+
+resource "google_project_iam_member" "person" {
+  for_each = local.person_grants
 
   project = var.project_id
   role    = each.value.role
-  member  = each.value.member
+  member  = var.people[each.value.handle].member
 }

@@ -191,9 +191,8 @@ yet. Step 4 copies those values into the variables. From then on CI reads the va
 and so does every hand apply, as `TF_VAR_*` in the environment; the file is deleted, or a
 stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_id`),
 `TF_SETUP_BILLING_ACCOUNT` (`billing_account`), `TF_SETUP_DEVELOPER_GROUP`
-(`developer_group`), `TF_SETUP_ADMINISTRATOR` (`administrator`), `TF_SETUP_STG_ADMINISTRATORS`
-(`stg_administrators`, optional), the `TF_SETUP_ALLOWED_IAM_MEMBERS` secret
-(`allowed_iam_members`), `GCP_MANAGEMENT_PROJECT`
+(`developer_group`), `TF_SETUP_ADMINISTRATOR` (`administrator`), the `TF_SETUP_ACCESS` secret
+(`access`, below), `GCP_MANAGEMENT_PROJECT`
 (`management_project_id`), `GCP_PROJECT_STG` and `GCP_PROJECT_PRD` (`environment_projects`),
 `BACKEND_REPOSITORY` (`backend_repository`), and this repository's owner and name
 (`github_owner`, `platform_repository`). `gh variable list` prints them.
@@ -263,4 +262,22 @@ Required checks: `Plan stg / plan`, `Plan prd / plan`, `Plan org setup / plan`, 
 ## Human access
 
 `gcloud auth login`, no keys. The developer group is read-only and cannot read secret
-values. One named administrator has full access. Nobody gets a shell.
+values. One named administrator has full access on stg and prd. Nobody gets a shell.
+
+Everyone else holds access per environment, as profiles: `read_only` (sees everything, no
+secret values), `administration` (the administrator's role) and `logs` (reads logs only),
+defined in `modules/gcp/developer-access`. A new kind of access is a new profile there. Who
+holds what is the `TF_SETUP_ACCESS` secret, so no address is written here, as JSON keyed by
+a short handle:
+
+```json
+{
+  "alex": { "member": "user:alex@example.com", "stg": ["administration"], "prd": ["read_only"] },
+  "sam":  { "member": "user:sam@example.com",  "stg": ["logs"], "prd": ["logs"] }
+}
+```
+
+That secret, with the administrator and the developer group, is also the organization's
+whole list of allowed IAM members (`iam.managed.allowedPolicyMembers`, in
+`org/gcp/_setup/org_policy.tf`): nobody else can be granted a role anywhere in it. Changing
+it is editing the secret and re-running `setup-cd`. Billing access stays out of Terraform.
