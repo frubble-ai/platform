@@ -7,8 +7,9 @@
 # entries in entries.tf, and the credential is the short-lived federated token.
 #
 # objectAdmin rather than objectCreator wherever a write is granted: Terraform
-# must also be able to delete the lock object it wrote, and a plan that cannot
-# release its lock wedges the next run.
+# must also be able to delete the lock object it wrote, and an apply that
+# cannot release its lock wedges the next run. Plans are not given a write at
+# all; they run with -lock=false.
 
 locals {
   # The exact object prefix each stack may touch, with the trailing slash:
@@ -91,7 +92,7 @@ resource "google_storage_bucket_iam_member" "direct_apply_state" {
   }
 }
 
-# Plan reads the state and writes only the lock — the same split as the GCP
+# Plan reads the state and writes nothing — the same split as the GCP
 # plan spokes. objectAdmin on the whole prefix would let pull-request code
 # reach an identity that could overwrite or delete the state itself, since the
 # plan workflows run on unreviewed branches.
@@ -109,23 +110,6 @@ resource "google_storage_bucket_iam_member" "direct_plan_reads_state" {
     title       = "only this stack's state"
     description = "Read objects under ${each.value.prefix}."
     expression  = "resource.name.startsWith('projects/_/buckets/${module.management_state.name}/objects/${each.value.prefix}')"
-  }
-}
-
-# Terraform's GCS backend takes its lock by creating <prefix>/default.tflock
-# and releases it by deleting that object. A plan that cannot release its lock
-# wedges every run after it, so this one write stays.
-resource "google_storage_bucket_iam_member" "direct_plan_writes_lock" {
-  for_each = local.direct_plan
-
-  bucket = module.management_state.name
-  role   = "roles/storage.objectAdmin"
-  member = each.value.member
-
-  condition {
-    title       = "this stack's lock only"
-    description = "The .tflock object under ${each.value.prefix}, and nothing else."
-    expression  = "resource.name.startsWith('projects/_/buckets/${module.management_state.name}/objects/${each.value.prefix}') && resource.name.endsWith('.tflock')"
   }
 }
 

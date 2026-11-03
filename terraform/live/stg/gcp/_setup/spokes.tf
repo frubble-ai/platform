@@ -17,8 +17,6 @@ resource "google_project_iam_custom_role" "pubsub_policy_viewer" {
   ]
 }
 
-# It still needs to write: Terraform's GCS backend takes a lock by writing an
-# object, and a plan that cannot release its lock wedges every run after it.
 module "plan_spoke" {
   source = "../../../../modules/gcp/wif-spoke"
 
@@ -39,31 +37,19 @@ module "plan_spoke" {
   depends_on = [google_project_iam_custom_role.pubsub_policy_viewer]
 }
 
-# Read the state, write only the lock.
+# Read the state, and nothing else.
 #
 # objectAdmin over the whole bucket, as this was, let the plan spoke overwrite
 # or delete the state objects themselves — and pull-request code reaches that
 # identity through the shared plan workflow. The deny policy does not cover it:
 # it denies bucket operations, not object ones.
+#
+# No lock write either: the plan runs with -lock=false, so the grant would only
+# let pull-request code leave a lock behind, or delete the one an apply holds.
 resource "google_storage_bucket_iam_member" "plan_reads_state" {
   bucket = module.state.name
   role   = "roles/storage.objectViewer"
   member = module.plan_spoke.member
-}
-
-# The one write a plan genuinely needs. Terraform's GCS backend takes its lock
-# by creating <prefix>/<workspace>.tflock and releases it by deleting that
-# object, and a plan that cannot release its lock wedges every run after it.
-resource "google_storage_bucket_iam_member" "plan_writes_lock" {
-  bucket = module.state.name
-  role   = "roles/storage.objectAdmin"
-  member = module.plan_spoke.member
-
-  condition {
-    title       = "lock objects only"
-    description = "Terraform's lock object, and nothing else in the bucket."
-    expression  = "resource.name.endsWith('.tflock')"
-  }
 }
 
 resource "google_kms_crypto_key_iam_member" "plan_state_key" {
