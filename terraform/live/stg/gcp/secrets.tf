@@ -9,9 +9,10 @@ locals {
     database_password = { domain = "database", name = "password", generated = true }
     auth_secret       = { domain = "auth", name = "secret", generated = true }
     email_api_key     = { domain = "email", name = "api-key", generated = false }
+    composio_api_key  = { domain = "composio", name = "api-key", generated = false }
   }
 
-  api_secrets    = ["database_password", "auth_secret"]
+  api_secrets    = ["database_password", "auth_secret", "composio_api_key"]
   worker_secrets = ["email_api_key"]
 }
 

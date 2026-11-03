@@ -16,6 +16,7 @@ module "api_service" {
   })
   secret_env = merge(local.database_secret_env, {
     BETTER_AUTH_SECRET = { secret = module.secrets["auth_secret"].secret_id }
+    COMPOSIO_API_KEY   = { secret = module.secrets["composio_api_key"].secret_id }
   })
   vpc = local.vpc
   # In prd a rollback takes one apply more: set this to false and apply, then

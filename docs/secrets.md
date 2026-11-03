@@ -10,3 +10,12 @@ them up on their next revision. A value that comes from outside (the email provi
 key) gets a container and a placeholder from Terraform, and the root that holds the value
 writes the real version the same write-only way (`org/mailgun/_setup`, email.md). Each
 service reads only the secrets bound to its identity, per secret.
+
+Composio's project API key has no root that writes it: after the apply, add the value by hand,
+then roll the API so its next revision reads it.
+
+```sh
+ENV=stg  # or prd
+read -rs KEY && [ -n "$KEY" ] && printf '%s' "$KEY" |
+  gcloud secrets versions add "frubble_${ENV}_composio_api-key" --data-file=- --project "frubble-${ENV}"
+```
