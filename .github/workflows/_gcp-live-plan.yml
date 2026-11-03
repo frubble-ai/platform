@@ -41,6 +41,11 @@ on:
       audience:
         required: true
         type: string
+      composio_auth_config_ids:
+        description: The API's Composio auth configs, `provider=id` pairs separated by commas.
+        required: false
+        type: string
+        default: ""
 
 # No pull-requests: write. This workflow runs on unreviewed pull-request code
 # and does not comment — the aggregating job in live-plan.yml does, from the
@@ -137,6 +142,7 @@ jobs:
           TF_VAR_project_id: ${{ inputs.project_id }}
           TF_VAR_management_state_bucket: ${{ inputs.management_state_bucket }}
           TF_VAR_spoke_service_account: ${{ inputs.spoke_service_account }}
+          TF_VAR_composio_auth_config_ids: ${{ inputs.composio_auth_config_ids }}
         # Raw output to plan.txt only; summary.txt feeds the log and comment.
         run: |
           set -euo pipefail
