@@ -166,8 +166,13 @@ module.exports = async ({ github, context, core }) => {
   const comments = await github.paginate(
     github.rest.issues.listComments, { ...issue, per_page: 100 },
   )
-  const mine = c => c.user.type === 'Bot' && c.body.includes(MARKER)
+  // The comment is the Actions bot's and starts with the marker. A bare
+  // `includes` also matched a resource key that carries the marker text, and
+  // any other bot that quoted it.
+  const fromPlanBot = c => c.user.type === 'Bot' && c.user.login === 'github-actions[bot]'
+  const mine = c => fromPlanBot(c) && c.body.startsWith(MARKER)
   const existing = comments.find(mine)
+  let current = existing ? existing.id : null
 
   if (sections.length === 0) {
     if (existing) {
@@ -180,15 +185,21 @@ module.exports = async ({ github, context, core }) => {
       owner: issue.owner, repo: issue.repo, comment_id: existing.id, body,
     })
   } else {
-    await github.rest.issues.createComment({ ...issue, body })
+    const created = await github.rest.issues.createComment({ ...issue, body })
+    current = created.data.id
   }
 
   // One comment per stack is what this workflow replaced. Clearing
   // the old ones here means the change takes effect on the pull
   // request that introduces it, rather than leaving five orphans
   // nothing will ever update again.
+  //
+  // A legacy comment starts with its marker. `comments` was read before the
+  // upsert, so the comment this run just wrote can still be in it under its
+  // old body, and a plan that carries the marker text in a resource key would
+  // match here and be deleted straight after being written. Leave it alone.
   const legacy = comments.filter(
-    c => c.user.type === 'Bot' && c.body.includes('<!-- frubble-plan:'),
+    c => fromPlanBot(c) && c.body.startsWith('<!-- frubble-plan:') && c.id !== current,
   )
   for (const c of legacy) {
     await github.rest.issues.deleteComment({
