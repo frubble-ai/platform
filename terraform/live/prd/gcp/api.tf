@@ -13,6 +13,9 @@ module "api_service" {
     # The browser origin that calls the API: the web app (app.tf)
     CORS_ORIGIN         = "https://${module.shared.app_hostname}"
     PUBSUB_EMAILS_TOPIC = module.emails_queue.topic
+    # Where invitation links and the post-connect redirect land.
+    APP_URL                  = "https://${module.shared.app_hostname}"
+    COMPOSIO_AUTH_CONFIG_IDS = var.composio_auth_config_ids
   })
   secret_env = merge(local.database_secret_env, {
     BETTER_AUTH_SECRET = { secret = module.secrets["auth_secret"].secret_id }

@@ -35,6 +35,7 @@ jobs:
       service_account: ${{ vars.GCP_APPLY_HUB_STG }}
       workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
       audience: ${{ vars.GCP_WIF_AUDIENCE }}
+      composio_auth_config_ids: ${{ vars.COMPOSIO_AUTH_CONFIG_IDS_STG }}
     permissions:
       contents: read
       id-token: write

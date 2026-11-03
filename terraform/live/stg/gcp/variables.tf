@@ -49,3 +49,8 @@ variable "email_provider" {
   type        = string
   default     = "mailgun"
 }
+
+variable "composio_auth_config_ids" {
+  description = "The API's Composio auth configs as `provider=id` pairs separated by commas, from the COMPOSIO_AUTH_CONFIG_IDS_<ENV> repository variable."
+  type        = string
+}

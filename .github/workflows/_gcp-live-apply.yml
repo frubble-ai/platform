@@ -36,6 +36,11 @@ on:
       audience:
         required: true
         type: string
+      composio_auth_config_ids:
+        description: The API's Composio auth configs, `provider=id` pairs separated by commas.
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -134,6 +139,7 @@ jobs:
           TF_VAR_project_id: ${{ inputs.project_id }}
           TF_VAR_management_state_bucket: ${{ inputs.management_state_bucket }}
           TF_VAR_spoke_service_account: ${{ inputs.spoke_service_account }}
+          TF_VAR_composio_auth_config_ids: ${{ inputs.composio_auth_config_ids }}
         run: |
           set -euo pipefail
           scripts="$GITHUB_WORKSPACE/.github/scripts/terraform"
