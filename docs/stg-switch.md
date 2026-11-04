@@ -9,8 +9,8 @@ variable decides whether stg's running resources exist.
 `STG_ENABLED`, a repository variable. Only the exact, lowercase `false` is off; unset or anything else (`FALSE` included) is on. The value is compared in a shell step, not in an Actions expression, because expressions compare strings case-insensitively. `stg-cd`
 and the pull-request plans (`Plan stg`, `Plan stg cloudflare`) pass it to the roots
 as `enabled` (`stack_switch` in the reusable workflows, resolved there in a shell step), so every run, a push to
-`dev` included, plans towards what it says. Only repository admins can change a
-variable.
+`dev` included, plans towards what it says. Anyone with write access to the
+repository can change a variable; the workflows' own tokens can't.
 
 In the roots it is OpenTofu's `lifecycle { enabled = var.enabled }` on each module
 and resource that goes. A disabled module is `null`, so everything that reads one
@@ -40,10 +40,14 @@ migrations. To keep data across a switch, export it before switching off
 
 1. `gh variable set STG_ENABLED --body false --repo frubble-ai/platform`
 2. Actions, `stg-switch`, `state: off` (frubble-ai's members only). It checks the
-   variable and starts `stg-cd`. Running `stg-cd` by hand does the same. Off runs in
-   the reverse order of on: `stg/cloudflare` removes the DNS records first, without
-   waiting on GCP or Mailgun, and `stg/gcp` releases the load balancer's address only
-   after that succeeded, so no public name points at an address stg no longer holds.
+   variable and starts `stg-cd` on `dev`. Running `stg-cd` by hand does the same, as
+   long as it's on the `dev` branch, the reviewed code:
+   `gh workflow run stg-cd.yml --ref dev --repo frubble-ai/platform`.
+   Off runs in the reverse order of on: `stg/cloudflare` removes the DNS records
+   first, without waiting on GCP or Mailgun. Then the run waits out the records'
+   300-second TTL, and only after that does `stg/gcp` release the load balancer's
+   address, so no public name points at an address stg no longer holds. A re-run
+   fails if `STG_ENABLED` has changed since the run started; start a new one.
 3. Read the plan: only the resources above, destroyed. Nothing in `_setup`, nothing
    in mailgun.
 

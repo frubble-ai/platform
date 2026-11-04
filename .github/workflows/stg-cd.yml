@@ -63,12 +63,26 @@ jobs:
       contents: read
       id-token: write
 
-  # Off: only once the DNS records are gone (a failed removal stops here, with
-  # the address still held). On: straight away.
+  # Off only: resolvers may keep serving the removed A records for their TTL
+  # (300 s, DNS-only records; modules/cloudflare/dns-record), so the address
+  # is held a little longer than that before the GCP apply releases it.
+  dns-ttl:
+    name: wait out the stg DNS TTL
+    needs: cloudflare-off
+    if: ${{ needs.cloudflare-off.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions: {}
+    timeout-minutes: 10
+    steps:
+      - run: sleep 330
+
+  # Off: only once the DNS records are gone and their TTL has run out (a
+  # failed removal stops here, with the address still held). On: straight
+  # away.
   gcp:
     name: apply stg gcp
-    needs: [switch, cloudflare-off]
-    if: ${{ !cancelled() && needs.switch.result == 'success' && (needs.switch.outputs.enabled == 'true' || needs.cloudflare-off.result == 'success') }}
+    needs: [switch, cloudflare-off, dns-ttl]
+    if: ${{ !cancelled() && needs.switch.result == 'success' && (needs.switch.outputs.enabled == 'true' || (needs.cloudflare-off.result == 'success' && needs.dns-ttl.result == 'success')) }}
     uses: ./.github/workflows/_gcp-live-apply.yml
     with:
       environment: stg

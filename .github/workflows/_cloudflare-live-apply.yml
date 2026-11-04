@@ -149,6 +149,7 @@ jobs:
         env:
           PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
           STACK_SWITCH: ${{ inputs.stack_switch }}
+          STG_ENABLED_NOW: ${{ vars.STG_ENABLED }}
           TF_VAR_account_id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           TF_VAR_zone_id: ${{ vars.CLOUDFLARE_ZONE_ID }}
           TF_VAR_domain: ${{ vars.CLOUDFLARE_DOMAIN }}
@@ -161,6 +162,16 @@ jobs:
           # read FALSE as off (docs/stg-switch.md).
           if [ "$STACK_SWITCH" = "false" ]; then export TF_VAR_enabled=false; else export TF_VAR_enabled=true; fi
           echo "enabled: $TF_VAR_enabled"
+          # A re-run reuses this run's switch value, but STG_ENABLED may have
+          # changed since: refuse rather than apply the old direction. Only
+          # stg's callers pass stack_switch (docs/stg-switch.md).
+          if [ -n "$STACK_SWITCH" ]; then
+            now=$([ "$STG_ENABLED_NOW" = "false" ] && echo false || echo true)
+            if [ "$now" != "$TF_VAR_enabled" ]; then
+              echo "::error::STG_ENABLED now reads stg as $now, but this run was started for $TF_VAR_enabled. Start a new stg-cd run."
+              exit 1
+            fi
+          fi
           set -euo pipefail
           scripts="$GITHUB_WORKSPACE/.github/scripts/terraform"
           echo "::add-mask::$TF_VAR_account_id"

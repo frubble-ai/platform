@@ -2,8 +2,8 @@
 #
 # The switch itself is the STG_ENABLED repository variable: stg-cd and the
 # pull-request plans read it on every run, so a push to dev can never rebuild
-# a stg that was switched off, nor destroy one that is on. Only repository
-# admins can change a variable, and the run's own token cannot, so this
+# a stg that was switched off, nor destroy one that is on. Anyone with write
+# access can change a variable, but the run's own token cannot, so this
 # workflow does not flip it: it checks who is asking, checks the variable
 # already says what they ask for, and starts stg-cd, whose plan then destroys
 # or rebuilds.
@@ -66,7 +66,7 @@ jobs:
           now=$([ "$CURRENT" = "false" ] && echo false || echo true)
           if [ "$want" != "$now" ]; then
             echo "::error::STG_ENABLED is '${CURRENT:-unset}', which keeps stg $([ "$now" = true ] && echo on || echo off)."
-            echo "A repository admin sets it first, then runs this again:"
+            echo "Someone with write access sets it first, then runs this again:"
             echo "  gh variable set STG_ENABLED --body $want --repo $GITHUB_REPOSITORY"
             exit 1
           fi
