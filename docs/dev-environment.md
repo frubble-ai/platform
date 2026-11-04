@@ -136,3 +136,10 @@ the same pull request as unsetting the variable: as the
 bootstrap admin, `terraform -chdir=terraform/live/org/gcp/_setup state rm 'module.environment_project["dev"]'`
 to keep the project but stop managing it, or delete it deliberately after lifting
 `prevent_destroy`.
+
+That is a decommission, not a pause. Everything else org/gcp/_setup keys on
+`environment_projects` goes with it on the next org apply: the dev plan, apply and
+deploy hubs (`frubble-dev-*-hub@frubble-mgmt`) and their trust bindings, the human
+and developer-group access on dev, and the setup plan identity's grants. Dev's CI and
+the app repository's dev deploys stop working. If dev must stay deployable, keep
+`GCP_PROJECT_DEV` set and use `GCP_SETUP_DISABLE_DEV` instead.
