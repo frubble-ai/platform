@@ -5,11 +5,11 @@
 | `live-plan`    | every PR       | plans every stack, one comment with a section each    |
 | `code-quality` | every PR       | fmt, validate, tflint, actionlint, gitleaks, trivy     |
 | `pr-template`  | every PR, edits | conventional title on every PR; every template section filled and checklist answered, except for bots |
-| `stg-cd`       | merge to `dev` | applies stg GCP, Cloudflare and Mailgun                 |
+| `stg-cd`       | merge to `dev` | applies stg GCP, Cloudflare and Mailgun; its Mailgun job also mints stg's sending key, in stg's own Mailgun account (email.md) |
 | `org-cd`       | merge to `dev` | applies org Cloudflare and PostHog                    |
 | `setup-cd`     | merge to `dev` | applies the GCP `_setup` roots (dev once `GCP_PROJECT_DEV` is set), once a reviewer approves the run |
-| `mailgun-setup-cd` | merge to `dev` | applies the Mailgun `_setup` root (stg's sending key; dev's is `dev-cd`'s), once a reviewer approves the run |
-| `dev-cd`       | merge to `dev` | the same three for dev, behind `TF_APPLY_ENABLE_DEV`; its Mailgun job also mints dev's sending key, in dev's own Mailgun account (dev-environment.md) |
+| `mailgun-setup-cd` | merge to `dev` | applies the Mailgun `_setup` root (prd's sending key in the main account; none yet), once a reviewer approves the run |
+| `dev-cd`       | merge to `dev` | the same three for dev, the same way as stg, behind `TF_APPLY_ENABLE_DEV` (dev-environment.md) |
 | `prd-cd`       | merge to `dev` | the same three for prd, behind `TF_APPLY_ENABLE_PRD`; off |
 | `organization-member-access-cd` | by hand | applies `ORG_MEMBERS_ACCESS` (human-access.md) |
 

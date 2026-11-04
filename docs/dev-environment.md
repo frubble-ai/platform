@@ -32,8 +32,8 @@ The switches, all repository variables, none set until its step:
 ## dev's Mailgun account
 
 `dev.frubble.ai` is not in the main Mailgun account (`platform+mailgun@frubble.ai`): that
-account's plan allows one custom domain, and it is stg's. dev has a free account of its
-own:
+account's plan allows one custom domain, and the main account is reserved for prd. dev has
+a free account of its own, set up exactly like stg's (email.md has both):
 
 - Login: `platform+mailgun-dev@frubble.ai`, in Bitwarden as `Mailgun - Frubble dev`. US
   region. Activating it took a mobile number (Mailgun's anti-abuse check).
@@ -46,6 +46,8 @@ own:
   only credential CI holds: `dev/mailgun` registers the domain and mints the worker's
   sending key with it (email.md). The sending key itself is in no vault: it goes from
   Mailgun straight into `frubble_dev_email_api-key`.
+- `dev/mailgun` and `stg/mailgun` are the same files but for the backend prefix, and so is
+  the `mailgun_writes_email_key` block in `dev/gcp` and `stg/gcp`'s `secrets.tf`.
 - `org/mailgun/_setup`, `mailgun-setup-cd` and the `setup` environment's key are the main
   account's and know nothing of dev.
 
