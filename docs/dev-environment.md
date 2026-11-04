@@ -22,6 +22,9 @@ The switches, all repository variables, none set until its step:
 
 - `GCP_PROJECT_DEV`: dev joins every `environment_projects` map the `_setup` workflows
   build, and the dev setup plan and apply run. Unset, the map is stg and prd only.
+  Once the project exists, never unset it (see Rolling back).
+- `GCP_SETUP_DISABLE_DEV`: `true` pauses the dev setup plan (it passes, planning
+  nothing) and the dev `setup-cd` job. dev stays in `environment_projects`.
 - `TF_PLAN_ENABLE_DEV`: the dev GCP and Cloudflare plans on pull requests.
 - `TF_APPLY_ENABLE_DEV`: `dev-cd`.
 
@@ -68,13 +71,19 @@ PR 2, then
    `dev/gcp/_setup` after a reviewer approves: the `frubble-dev-tfstate` bucket, the
    state and secrets keys, the plan, apply and deploy spokes, the API, app, worker and
    push identities, and the deny policies. The hand path
-   (`terraform.tfvars.example` there) is the fallback.
+   (`terraform.tfvars.example` there) is the fallback. Then add `Plan dev setup / plan`
+   to the `protected-branches` ruleset's required checks and to pipelines.md. Not
+   before: a pull request whose branch predates this one has no such job, and a
+   required check that never reports blocks it.
 9. Set `STATE_BUCKET_DEV`, `GCP_PLAN_SPOKE_DEV` and `GCP_APPLY_SPOKE_DEV` from its
    outputs (`state_bucket`, `plan_spoke`, `apply_spoke`).
-10. Create the two empty states a plan cannot create, as the bootstrap admin:
-   `terraform -chdir=terraform/live/dev/gcp init -backend-config="bucket=frubble-dev-tfstate"`
-   and `terraform -chdir=terraform/live/dev/cloudflare init -backend-config="bucket=frubble-mgmt-tfstate"`,
-   each followed by `terraform state list` (empty) from PR 3's branch.
+10. Create the two empty states a plan cannot create, as the bootstrap admin, from
+   PR 3's branch, with the bucket from step 9:
+   `STATE_BUCKET_DEV="$(gh variable get STATE_BUCKET_DEV)"`, then
+   `terraform -chdir=terraform/live/dev/gcp init -backend-config="bucket=$STATE_BUCKET_DEV"`
+   and `terraform -chdir=terraform/live/dev/gcp state list` (empty), then
+   `terraform -chdir=terraform/live/dev/cloudflare init -backend-config="bucket=frubble-mgmt-tfstate"`
+   and `terraform -chdir=terraform/live/dev/cloudflare state list` (empty).
 
 Before PR 3 merges
 
@@ -115,3 +124,15 @@ The application (frubble-ai/app), not this repository
     workflows that deploy `dev` there, its own `COMPOSIO_API_KEY` for dev rather than
     the repository-wide one, and `dev` accepted as an `APP_ENV`. Until then the dev
     services run their placeholder images.
+
+## Rolling back
+
+To pause dev's setup jobs, set `GCP_SETUP_DISABLE_DEV=true`; unset it to resume.
+Do not unset `GCP_PROJECT_DEV` once the project exists: dev would drop out of
+`environment_projects`, the org setup plan would try to destroy the project,
+`prevent_destroy` refuses it, and the org job fails, which also stops the stg and prd
+setup jobs that need it. Taking dev out of management is a Terraform change first, in
+the same pull request as unsetting the variable: as the
+bootstrap admin, `terraform -chdir=terraform/live/org/gcp/_setup state rm 'module.environment_project["dev"]'`
+to keep the project but stop managing it, or delete it deliberately after lifting
+`prevent_destroy`.

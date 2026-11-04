@@ -162,7 +162,8 @@ jobs:
       contents: read
       id-token: write
 
-  # Off until dev's project exists (docs/dev-environment.md).
+  # Off until dev's project exists, or while GCP_SETUP_DISABLE_DEV is true
+  # (docs/dev-environment.md). Off, it plans nothing and passes.
   setup-dev:
     name: Plan dev setup
     uses: ./.github/workflows/_setup-plan.yml
@@ -170,7 +171,7 @@ jobs:
       group: plan-setup-dev-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: false
     with:
-      enabled: ${{ vars.GCP_PROJECT_DEV != '' }}
+      enabled: ${{ vars.GCP_PROJECT_DEV != '' && vars.GCP_SETUP_DISABLE_DEV != 'true' }}
       stack: dev
       root: terraform/live/dev/gcp/_setup
       project_id: ${{ vars.GCP_PROJECT_DEV }}

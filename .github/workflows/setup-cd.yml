@@ -56,11 +56,12 @@ jobs:
       id-token: write
 
   # dev joins once its project exists: GCP_PROJECT_DEV is set after the org
-  # apply that creates it (docs/dev-environment.md).
+  # apply that creates it (docs/dev-environment.md). GCP_SETUP_DISABLE_DEV
+  # pauses this job without dropping dev from the org root's project map.
   dev:
     name: apply dev setup
     needs: org
-    if: vars.GCP_PROJECT_DEV != ''
+    if: vars.GCP_PROJECT_DEV != '' && vars.GCP_SETUP_DISABLE_DEV != 'true'
     uses: ./.github/workflows/_setup-apply.yml
     with:
       stack: dev
