@@ -68,3 +68,27 @@ resource "google_secret_manager_secret_iam_member" "worker_reads" {
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${local.setup.worker_service_account}"
 }
+
+# The Mailgun sending key is minted by this environment's own mailgun root, in
+# the environment's own Mailgun account (docs/email.md), not by
+# org/mailgun/_setup. That root signs in as the federated GitHub identity of
+# its apply entry, with no service account, so the right to write the key
+# names that entry, the same one state_access.tf in org/gcp/_setup grants the
+# environment's Mailgun state to. secretVersionManager adds, lists and
+# destroys versions and never reads one: secretmanager.versions.access is not
+# in it. On this one secret only. The same block in dev/gcp and stg/gcp.
+locals {
+  mailgun_apply_entry = join("|", [
+    local.setup.repositories.platform,
+    "${local.setup.repositories.platform}/.github/workflows/_mailgun-live-apply.yml",
+    module.shared.environment,
+    "refs/heads/dev",
+  ])
+}
+
+resource "google_secret_manager_secret_iam_member" "mailgun_writes_email_key" {
+  project   = var.project_id
+  secret_id = module.secrets["email_api_key"].secret_id
+  role      = "roles/secretmanager.secretVersionManager"
+  member    = "principalSet://iam.googleapis.com/${local.setup.workload_identity_pool}/attribute.apply_entry/${local.mailgun_apply_entry}"
+}

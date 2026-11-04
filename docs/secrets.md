@@ -8,7 +8,8 @@ what state records is `secrets_version`, the number that pins them. Bumping it i
 request rotates both: the apply generates new values, writes them, and the services pick
 them up on their next revision. A value that comes from outside (the email provider's API
 key) gets a container and a placeholder from Terraform, and the root that holds the value
-writes the real version the same write-only way (`org/mailgun/_setup`, email.md). Each
+writes the real version the same write-only way (`stg/mailgun` and `dev/mailgun` for their
+environments, `org/mailgun/_setup` for prd, email.md). Each
 service reads only the secrets bound to its identity, per secret.
 
 Composio's project API key has no root that writes it: after the apply, add the value by hand,

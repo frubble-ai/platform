@@ -6,8 +6,9 @@ every pull request (`Plan * setup`) and applied on merge by `setup-cd`, which wa
 `setup` environment for a reviewer. The hand path stays for that first apply and for an
 emergency. `org/cloudflare/_setup` stays by hand: it needs the Cloudflare bootstrap token,
 which is never stored in GitHub. `org/mailgun/_setup` runs the same way in
-`mailgun-setup-cd`, with the Mailgun admin key from the `setup` environment and no
-pull-request plan (email.md).
+`mailgun-setup-cd`, with the main Mailgun account's admin key from the `setup` environment
+and no pull-request plan (email.md). The main account is prd's; stg and dev have their own
+(email.md).
 
 Where a `_setup` root's inputs come from changes once. The first apply reads a
 `terraform.tfvars` copied from the example, because the repository variables do not exist
@@ -37,20 +38,22 @@ no workflow, so run the environment's CD by hand after editing it.
    secrets: `CLOUDFLARE_PLAN_TOKEN`,
    `POSTHOG_PLAN_API_KEY` on the repo;
    `CLOUDFLARE_MINT_TOKEN` and `POSTHOG_APPLY_API_KEY` on their environments, and the
-   Mailgun admin key as `MAILGUN_APPLY_API_KEY` on `setup` and on every environment that
-   applies a mailgun root: `stg` today, `prd` before `TF_APPLY_ENABLE_PRD` is turned on,
-   since `MAILGUN_ENABLED` is one switch for both and a prd apply without its key fails.
+   Mailgun admin keys as `MAILGUN_APPLY_API_KEY`: the main account's on `setup`, and on
+   `prd` before `TF_APPLY_ENABLE_PRD` is turned on, since `MAILGUN_ENABLED` is one switch
+   for every environment and a prd apply without its key fails; stg's own account's on
+   `stg`, dev's own account's on `dev` (email.md).
 5. Email, in this order, since each step needs the one before: set the repository variable
    `MAILGUN_ENABLED` to `true` (a repository variable, not an environment one: the jobs it
    gates read it before any environment is attached) and run `stg-cd` by hand
    (Actions → stg-cd → Run workflow), which registers the domain and publishes its DKIM
-   record; run `mailgun-setup-cd` by hand and approve it, which mints the domain's sending
-   key and writes it into `email/api-key` (Secret Manager id `frubble_<env>_email_api-key`:
-   the module joins the path with underscores, since an id cannot hold `/`). A variable
+   record, and mints stg's sending key and writes it into `email/api-key`
+   (Secret Manager id `frubble_<env>_email_api-key`: the module joins the path with
+   underscores, since an id cannot hold `/`). A variable
    change starts no workflow on its own. The generated secrets (secrets.md) need
    nothing. Turning prd on later is the same in this order: the admin key on `prd`, then
    `TF_APPLY_ENABLE_PRD` and a `prd-cd` run, which registers the domain, then a pull
-   request adding `prd` to `sending_domains` in `org/mailgun/_setup`, whose merge mints the
+   request adding `prd` to `sending_domains` in `org/mailgun/_setup` (and pointing
+   `mailgun-setup-cd`'s wait at `prd-cd`), whose merge mints the
    key and writes it, then a roll of the prd worker, which holds its placeholder until
    then. The setup root keys every domain it lists, so the domain must exist before it is
    listed. A service reads a secret when an

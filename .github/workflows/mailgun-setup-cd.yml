@@ -33,13 +33,17 @@ permissions:
 
 jobs:
   # A sending key is scoped to a domain that must already exist, and the
-  # domain is stg-cd's, which runs on every push to dev. This waits for its
-  # run on this same commit and fails if it did not succeed, so the key is
-  # never made for a domain that is not there yet
+  # domain is its environment's <env>-cd's, which runs on every push to dev.
+  # This waits for that run on this same commit and fails if it did not
+  # succeed, so the key is never made for a domain that is not there yet
   # (scripts/workflows/wait-for-workflow.sh). PATHS matches every path for
-  # that reason: whatever this push changed, stg-cd ran for it. JOBS names
+  # that reason: whatever this push changed, the run ran for it. JOBS names
   # the one job that makes the domain, so the Cloudflare or GCP apply beside
-  # it failing holds nothing here.
+  # it failing holds nothing here. It waits for stg-cd until prd joins
+  # sending_domains (point WORKFLOW and JOBS at prd-cd then): stg is no longer
+  # keyed here, but the wait also orders stg's move to its own account, so
+  # the old secret version goes only after stg/mailgun wrote the new one
+  # (docs/email.md).
   wait:
     name: wait for stg-cd
     if: vars.MAILGUN_ENABLED == 'true'
