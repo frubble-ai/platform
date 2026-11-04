@@ -36,6 +36,10 @@ updates:
       - /terraform/live/org/gcp/_setup
       - /terraform/live/org/cloudflare
       - /terraform/live/org/cloudflare/_setup
+      - /terraform/live/org/mailgun/_setup
+      - /terraform/live/org/posthog
+      - /terraform/live/org/organization-member-access/gcp
+      - /terraform/live/org/organization-member-access/posthog
       - /terraform/live/dev/gcp
       - /terraform/live/dev/gcp/_setup
       - /terraform/live/dev/cloudflare
@@ -43,9 +47,11 @@ updates:
       - /terraform/live/stg/gcp
       - /terraform/live/stg/gcp/_setup
       - /terraform/live/stg/cloudflare
+      - /terraform/live/stg/mailgun
       - /terraform/live/prd/gcp
       - /terraform/live/prd/gcp/_setup
       - /terraform/live/prd/cloudflare
+      - /terraform/live/prd/mailgun
     schedule:
       interval: weekly
       day: monday
