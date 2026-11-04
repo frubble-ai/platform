@@ -28,5 +28,5 @@ provider "mailgun" {}
 
 # The federated identity the workflow signs in with, which may write the one
 # handoff object (state_access.tf in org/gcp/_setup) and versions of the one
-# email key secret (dev/gcp's secrets.tf), and nothing else in Google.
+# email key secret (the GCP root's secrets.tf), and nothing else in Google.
 provider "google" {}

@@ -64,11 +64,13 @@ jobs:
       id-token: write
 
   # After the GCP apply, before the Cloudflare one: the GCP job is the one
-  # that waits for setup-cd, and the grant that lets this identity write its
-  # handoff is a _setup root's. Off until the admin key is in this environment
-  # and MAILGUN_ENABLED is true (docs/getting-started.md). No pull-request plan
-  # exists for this root (docs/email.md): the plan this job makes before
-  # applying is the only one.
+  # that waits for setup-cd, the grant that lets this identity write its
+  # handoff is a _setup root's, and the one that lets it write the sending
+  # key's secret is the GCP root's (secrets.tf there). The key is stg's own
+  # Mailgun account's admin key (docs/email.md). Off until it is in this
+  # environment and MAILGUN_ENABLED is true (docs/getting-started.md). No
+  # pull-request plan exists for this root (docs/email.md): the plan this job
+  # makes before applying is the only one.
   mailgun:
     name: apply stg mailgun
     needs: gcp
@@ -79,6 +81,8 @@ jobs:
       gh_environment: stg
       root: terraform/live/stg/mailgun
       state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      # Where stg's sending key goes (sending_key.tf there).
+      project_id: ${{ vars.GCP_PROJECT_STG }}
       workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
       audience: ${{ vars.GCP_WIF_AUDIENCE }}
     secrets:

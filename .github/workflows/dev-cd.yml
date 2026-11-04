@@ -78,7 +78,7 @@ jobs:
   # that waits for setup-cd, the grant that lets this identity write its
   # handoff is a _setup root's, and the one that lets it write the sending
   # key's secret is the GCP root's (secrets.tf there). The key is dev's own
-  # Mailgun account's admin key (docs/dev-environment.md). Off until it is in
+  # Mailgun account's admin key (docs/email.md). Off until it is in
   # this environment and MAILGUN_ENABLED is true (docs/getting-started.md). No
   # pull-request plan exists for this root (docs/email.md): the plan this job
   # makes before applying is the only one.

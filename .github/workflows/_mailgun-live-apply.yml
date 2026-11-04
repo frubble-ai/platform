@@ -22,10 +22,10 @@ on:
       audience:
         required: true
         type: string
-      # Only for a root that writes into its environment's project, as
-      # dev/mailgun does with its sending key (dev-environment.md). The other
-      # roots declare no project_id, and Terraform ignores a TF_VAR_ for a
-      # variable a root does not declare.
+      # For a root that writes into its environment's project, as dev/mailgun
+      # and stg/mailgun do with their sending keys (docs/email.md). prd/mailgun
+      # declares no project_id, and Terraform ignores a TF_VAR_ for a variable
+      # a root does not declare.
       project_id:
         required: false
         type: string

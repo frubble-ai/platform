@@ -1,20 +1,25 @@
-# dev's sending key, minted here rather than in org/mailgun/_setup: dev.frubble.ai
-# lives in dev's own Mailgun account (docs/dev-environment.md), and the only
+# The worker's sending key, minted here: this environment's sending domain
+# lives in a Mailgun account of its own (docs/email.md), and the only
 # credential for that account is the admin key this root already applies with
-# (dev's MAILGUN_APPLY_API_KEY). org/mailgun/_setup holds the main account's
-# admin key and keys stg's domain only.
+# (the environment's MAILGUN_APPLY_API_KEY). org/mailgun/_setup holds the main
+# account's admin key, which is prd's alone.
 #
-# The same shape as org/mailgun/_setup/sending_keys.tf: one key per generation,
-# scoped to the domain this root registers, written straight into the secret
-# dev's GCP root created with a placeholder, so no key is ever printed or copied.
-# The key lands in this root's state, under `dev/mailgun/`, which only dev's
-# Mailgun apply identity and the bootstrap admin read (state_access.tf in
+# dev/mailgun and stg/mailgun are the same files but for the backend prefix in
+# versions.tf: change one, change the other.
+#
+# One key per generation, scoped to the domain this root registers, written
+# straight into the secret the environment's GCP root created with a
+# placeholder, so no key is ever printed or copied. The key lands in this
+# root's state, under `<env>/mailgun/`, which only this environment's Mailgun
+# apply identity and the bootstrap admin read (state_access.tf in
 # org/gcp/_setup); that identity already holds the account's admin key, which
 # can make any key, so the state reveals nothing it could not already get.
 locals {
-  # The key generations alive at once. A rotation is three pull requests, as
-  # for stg (org/mailgun/_setup/main.tf): add the next number (the secret moves
-  # to it, the old key stays valid); roll the dev worker; remove the old number.
+  # The key generations alive at once. A worker instance reads its secret when
+  # it starts and keeps that key until it stops, so a rotation is three pull
+  # requests: add the next number (the secret moves to it, the old key stays
+  # valid); roll the worker (the next deploy, or a redeploy from the app
+  # repository's Actions); remove the old number.
   sending_key_generations = [1]
   current_generation      = max(local.sending_key_generations...)
 
@@ -42,9 +47,9 @@ resource "terraform_data" "sending_key_identity" {
 # Through the write-only attribute: Secret Manager gets the value, this
 # resource's state does not. The identity this root runs as may add and
 # destroy versions of this one secret and read none (the grant is
-# google_secret_manager_secret_iam_member.mailgun_writes_email_key in dev/gcp's
-# secrets.tf). A new key replaces the version, the new one first, so a worker
-# starting in between still finds `latest`.
+# google_secret_manager_secret_iam_member.mailgun_writes_email_key in the GCP
+# root's secrets.tf). A new key replaces the version, the new one first, so a
+# worker starting in between still finds `latest`.
 resource "google_secret_manager_secret_version" "sending_key" {
   secret                 = local.sending_key_secret
   secret_data_wo         = mailgun_api_key.sending[tostring(local.current_generation)].secret

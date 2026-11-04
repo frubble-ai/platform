@@ -1,4 +1,4 @@
-# The sending domain. Mail from the stg worker leaves as noreply@ it; the
+# The sending domain. Mail from the worker leaves as noreply@ it; the
 # records that let receivers trust that mail are published by the Cloudflare
 # root, from the handoff object this root writes (handoff.tf).
 resource "mailgun_domain" "sending" {

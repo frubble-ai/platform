@@ -4,25 +4,26 @@
 #
 # Applied by mailgun-setup-cd like the GCP _setup roots by setup-cd: as the
 # bootstrap admin, in the `setup` environment, after a reviewer approves. The Mailgun
-# credential is the account's admin key, the one made once in the dashboard,
-# held by the `setup` and `stg` environments as MAILGUN_APPLY_API_KEY: Mailgun
-# has no narrower role that creates domains or keys, so there is nothing for
-# this root to mint for CI. What it mints is one sending key per domain, scoped
-# to that domain, and it writes each straight into its environment's Secret
-# Manager secret, so no key is ever printed or copied. The keys land in this
-# root's state too, which lives under a prefix no CI identity can read
+# credential is the main account's admin key, the one made once in the dashboard,
+# held by the `setup` environment as MAILGUN_APPLY_API_KEY: Mailgun has no
+# narrower role that creates domains or keys, so there is nothing for this root
+# to mint for CI. What it mints is one sending key per domain, scoped to that
+# domain, and it writes each straight into its environment's Secret Manager
+# secret, so no key is ever printed or copied. The keys land in this root's
+# state too, which lives under a prefix no CI identity can read
 # (state_access.tf in org/gcp/_setup limits them to `<env>/mailgun/`).
+#
+# The main account is prd's. stg and dev each have a Mailgun account of their
+# own, and their mailgun roots mint their keys themselves (sending_key.tf
+# there, docs/email.md), so neither is listed here.
 
 # The domains, from each environment's shared values: the same name its
 # mailgun root registers and its worker sends from (docs/shared-values.md).
 # Only the domains that exist: prd joins here once prd-cd has registered it
-# (docs/getting-started.md), and until then the prd worker holds its placeholder.
-module "stg_shared" {
-  source = "../../../stg/shared"
-}
-
+# (docs/getting-started.md), and until then the prd worker holds its
+# placeholder, so the map is empty for now.
 locals {
-  sending_domains = { stg = module.stg_shared.sending_domain }
+  sending_domains = {}
 
   # The key generations alive at once. A worker instance reads its secret when
   # it starts and keeps that key until it stops, so a rotation is three pull

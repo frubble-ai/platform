@@ -4,6 +4,6 @@ variable "management_state_bucket" {
 }
 
 variable "project_id" {
-  description = "dev's GCP project, from GCP_PROJECT_DEV: where the sending key's secret lives (sending_key.tf)."
+  description = "The environment's GCP project, from GCP_PROJECT_<ENV>: where the sending key's secret lives (sending_key.tf)."
   type        = string
 }

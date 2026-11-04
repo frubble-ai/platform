@@ -69,13 +69,14 @@ resource "google_secret_manager_secret_iam_member" "worker_reads" {
   member    = "serviceAccount:${local.setup.worker_service_account}"
 }
 
-# dev's Mailgun sending key is minted by dev's own mailgun root, in dev's own
-# Mailgun account (docs/dev-environment.md), not by org/mailgun/_setup as stg's
-# is. That root signs in as the federated GitHub identity of its apply entry,
-# with no service account, so the right to write the key names that entry, the
-# same one state_access.tf in org/gcp/_setup grants dev's Mailgun state to.
-# secretVersionManager adds, lists and destroys versions and never reads one:
-# secretmanager.versions.access is not in it. On this one secret only.
+# The Mailgun sending key is minted by this environment's own mailgun root, in
+# the environment's own Mailgun account (docs/email.md), not by
+# org/mailgun/_setup. That root signs in as the federated GitHub identity of
+# its apply entry, with no service account, so the right to write the key
+# names that entry, the same one state_access.tf in org/gcp/_setup grants the
+# environment's Mailgun state to. secretVersionManager adds, lists and
+# destroys versions and never reads one: secretmanager.versions.access is not
+# in it. On this one secret only. The same block in dev/gcp and stg/gcp.
 locals {
   mailgun_apply_entry = join("|", [
     local.setup.repositories.platform,
