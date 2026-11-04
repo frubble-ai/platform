@@ -19,4 +19,8 @@ module "app_service" {
   }
   deletion_protection = module.shared.environment == "prd"
   labels              = merge(local.labels, { component = "app" })
+
+  lifecycle {
+    enabled = var.enabled
+  }
 }

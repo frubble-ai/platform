@@ -3,7 +3,6 @@
 # root's handoff lists it as published (handoff.tf).
 module "api" {
   source = "../../../modules/cloudflare/dns-record"
-  count  = contains(local.published_hosts, "api") ? 1 : 0
 
   zone_id  = var.zone_id
   hostname = local.hostname
@@ -11,6 +10,10 @@ module "api" {
   target   = local.gcp.load_balancer_ip
   proxied  = false
   comment  = "frubble ${module.shared.environment} api — managed by terraform"
+
+  lifecycle {
+    enabled = var.enabled && contains(local.published_hosts, "api")
+  }
 }
 
 # Proves control of the API's hostname to Certificate Manager, which issues
@@ -19,7 +22,6 @@ module "api" {
 # so the two never arrive apart.
 module "certificate_authorization" {
   source = "../../../modules/cloudflare/dns-record"
-  count  = local.gcp == null ? 0 : 1
 
   zone_id  = var.zone_id
   hostname = trimsuffix(local.gcp.certificate_dns_authorization.name, ".")
@@ -27,4 +29,8 @@ module "certificate_authorization" {
   target   = trimsuffix(local.gcp.certificate_dns_authorization.data, ".")
   proxied  = false
   comment  = "frubble ${module.shared.environment} certificate authorization — managed by terraform"
+
+  lifecycle {
+    enabled = local.gcp != null
+  }
 }

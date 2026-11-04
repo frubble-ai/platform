@@ -54,3 +54,16 @@ variable "composio_auth_config_ids" {
   description = "The API's Composio auth configs as `provider=id` pairs separated by commas, from the COMPOSIO_AUTH_CONFIG_IDS_<ENV> repository variable."
   type        = string
 }
+
+variable "enabled" {
+  description = "Whether stg's running resources exist: the database, the services, the queue, the load balancer and what hangs off them. False destroys them on the next apply, true rebuilds them from this code. From the STG_ENABLED repository variable (docs/stg-switch.md)."
+  type        = bool
+  default     = true
+  nullable    = false
+}
+
+variable "database_instance_suffix" {
+  description = "Appended to the Cloud SQL instance's name. Cloud SQL keeps a deleted instance's name for up to a week, so rebuilding stg sooner than that after switching it off needs a new name here, e.g. \"-2\" (docs/stg-switch.md). Changing it on a running stg replaces the database."
+  type        = string
+  default     = ""
+}

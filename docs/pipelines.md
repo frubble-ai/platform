@@ -12,6 +12,7 @@
 | `dev-cd`       | merge to `dev` | the same three for dev, the same way as stg, behind `TF_APPLY_ENABLE_DEV` (dev-environment.md) |
 | `prd-cd`       | merge to `dev` | the same three for prd, behind `TF_APPLY_ENABLE_PRD`; off |
 | `organization-member-access-cd` | by hand | applies `ORG_MEMBERS_ACCESS` (human-access.md) |
+| `stg-switch`   | by hand        | switches stg off or on, after `STG_ENABLED` is set: starts `stg-cd` (stg-switch.md) |
 
 `Plan dev` and `Plan dev cloudflare` run behind `TF_PLAN_ENABLE_DEV` and are not
 required checks. `Plan dev setup` runs behind `GCP_PROJECT_DEV` and is required, like

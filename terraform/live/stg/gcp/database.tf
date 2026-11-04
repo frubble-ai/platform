@@ -11,7 +11,7 @@ module "database" {
   source = "../../../modules/gcp/cloud-sql-postgres"
 
   project_id        = var.project_id
-  name              = "${local.name}-postgres"
+  name              = "${local.name}-postgres${var.database_instance_suffix}"
   region            = var.region
   network_id        = module.network.network_id
   high_availability = module.shared.environment == "prd"
@@ -26,12 +26,18 @@ module "database" {
   labels                = merge(local.labels, { component = "database" })
 
   depends_on = [module.network]
+
+  lifecycle {
+    enabled = var.enabled
+  }
 }
 
 locals {
   # What every workload that opens the database needs. The password comes
-  # from Secret Manager, below, never from here.
-  database_env = {
+  # from Secret Manager, below, never from here. Empty while stg is switched
+  # off: the database and the secret are gone, and so is everything that
+  # reads these.
+  database_env = !var.enabled ? {} : {
     DB_HOST   = module.database.private_ip
     DB_PORT   = "5432"
     DB_NAME   = module.database.database_name
@@ -39,7 +45,7 @@ locals {
     DB_CA_PEM = module.database.server_ca_pem
   }
 
-  database_secret_env = {
+  database_secret_env = !var.enabled ? {} : {
     DB_PASSWORD = { secret = module.secrets["database_password"].secret_id }
   }
 
@@ -72,4 +78,8 @@ module "migrate_job" {
     module.secrets,
     google_secret_manager_secret_iam_member.api_reads,
   ]
+
+  lifecycle {
+    enabled = var.enabled
+  }
 }

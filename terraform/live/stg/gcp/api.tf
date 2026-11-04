@@ -35,4 +35,8 @@ module "api_service" {
     module.secrets,
     google_secret_manager_secret_iam_member.api_reads,
   ]
+
+  lifecycle {
+    enabled = var.enabled
+  }
 }

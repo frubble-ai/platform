@@ -41,6 +41,13 @@ on:
         required: false
         type: string
         default: ""
+      stack_enabled:
+        description: >-
+          Whether the stack's switchable resources exist (TF_VAR_enabled). Only stg's roots
+          declare `enabled` (docs/stg-switch.md); a root that does not ignores it.
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -136,6 +143,7 @@ jobs:
         shell: bash
         env:
           PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
+          TF_VAR_enabled: ${{ inputs.stack_enabled }}
           TF_VAR_project_id: ${{ inputs.project_id }}
           TF_VAR_management_state_bucket: ${{ inputs.management_state_bucket }}
           TF_VAR_spoke_service_account: ${{ inputs.spoke_service_account }}

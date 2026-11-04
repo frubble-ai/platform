@@ -12,8 +12,15 @@ locals {
     composio_api_key  = { domain = "composio", name = "api-key", generated = false }
   }
 
-  api_secrets    = ["database_password", "auth_secret", "composio_api_key"]
-  worker_secrets = ["email_api_key"]
+  # While stg is switched off (var.enabled) the generated ones go with the
+  # database: a rebuilt database gets a new password, and only a secret
+  # created in the same apply holds it. The ones from outside stay, with the
+  # value a person or the mailgun root put there, so a rebuild needs nothing
+  # re-entered. The containers cost next to nothing.
+  active_secrets = { for key, secret in local.secrets : key => secret if var.enabled || !secret.generated }
+
+  api_secrets    = [for key in ["database_password", "auth_secret", "composio_api_key"] : key if contains(keys(local.active_secrets), key)]
+  worker_secrets = [for key in ["email_api_key"] : key if contains(keys(local.active_secrets), key)]
 }
 
 # Made fresh on every run and recorded nowhere; only the version number is.
@@ -37,7 +44,7 @@ locals {
 
 module "secrets" {
   source   = "../../../modules/gcp/secret"
-  for_each = local.secrets
+  for_each = local.active_secrets
 
   project_id       = var.project_id
   environment      = module.shared.environment

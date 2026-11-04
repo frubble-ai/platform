@@ -1,0 +1,84 @@
+# Switches stg off (destroy) or on (rebuild), by hand (docs/stg-switch.md).
+#
+# The switch itself is the STG_ENABLED repository variable: stg-cd and the
+# pull-request plans read it on every run, so a push to dev can never rebuild
+# a stg that was switched off, nor destroy one that is on. Only repository
+# admins can change a variable, and the run's own token cannot, so this
+# workflow does not flip it: it checks who is asking, checks the variable
+# already says what they ask for, and starts stg-cd, whose plan then destroys
+# or rebuilds.
+name: stg-switch
+
+on:
+  workflow_dispatch:
+    inputs:
+      state:
+        description: What stg should be after this run. STG_ENABLED must already say so.
+        required: true
+        type: choice
+        options: ["off", "on"]
+
+concurrency:
+  group: stg-switch
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  switch:
+    name: switch stg ${{ inputs.state }}
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    permissions:
+      # To start stg-cd. A dispatch made with this token does start a run.
+      actions: write
+    steps:
+      # frubble-ai's members, by GitHub id, which never changes with a rename:
+      # the same list as dev's deployers (terraform/live/dev/gcp/trust.tf).
+      # A re-run keeps the first run's actor, so the one who re-runs must be
+      # that same person.
+      - name: Only frubble-ai's members
+        env:
+          ACTOR: ${{ github.actor }}
+          ACTOR_ID: ${{ github.actor_id }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        run: |
+          set -euo pipefail
+          members=" 53837062 27741006 350026090 "
+          if [[ "$members" != *" $ACTOR_ID "* ]]; then
+            echo "::error::$ACTOR is not one of frubble-ai's members listed here."
+            exit 1
+          fi
+          if [ "$TRIGGERING_ACTOR" != "$ACTOR" ]; then
+            echo "::error::A re-run must be made by the person who started the run ($ACTOR)."
+            exit 1
+          fi
+
+      - name: STG_ENABLED already says so
+        env:
+          WANTED: ${{ inputs.state }}
+          CURRENT: ${{ vars.STG_ENABLED }}
+        run: |
+          set -euo pipefail
+          want=$([ "$WANTED" = "on" ] && echo true || echo false)
+          # Unset reads as on, as in stg-cd.
+          now=$([ "$CURRENT" = "false" ] && echo false || echo true)
+          if [ "$want" != "$now" ]; then
+            echo "::error::STG_ENABLED is '${CURRENT:-unset}', which keeps stg $([ "$now" = true ] && echo on || echo off)."
+            echo "A repository admin sets it first, then runs this again:"
+            echo "  gh variable set STG_ENABLED --body $want --repo $GITHUB_REPOSITORY"
+            exit 1
+          fi
+
+      - name: Start stg-cd
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WANTED: ${{ inputs.state }}
+        run: |
+          set -euo pipefail
+          gh workflow run stg-cd.yml --repo "$GITHUB_REPOSITORY" --ref dev
+          {
+            echo "### stg switching $WANTED"
+            echo "stg-cd started on \`dev\`: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/stg-cd.yml"
+            echo "Read its plan before trusting it: off destroys, on rebuilds (docs/stg-switch.md)."
+          } >> "$GITHUB_STEP_SUMMARY"
