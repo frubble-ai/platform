@@ -2,7 +2,7 @@
 
 Mail goes out through Mailgun, in the shape every provider here has. `stg/mailgun`,
 `dev/mailgun` and `prd/mailgun` each register one sending domain, their own, their state in the management bucket under
-`<env>/mailgun/`. `org/mailgun/_setup` mints one sending key per domain (role `sending`,
+`<env>/mailgun/`. `org/mailgun/_setup` mints one sending key per domain (stg's and dev's today) (role `sending`,
 scoped to that domain, the worker's only credential) and writes it into the environment's
 `email/api-key` secret through a write-only attribute, so no key is printed or copied and
 the secret version's state holds none. The key does stay in the setup root's own state,
