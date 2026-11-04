@@ -80,7 +80,9 @@ resource "google_iam_workload_identity_pool_provider" "apply" {
 
     # The exact ref is kept here, unlike in the plan entry: every apply runs
     # from a branch, so it can be stated, and stating it is what stops an
-    # apply workflow from being run off a fork or a tag.
+    # apply workflow from being run off a fork or a tag. job_workflow_ref is
+    # on every job's token: a job of a reusable workflow names that workflow,
+    # any other job its own, the same as workflow_ref.
     "attribute.apply_entry" = join("", [
       "assertion.repository + '|' + ",
       "assertion.job_workflow_ref.split('@')[0] + '|' + ",

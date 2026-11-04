@@ -28,6 +28,15 @@ locals {
   # members, by id, which never changes with a rename: add a member here when
   # they join, and take them out when they leave
   # (`gh api orgs/frubble-ai/members --jq '.[] | "\(.login) \(.id)"'`).
+  #
+  # A re-run keeps its first run's actor id, and the token cannot say who
+  # started the re-run, so this list alone would let anyone able to re-run a
+  # member's deploy (a GitHub App with Actions: write, such as Slack's or
+  # Linear's) redeploy it. frubble-ai/app's Actions policy "Only the
+  # organization's members run deploys" closes that: on backend-cd.yml,
+  # app-cd.yml and db-reset.yml, GitHub refuses any run or re-run whose
+  # starter it does not list. It lists the same ids as this; change both
+  # (docs/dev-environment.md, step 18).
   dev_deployers = {
     drn1996          = 53837062
     drribeiro        = 27741006

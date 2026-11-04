@@ -149,8 +149,14 @@ The application (frubble-ai/app), not this repository
     deployments from all branches; the workflows keep a run from `stg` (or `prd`) out of
     them. A tag or a pull request's merge ref is never trusted, and only a run whose
     actor is one of the organization members listed by GitHub id in `dev_deployers`
-    (`dev/gcp/trust.tf`) is: when someone joins or leaves frubble-ai, change that list
-    (`gh api orgs/frubble-ai/members --jq '.[] | "\(.login) \(.id)"'`).
+    (`dev/gcp/trust.tf`) is. A re-run keeps its first run's actor, whoever starts it, so
+    the app repository's Actions policy "Only the organization's members run deploys"
+    lists the same ids: on `backend-cd.yml`, `app-cd.yml` and `db-reset.yml`, GitHub refuses
+    a run or a re-run started by anyone else, a GitHub App included. When someone joins or
+    leaves frubble-ai, change both: `dev_deployers` here
+    (`gh api orgs/frubble-ai/members --jq '.[] | "\(.login) \(.id)"'`), and the policy's
+    `allowed_actors` (`gh api repos/frubble-ai/app/actions/policies`, then `PUT` its
+    `/actions/policies/<id>`).
     The app repository needs those environments (variables from the dev outputs, as
     `backend-stg` and `app-stg` have; `GCP_DEPLOY_HUB` is the full email from
     org/gcp/_setup's `backend_deploy_hubs["dev"]` output,
