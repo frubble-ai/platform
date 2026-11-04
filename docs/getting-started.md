@@ -1,5 +1,12 @@
 # Getting started
 
+Everything here runs with OpenTofu, not HashiCorp Terraform. Install the version CI pins
+(`TOFU_VERSION` in `.github/workflows/`), for example `brew install opentofu` and check
+`tofu version`, or a release from github.com/opentofu/opentofu. The commands below are
+`tofu`; the `TF_VAR_*` and `TF_*` environment variables keep their names, OpenTofu reads
+them as Terraform did. The lock files list providers from `registry.opentofu.org`: run
+`tofu init`, never `terraform init`, which would rewrite them for the other registry.
+
 The three GCP `_setup` roots are applied by hand exactly once, as the bootstrap service
 account from `.envrc.local` (copy `.envrc.local.example`). After that they are planned on
 every pull request (`Plan * setup`) and applied on merge by `setup-cd`, which waits in the

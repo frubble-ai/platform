@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Masks PostHog member emails and names (from TF_VAR_org_members_access and
 # from state).
-# Run in the root after terraform init.
+# Run in the root after tofu init.
 set -euo pipefail
 
 {
   jq -r '.[].email' <<< "${TF_VAR_org_members_access:-"{}"}"
-  terraform show -json 2>/dev/null | jq -r '
+  tofu show -json 2>/dev/null | jq -r '
     [ .values.root_module.resources[]?
       | select(.type == "posthog_organization_member")
       | .values | .email, .first_name, .last_name ] | .[]

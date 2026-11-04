@@ -4,7 +4,7 @@ output "zone_id" {
 
 # The values, so they can be read once and piped into GitHub:
 #
-#   terraform output -raw plan_token | gh secret set CLOUDFLARE_PLAN_TOKEN
+#   tofu output -raw plan_token | gh secret set CLOUDFLARE_PLAN_TOKEN
 #
 # Marked sensitive, which keeps them out of the plan and apply logs. It does
 # not keep them out of the state file — `sensitive` masks output, it does not

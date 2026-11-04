@@ -16,6 +16,6 @@ PR title = squash commit message. Use Conventional Commits: feat|fix|chore|docs|
 For Terraform: does the plan destroy or replace anything? Why is that safe? -->
 
 ## Checklist
-- [ ] I read the Terraform plan comment and nothing is destroyed or replaced unexpectedly
+- [ ] I read the OpenTofu plan comment and nothing is destroyed or replaced unexpectedly
 - [ ] No secrets in code, tfvars, logs or screenshots
 - [ ] README/docs updated if behaviour or a manual step changed

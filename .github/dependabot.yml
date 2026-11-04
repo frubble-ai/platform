@@ -31,7 +31,7 @@ updates:
   # directory entry would leave the other roots' locks stale, and init runs
   # with -lockfile=readonly, so a stale lock fails the plan rather than
   # silently resolving.
-  - package-ecosystem: terraform
+  - package-ecosystem: opentofu
     directories:
       - /terraform/live/org/gcp/_setup
       - /terraform/live/org/cloudflare

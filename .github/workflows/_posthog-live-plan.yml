@@ -31,7 +31,7 @@ permissions:
   id-token: write
 
 env:
-  TERRAFORM_VERSION: 1.16.6
+  TOFU_VERSION: 1.13.2
 
 jobs:
   plan:
@@ -76,11 +76,11 @@ jobs:
           echo "::add-mask::$PLAN_KEY"
           echo "POSTHOG_API_KEY=$PLAN_KEY" >> "$GITHUB_ENV"
 
-      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         if: steps.scope.outputs.relevant == 'true'
         with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-          terraform_wrapper: false
+          tofu_version: ${{ env.TOFU_VERSION }}
+          tofu_wrapper: false
 
       # No service account: the federated GitHub identity reads this stack's
       # state prefix directly (state_access.tf in org/gcp/_setup).
@@ -93,7 +93,7 @@ jobs:
       - name: Init
         if: steps.scope.outputs.relevant == 'true'
         working-directory: ${{ inputs.root }}
-        run: terraform init -lockfile=readonly -backend-config="bucket=${{ inputs.state_bucket }}"
+        run: tofu init -lockfile=readonly -backend-config="bucket=${{ inputs.state_bucket }}"
 
       # -lock=false: a plan writes no state, so it has no reason to take the
       # lock. See _gcp-live-plan.yml for the race that taking it caused.
@@ -109,9 +109,9 @@ jobs:
         run: |
           set -euo pipefail
           echo "::add-mask::$TF_VAR_organization_id"
-          "$GITHUB_WORKSPACE/.github/scripts/terraform/terraform-quiet.sh" plan.txt \
+          "$GITHUB_WORKSPACE/.github/scripts/terraform/tofu-quiet.sh" plan.txt \
             plan -no-color -input=false -lock=false -out=tfplan
-          "$GITHUB_WORKSPACE/.github/scripts/terraform/terraform-plan-summary.sh" tfplan \
+          "$GITHUB_WORKSPACE/.github/scripts/terraform/tofu-plan-summary.sh" tfplan \
             | tee summary.txt
 
       # Raw plan to the plan store (org/gcp/_setup/plan_store.tf), never an artifact.

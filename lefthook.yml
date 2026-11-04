@@ -17,9 +17,9 @@ pre-commit:
   commands:
     # Writes rather than checks: a formatter that only complains is a round
     # trip for something the tool can just do.
-    terraform-fmt:
+    tofu-fmt:
       glob: "*.tf"
-      run: terraform fmt -recursive terraform/
+      run: tofu fmt -recursive terraform/
       stage_fixed: true
 
     yamllint:
@@ -32,13 +32,13 @@ pre-push:
     # Every root, not only the changed ones. A module edit breaks roots whose
     # own files were untouched, which is the case a local check should catch —
     # CI already covers it, and finding out here is cheaper.
-    terraform-validate:
+    tofu-validate:
       run: |
         set -eu
         for dir in $(find terraform/live -name versions.tf -exec dirname {} \;); do
           echo "validate $dir"
-          terraform -chdir="$dir" init -backend=false -input=false >/dev/null
-          terraform -chdir="$dir" validate
+          tofu -chdir="$dir" init -backend=false -input=false >/dev/null
+          tofu -chdir="$dir" validate
         done
 
     trivy:

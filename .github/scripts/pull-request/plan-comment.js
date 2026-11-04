@@ -79,7 +79,7 @@ module.exports = async ({ github, context, core }) => {
     }
     const notice = cut ? '\n> Truncated.' : ''
     // Counted from the full plan, never from the truncated copy.
-    // Terraform prints `Plan: …` as its last line, so cutting the
+    // OpenTofu prints `Plan: …` as its last line, so cutting the
     // body removes exactly the summary a reviewer needs most — and
     // a large plan is the case where the cut happens.
     const m = s.plan.match(/Plan: (\d+) to add, (\d+) to change, (\d+) to destroy/)
@@ -115,7 +115,7 @@ module.exports = async ({ github, context, core }) => {
     ]
   }
 
-  const assemble = each => [MARKER, '## Terraform plan', '']
+  const assemble = each => [MARKER, '## OpenTofu plan', '']
     .concat(...loud.map(each))
     .concat(footer)
     .join('\n')

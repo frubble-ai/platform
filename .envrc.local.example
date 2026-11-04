@@ -1,7 +1,7 @@
 # Credentials for applying the _setup roots by hand.
 #
 # Copy to .envrc.local, fill in the one placeholder, and load it in any
-# terminal where you are about to run Terraform on a _setup root:
+# terminal where you are about to run OpenTofu on a _setup root:
 #
 #   source .envrc.local
 #
@@ -9,7 +9,7 @@
 # value.
 #
 # Why this file exists: environment variables live only in the terminal window
-# that created them. Open a new tab and they are gone, and Terraform falls back
+# that created them. Open a new tab and they are gone, and OpenTofu falls back
 # to whatever credential the machine has by default — which fails with a 403
 # naming an unrelated service account.
 #
@@ -89,7 +89,7 @@ if [ "$CLOUDFLARE_API_TOKEN" = "PASTE_THE_BOOTSTRAP_TOKEN_HERE" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 3. Prove both credentials before Terraform depends on them
+# 3. Prove both credentials before OpenTofu depends on them
 # ---------------------------------------------------------------------------
 _who="$(curl -s -H "Authorization: Bearer $GOOGLE_OAUTH_ACCESS_TOKEN" \
   https://www.googleapis.com/oauth2/v3/userinfo \

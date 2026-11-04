@@ -1,12 +1,23 @@
-# This file is maintained automatically by "terraform init".
+# This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
-provider "registry.terraform.io/posthog/posthog" {
+provider "registry.opentofu.org/posthog/posthog" {
   version     = "1.0.27"
   constraints = "~> 1.0"
   hashes = [
     "h1:/fJxp2Eou2bNURqZDY9pchupFanxS39K2fZrZY1xLV4=",
+    "h1:4rwYgGrVPnHNu0cHByksfc8uRcqPeOmDzSqB6SpuWu0=",
+    "h1:7Ua7espGiYvZSnaQv0FeEmKEOXwtrvGkSMZawrzfBgc=",
+    "h1:BW4pm299uHWnQP0NYvZ2XoTWpYtFZ5xILiTXXcyBKeI=",
+    "h1:MSOmTN1pVm19sBQ+uYivaKPsp1/EHi9k/Qar8ssJeTE=",
+    "h1:YwIvBnaQc2Si5+QVUNwSuLOeIDNQj4zENsoimZol9yU=",
+    "h1:YzMxJsRTohncXQzkHexlmxVY9EVSkcLz8Ta7RBietso=",
+    "h1:iKNWOFAECsRNlxKPqEGKQyVNPPyyNLpojz0K+XRGf4g=",
     "h1:lrcoo4wOSvYfgUdJzyb3lR0YrUqLrpK8D7LVqagjX1U=",
+    "h1:mamqMk4soj7X4zg/TKbzYPc95i6Qe13WJOoOtFQ+3yc=",
+    "h1:nnWdvA/BhRlBNnMNbdilyERX/6OH+EigfsvaZMQGIgw=",
+    "h1:qiqUi1Q4b312vItPVfyGisBK69y2soqoNIiL2Iwv928=",
+    "h1:ySErNZgeBdj2Zt+TGjf53Bb7pWoUgIF+NuTALVPLc1k=",
     "zh:24fc632dd2c174bcbe71f6c6b48e94a033d8643bf7d78b92731b1497c9ca0330",
     "zh:2afb139f5acbcc1adfa59cedb753a440ee74e364aa4f3cbd2c0775cee34cebea",
     "zh:4cc2dfa3088d4e141e7590ba81636557237bf05ae0bd8d93ab71953fb495b19b",
