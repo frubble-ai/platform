@@ -46,13 +46,15 @@ on:
         required: false
         type: string
         default: ""
-      stack_enabled:
+      stack_switch:
         description: >-
-          Whether the stack's switchable resources exist (TF_VAR_enabled). Only stg's roots
-          declare `enabled` (docs/stg-switch.md); a root that does not ignores it.
+          Raw value of the stack's on/off repository variable (STG_ENABLED), passed through
+          untouched. The run step sets TF_VAR_enabled from it: only the exact, lowercase
+          `false` is off; empty or anything else is on. Only stg's roots declare `enabled`
+          (docs/stg-switch.md); a root that does not ignores it.
         required: false
-        type: boolean
-        default: true
+        type: string
+        default: ""
 
 # No pull-requests: write. This workflow runs on unreviewed pull-request code
 # and does not comment — the aggregating job in live-plan.yml does, from the
@@ -146,13 +148,18 @@ jobs:
         shell: bash
         env:
           PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
-          TF_VAR_enabled: ${{ inputs.stack_enabled }}
+          STACK_SWITCH: ${{ inputs.stack_switch }}
           TF_VAR_project_id: ${{ inputs.project_id }}
           TF_VAR_management_state_bucket: ${{ inputs.management_state_bucket }}
           TF_VAR_spoke_service_account: ${{ inputs.spoke_service_account }}
           TF_VAR_composio_auth_config_ids: ${{ inputs.composio_auth_config_ids }}
         # Raw output to plan.txt only; summary.txt feeds the log and comment.
         run: |
+          # Resolved here, case-sensitively, not in an expression: Actions
+          # compares strings case-insensitively, so `!= 'false'` there would
+          # read FALSE as off (docs/stg-switch.md).
+          if [ "$STACK_SWITCH" = "false" ]; then export TF_VAR_enabled=false; else export TF_VAR_enabled=true; fi
+          echo "enabled: $TF_VAR_enabled"
           set -euo pipefail
           "$GITHUB_WORKSPACE/.github/scripts/terraform/tofu-quiet.sh" plan.txt \
             plan -no-color -input=false -lock=false -out=tfplan

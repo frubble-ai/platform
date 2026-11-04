@@ -28,9 +28,9 @@ jobs:
       environment: stg
       gh_environment: stg
       root: terraform/live/stg/gcp
-      # Off only when STG_ENABLED is false, in any letter case: Actions compares
-      # strings case-insensitively (docs/stg-switch.md).
-      stack_enabled: ${{ vars.STG_ENABLED != 'false' }}
+      # Raw: off only when STG_ENABLED is exactly `false`, resolved in the
+      # called workflow's shell (docs/stg-switch.md).
+      stack_switch: ${{ vars.STG_ENABLED }}
       project_id: ${{ vars.GCP_PROJECT_STG }}
       state_bucket: ${{ vars.STATE_BUCKET_STG }}
       management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
@@ -57,9 +57,9 @@ jobs:
       stack: stg
       gh_environment: stg
       root: terraform/live/stg/cloudflare
-      # Off only when STG_ENABLED is false, in any letter case: Actions compares
-      # strings case-insensitively (docs/stg-switch.md).
-      stack_enabled: ${{ vars.STG_ENABLED != 'false' }}
+      # Raw: off only when STG_ENABLED is exactly `false`, resolved in the
+      # called workflow's shell (docs/stg-switch.md).
+      stack_switch: ${{ vars.STG_ENABLED }}
       state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
       workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
       audience: ${{ vars.GCP_WIF_AUDIENCE }}
