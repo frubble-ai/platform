@@ -12,6 +12,10 @@ module "armor" {
 
   # No preconfigured rule sets for now; each is a monthly line item and the
   # API has no public input to protect yet. Add them here, in preview first.
+
+  lifecycle {
+    enabled = var.enabled
+  }
 }
 
 module "load_balancer" {
@@ -34,6 +38,10 @@ module "load_balancer" {
       region  = var.region
       host    = module.shared.app_hostname
     }
+  }
+
+  lifecycle {
+    enabled = var.enabled
   }
 }
 

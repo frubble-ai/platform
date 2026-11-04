@@ -16,7 +16,10 @@
 # plan.
 locals {
   handoff_prefix = "${module.shared.environment}/cloudflare/handoff/"
-  hosts          = keys(module.load_balancer.dns_authorization_records)
+  # Nothing while stg is switched off: the object below is deleted with the
+  # load balancer, and the Cloudflare root, finding no handoff, drops the
+  # records that pointed at it.
+  hosts = var.enabled ? keys(module.load_balancer.dns_authorization_records) : []
 }
 
 data "google_storage_bucket_objects" "previous_handoff" {
@@ -45,10 +48,10 @@ locals {
   ])
   published_hosts = sort(distinct(concat(
     [for host in local.previously_published : host if contains(local.hosts, host)],
-    module.load_balancer.serving_hosts,
+    var.enabled ? module.load_balancer.serving_hosts : [],
   )))
 
-  handoff_content = jsonencode({
+  handoff_content = !var.enabled ? null : jsonencode({
     load_balancer_ip               = module.load_balancer.ip_address
     certificate_dns_authorization  = module.load_balancer.dns_authorization_records["api"]
     certificate_dns_authorizations = module.load_balancer.dns_authorization_records
@@ -64,5 +67,6 @@ resource "google_storage_bucket_object" "cloudflare_handoff" {
 
   lifecycle {
     create_before_destroy = true
+    enabled               = var.enabled
   }
 }

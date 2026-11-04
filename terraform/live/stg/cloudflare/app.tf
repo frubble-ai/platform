@@ -11,7 +11,6 @@ locals {
 
 module "app" {
   source = "../../../modules/cloudflare/dns-record"
-  count  = contains(local.published_hosts, "app") ? 1 : 0
 
   zone_id  = var.zone_id
   hostname = module.shared.app_hostname
@@ -19,11 +18,14 @@ module "app" {
   target   = local.gcp.load_balancer_ip
   proxied  = false
   comment  = "frubble ${module.shared.environment} app — managed by terraform"
+
+  lifecycle {
+    enabled = var.enabled && contains(local.published_hosts, "app")
+  }
 }
 
 module "app_certificate_authorization" {
   source = "../../../modules/cloudflare/dns-record"
-  count  = local.app_authorization == null ? 0 : 1
 
   zone_id  = var.zone_id
   hostname = trimsuffix(local.app_authorization.name, ".")
@@ -31,4 +33,8 @@ module "app_certificate_authorization" {
   target   = trimsuffix(local.app_authorization.data, ".")
   proxied  = false
   comment  = "frubble ${module.shared.environment} app certificate authorization — managed by terraform"
+
+  lifecycle {
+    enabled = local.app_authorization != null
+  }
 }

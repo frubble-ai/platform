@@ -61,6 +61,10 @@ module "worker_service" {
     module.secrets,
     google_secret_manager_secret_iam_member.worker_reads,
   ]
+
+  lifecycle {
+    enabled = var.enabled
+  }
 }
 
 resource "google_cloud_run_v2_service_iam_member" "push_invokes_worker" {
@@ -69,6 +73,10 @@ resource "google_cloud_run_v2_service_iam_member" "push_invokes_worker" {
   name     = module.worker_service.name
   role     = "roles/run.invoker"
   member   = "serviceAccount:${local.setup.push_service_account}"
+
+  lifecycle {
+    enabled = var.enabled
+  }
 }
 
 module "emails_queue" {
@@ -81,6 +89,10 @@ module "emails_queue" {
   publisher_member           = "serviceAccount:${local.setup.api_service_account}"
   service_agent_member       = google_project_service_identity.pubsub.member
   labels                     = merge(local.labels, { component = "queue" })
+
+  lifecycle {
+    enabled = var.enabled
+  }
 }
 
 # A message on the dead-letter subscription is an email that never went out:
@@ -124,5 +136,9 @@ resource "google_monitoring_alert_policy" "emails_dead_lettered" {
 
   alert_strategy {
     auto_close = "86400s"
+  }
+
+  lifecycle {
+    enabled = var.enabled
   }
 }

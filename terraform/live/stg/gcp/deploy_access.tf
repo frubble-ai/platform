@@ -7,6 +7,10 @@ resource "google_artifact_registry_repository_iam_member" "deploy_pushes" {
   repository = module.registry.name
   role       = "roles/artifactregistry.writer"
   member     = "serviceAccount:${local.setup.deploy_spoke}"
+
+  lifecycle {
+    enabled = var.enabled
+  }
 }
 
 # run.developer on the service lets the deploy create a revision, and also
@@ -20,6 +24,10 @@ resource "google_cloud_run_v2_service_iam_member" "deploy_rolls_out_api" {
   name     = module.api_service.name
   role     = "roles/run.developer"
   member   = "serviceAccount:${local.setup.deploy_spoke}"
+
+  lifecycle {
+    enabled = var.enabled
+  }
 }
 
 # The deploy updates the job's image and executes it before rolling the
@@ -30,6 +38,10 @@ resource "google_cloud_run_v2_job_iam_member" "deploy_runs_migrate" {
   name     = module.migrate_job.name
   role     = "roles/run.developer"
   member   = "serviceAccount:${local.setup.deploy_spoke}"
+
+  lifecycle {
+    enabled = var.enabled
+  }
 }
 
 resource "google_cloud_run_v2_service_iam_member" "deploy_rolls_out_worker" {
@@ -38,6 +50,10 @@ resource "google_cloud_run_v2_service_iam_member" "deploy_rolls_out_worker" {
   name     = module.worker_service.name
   role     = "roles/run.developer"
   member   = "serviceAccount:${local.setup.deploy_spoke}"
+
+  lifecycle {
+    enabled = var.enabled
+  }
 }
 
 resource "google_cloud_run_v2_service_iam_member" "deploy_rolls_out_app" {
@@ -46,4 +62,8 @@ resource "google_cloud_run_v2_service_iam_member" "deploy_rolls_out_app" {
   name     = module.app_service.name
   role     = "roles/run.developer"
   member   = "serviceAccount:${local.setup.deploy_spoke}"
+
+  lifecycle {
+    enabled = var.enabled
+  }
 }

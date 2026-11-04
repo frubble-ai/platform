@@ -37,6 +37,7 @@ locals {
     for producer, object in data.google_storage_bucket_object_content.handoff :
     producer => jsondecode(object.content)
   }
-  gcp     = lookup(local.handoff, "gcp", null)
+  # Read as absent while stg is switched off, whatever handoff is still listed.
+  gcp     = var.enabled ? lookup(local.handoff, "gcp", null) : null
   mailgun = lookup(local.handoff, "mailgun", null)
 }

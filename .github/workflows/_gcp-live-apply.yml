@@ -41,6 +41,15 @@ on:
         required: false
         type: string
         default: ""
+      stack_switch:
+        description: >-
+          Raw value of the stack's on/off repository variable (STG_ENABLED), passed through
+          untouched. The run step sets TF_VAR_enabled from it: only the exact, lowercase
+          `false` is off; empty or anything else is on. Only stg's roots declare `enabled`
+          (docs/stg-switch.md); a root that does not ignores it.
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -136,11 +145,28 @@ jobs:
         shell: bash
         env:
           PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
+          STACK_SWITCH: ${{ inputs.stack_switch }}
+          STG_ENABLED_NOW: ${{ vars.STG_ENABLED }}
           TF_VAR_project_id: ${{ inputs.project_id }}
           TF_VAR_management_state_bucket: ${{ inputs.management_state_bucket }}
           TF_VAR_spoke_service_account: ${{ inputs.spoke_service_account }}
           TF_VAR_composio_auth_config_ids: ${{ inputs.composio_auth_config_ids }}
         run: |
+          # Resolved here, case-sensitively, not in an expression: Actions
+          # compares strings case-insensitively, so `!= 'false'` there would
+          # read FALSE as off (docs/stg-switch.md).
+          if [ "$STACK_SWITCH" = "false" ]; then export TF_VAR_enabled=false; else export TF_VAR_enabled=true; fi
+          echo "enabled: $TF_VAR_enabled"
+          # A re-run reuses this run's switch value, but STG_ENABLED may have
+          # changed since: refuse rather than apply the old direction. Only
+          # stg's callers pass stack_switch (docs/stg-switch.md).
+          if [ -n "$STACK_SWITCH" ]; then
+            now=$([ "$STG_ENABLED_NOW" = "false" ] && echo false || echo true)
+            if [ "$now" != "$TF_VAR_enabled" ]; then
+              echo "::error::STG_ENABLED now reads stg as $now, but this run was started for $TF_VAR_enabled. Start a new stg-cd run."
+              exit 1
+            fi
+          fi
           set -euo pipefail
           scripts="$GITHUB_WORKSPACE/.github/scripts/terraform"
           "$scripts/tofu-quiet.sh" plan.txt \

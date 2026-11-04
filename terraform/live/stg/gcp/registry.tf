@@ -9,4 +9,8 @@ module "registry" {
 
   # Enough to roll back past a bad week of deploys.
   keep_recent_versions = 30
+
+  lifecycle {
+    enabled = var.enabled
+  }
 }

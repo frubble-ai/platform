@@ -34,6 +34,9 @@ jobs:
     with:
       environment: stg
       root: terraform/live/stg/gcp
+      # Raw: off only when STG_ENABLED is exactly `false`, resolved in the
+      # called workflow's shell (docs/stg-switch.md).
+      stack_switch: ${{ vars.STG_ENABLED }}
       project_id: ${{ vars.GCP_PROJECT_STG }}
       state_bucket: ${{ vars.STATE_BUCKET_STG }}
       management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
@@ -118,6 +121,9 @@ jobs:
     with:
       stack: stg
       root: terraform/live/stg/cloudflare
+      # Raw: off only when STG_ENABLED is exactly `false`, resolved in the
+      # called workflow's shell (docs/stg-switch.md).
+      stack_switch: ${{ vars.STG_ENABLED }}
       state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
       workload_identity_provider: ${{ vars.GCP_PLAN_PROVIDER }}
       audience: ${{ vars.GCP_WIF_AUDIENCE }}

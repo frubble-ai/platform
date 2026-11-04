@@ -8,4 +8,8 @@ module "alerts" {
   url_map_name  = module.load_balancer.url_map_name
   max_instances = module.api_service.max_instances
   labels        = merge(local.labels, { component = "alerts" })
+
+  lifecycle {
+    enabled = var.enabled
+  }
 }

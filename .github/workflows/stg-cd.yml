@@ -21,13 +21,74 @@ permissions:
   actions: read
 
 jobs:
+  # Whether stg is on, resolved once, case-sensitively, in a shell step:
+  # Actions expressions compare strings case-insensitively, so only the exact,
+  # lowercase `false` is off (docs/stg-switch.md). It also picks the order:
+  # on builds GCP before Cloudflare, off removes the DNS records first.
+  switch:
+    name: read STG_ENABLED
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      enabled: ${{ steps.switch.outputs.enabled }}
+    steps:
+      - id: switch
+        env:
+          STG_ENABLED: ${{ vars.STG_ENABLED }}
+        run: |
+          if [ "$STG_ENABLED" = "false" ]; then enabled=false; else enabled=true; fi
+          echo "enabled=$enabled" >> "$GITHUB_OUTPUT"
+          echo "stg enabled: $enabled"
+
+  # Off only, and first: the stg A records and certificate authorizations go
+  # before the GCP apply releases the load balancer's address, so no public
+  # name is left pointing at an address stg no longer holds. It doesn't wait
+  # for GCP or Mailgun, so neither failing can hold it up.
+  cloudflare-off:
+    name: remove stg cloudflare records
+    needs: switch
+    if: ${{ needs.switch.outputs.enabled == 'false' }}
+    uses: ./.github/workflows/_cloudflare-live-apply.yml
+    with:
+      stack: stg
+      gh_environment: stg
+      root: terraform/live/stg/cloudflare
+      stack_switch: ${{ needs.switch.outputs.enabled }}
+      state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    secrets:
+      CLOUDFLARE_MINT_TOKEN: ${{ secrets.CLOUDFLARE_MINT_TOKEN }}
+    permissions:
+      contents: read
+      id-token: write
+
+  # Off only: resolvers may keep serving the removed A records for their TTL
+  # (300 s, DNS-only records; modules/cloudflare/dns-record), so the address
+  # is held a little longer than that before the GCP apply releases it.
+  dns-ttl:
+    name: wait out the stg DNS TTL
+    needs: cloudflare-off
+    if: ${{ needs.cloudflare-off.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions: {}
+    timeout-minutes: 10
+    steps:
+      - run: sleep 330
+
+  # Off: only once the DNS records are gone and their TTL has run out (a
+  # failed removal stops here, with the address still held). On: straight
+  # away.
   gcp:
     name: apply stg gcp
+    needs: [switch, cloudflare-off, dns-ttl]
+    if: ${{ !cancelled() && needs.switch.result == 'success' && (needs.switch.outputs.enabled == 'true' || (needs.cloudflare-off.result == 'success' && needs.dns-ttl.result == 'success')) }}
     uses: ./.github/workflows/_gcp-live-apply.yml
     with:
       environment: stg
       gh_environment: stg
       root: terraform/live/stg/gcp
+      stack_switch: ${{ needs.switch.outputs.enabled }}
       project_id: ${{ vars.GCP_PROJECT_STG }}
       state_bucket: ${{ vars.STATE_BUCKET_STG }}
       management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
@@ -41,19 +102,21 @@ jobs:
       id-token: write
       actions: read
 
-  # After the GCP and Mailgun applies: it reads what they hand off
-  # (docs/crossing-roots.md), so one run registers a domain and publishes its
-  # records. A skipped Mailgun job is fine, a failed one is not: the handoff
-  # it would have rewritten may be stale.
+  # On only (off ran cloudflare-off first). After the GCP and Mailgun
+  # applies: it reads what they hand off (docs/crossing-roots.md), so one run
+  # registers a domain and publishes its records. A skipped Mailgun job is
+  # fine, a failed one is not: the handoff it would have rewritten may be
+  # stale.
   cloudflare:
     name: apply stg cloudflare
-    needs: [gcp, mailgun]
-    if: ${{ !cancelled() && needs.gcp.result == 'success' && contains(fromJSON('["success", "skipped"]'), needs.mailgun.result) }}
+    needs: [switch, gcp, mailgun]
+    if: ${{ !cancelled() && needs.switch.outputs.enabled == 'true' && needs.gcp.result == 'success' && contains(fromJSON('["success", "skipped"]'), needs.mailgun.result) }}
     uses: ./.github/workflows/_cloudflare-live-apply.yml
     with:
       stack: stg
       gh_environment: stg
       root: terraform/live/stg/cloudflare
+      stack_switch: ${{ needs.switch.outputs.enabled }}
       state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
       workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
       audience: ${{ vars.GCP_WIF_AUDIENCE }}
