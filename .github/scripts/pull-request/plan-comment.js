@@ -17,8 +17,8 @@ module.exports = async ({ github, context, core }) => {
   // read in: environments first, then the edge, the SaaS roots, then
   // the _setup roots.
   const STACKS = [
-    'gcp-stg', 'gcp-prd',
-    'cloudflare-org', 'cloudflare-stg', 'cloudflare-prd',
+    'gcp-dev', 'gcp-stg', 'gcp-prd',
+    'cloudflare-org', 'cloudflare-dev', 'cloudflare-stg', 'cloudflare-prd',
     'posthog-org',
     'setup-org', 'setup-dev', 'setup-stg', 'setup-prd',
   ]

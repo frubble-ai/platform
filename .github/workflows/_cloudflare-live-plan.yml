@@ -8,7 +8,7 @@ on:
         type: boolean
         default: true
       stack:
-        description: org, stg or prd — names the plan artifact and the state prefix.
+        description: org, dev, stg or prd — names the plan artifact and the state prefix.
         required: true
         type: string
       root:

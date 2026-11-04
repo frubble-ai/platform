@@ -1,0 +1,99 @@
+name: dev-cd
+
+# The dev applies, in the order stg-cd runs them: GCP, then Mailgun, then
+# Cloudflare, which reads what the other two hand off (docs/crossing-roots.md).
+# A copy of stg-cd with dev's own project, spokes, state bucket, Composio auth
+# configs and GitHub environment, whose secrets are dev's own: its Cloudflare
+# mint token and Mailgun key (docs/dev-environment.md). Behind the repository
+# variable TF_APPLY_ENABLE_DEV until dev is bootstrapped; unset, every job
+# reports as skipped.
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+# cancel-in-progress stays false, which also means a run that is merely queued
+# is replaced by a newer one. That is the behaviour we want: superseding work
+# that has not started costs nothing, interrupting an apply that has started
+# leaves a held lock and half-changed infrastructure.
+concurrency:
+  group: dev-cd
+  cancel-in-progress: false
+
+# actions: read is for the wait on setup-cd inside _gcp-live-apply.yml; a
+# called workflow can hold no token permission its caller did not pass.
+permissions:
+  contents: read
+  id-token: write
+  actions: read
+
+jobs:
+  gcp:
+    name: apply dev gcp
+    if: vars.TF_APPLY_ENABLE_DEV == 'true'
+    uses: ./.github/workflows/_gcp-live-apply.yml
+    with:
+      environment: dev
+      gh_environment: dev
+      root: terraform/live/dev/gcp
+      project_id: ${{ vars.GCP_PROJECT_DEV }}
+      state_bucket: ${{ vars.STATE_BUCKET_DEV }}
+      management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      spoke_service_account: ${{ vars.GCP_APPLY_SPOKE_DEV }}
+      service_account: ${{ vars.GCP_APPLY_HUB_DEV }}
+      workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+      composio_auth_config_ids: ${{ vars.COMPOSIO_AUTH_CONFIG_IDS_DEV }}
+    permissions:
+      contents: read
+      id-token: write
+      actions: read
+
+  # After the GCP and Mailgun applies: it reads what they hand off
+  # (docs/crossing-roots.md), so one run registers a domain and publishes its
+  # records. A skipped Mailgun job is fine, a failed one is not: the handoff
+  # it would have rewritten may be stale.
+  cloudflare:
+    name: apply dev cloudflare
+    needs: [gcp, mailgun]
+    if: >-
+      ${{ !cancelled() && needs.gcp.result == 'success'
+      && contains(fromJSON('["success", "skipped"]'), needs.mailgun.result) }}
+    uses: ./.github/workflows/_cloudflare-live-apply.yml
+    with:
+      stack: dev
+      gh_environment: dev
+      root: terraform/live/dev/cloudflare
+      state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    secrets:
+      CLOUDFLARE_MINT_TOKEN: ${{ secrets.CLOUDFLARE_MINT_TOKEN }}
+    permissions:
+      contents: read
+      id-token: write
+
+  # After the GCP apply, before the Cloudflare one: the GCP job is the one
+  # that waits for setup-cd, and the grant that lets this identity write its
+  # handoff is a _setup root's. Off until the admin key is in this environment
+  # and MAILGUN_ENABLED is true (docs/getting-started.md). No pull-request plan
+  # exists for this root (docs/email.md): the plan this job makes before
+  # applying is the only one.
+  mailgun:
+    name: apply dev mailgun
+    needs: gcp
+    if: ${{ !cancelled() && needs.gcp.result == 'success' && vars.MAILGUN_ENABLED == 'true' }}
+    uses: ./.github/workflows/_mailgun-live-apply.yml
+    with:
+      stack: dev
+      gh_environment: dev
+      root: terraform/live/dev/mailgun
+      state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    secrets:
+      MAILGUN_APPLY_API_KEY: ${{ secrets.MAILGUN_APPLY_API_KEY }}
+    permissions:
+      contents: read
+      id-token: write

@@ -1,7 +1,7 @@
 # Email
 
-Mail goes out through Mailgun, in the shape every provider here has. `stg/mailgun` and
-`prd/mailgun` each register one sending domain, their state in the management bucket under
+Mail goes out through Mailgun, in the shape every provider here has. `stg/mailgun`,
+`dev/mailgun` and `prd/mailgun` each register one sending domain, their own, their state in the management bucket under
 `<env>/mailgun/`. `org/mailgun/_setup` mints one sending key per domain (role `sending`,
 scoped to that domain, the worker's only credential) and writes it into the environment's
 `email/api-key` secret through a write-only attribute, so no key is printed or copied and
@@ -15,7 +15,8 @@ remove the old one; the root's comment spells the steps. Changing a sending doma
 same way: the worker that `stg-cd` rolls onto the new domain still holds the old domain's
 key until it is rolled once more after `mailgun-setup-cd` has written the new one. The credential both
 use is the account's admin key, made once in the Mailgun dashboard and held as
-`MAILGUN_APPLY_API_KEY` by the `stg` and `setup` environments: Mailgun has no narrower role
+`MAILGUN_APPLY_API_KEY` by the `stg` and `setup` environments (and `dev`, which holds an
+admin-role key of its own, never stg's): Mailgun has no narrower role
 that creates domains or keys, so there is nothing to mint for CI, unlike Cloudflare. There
 is no `org/mailgun` live root: the account holds nothing shared that the provider manages.
 

@@ -15,7 +15,7 @@ Composio's project API key has no root that writes it: after the apply, add the 
 then roll the API so its next revision reads it.
 
 ```sh
-ENV=stg  # or prd
+ENV=stg  # or dev, or prd
 read -rs KEY && [ -n "$KEY" ] && printf '%s' "$KEY" |
   gcloud secrets versions add "frubble_${ENV}_composio_api-key" --data-file=- --project "frubble-${ENV}"
 ```

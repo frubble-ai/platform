@@ -20,7 +20,7 @@ stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_i
 `BACKEND_REPOSITORY` (`backend_repository`), and this repository's owner and name
 (`github_owner`, `platform_repository`). `gh variable list` prints them.
 
-The workload roots read one of their own: `COMPOSIO_AUTH_CONFIG_IDS_STG` and `_PRD`
+The workload roots read one of their own: `COMPOSIO_AUTH_CONFIG_IDS_STG`, `_DEV` and `_PRD`
 (`composio_auth_config_ids`), the API's Composio auth configs as `provider=id` pairs separated by
 commas (`github=ac_…,linear=ac_…`). A new provider is one more pair; a variable change starts
 no workflow, so run the environment's CD by hand after editing it.
