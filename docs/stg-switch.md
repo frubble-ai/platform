@@ -40,7 +40,10 @@ migrations. To keep data across a switch, export it before switching off
 
 1. `gh variable set STG_ENABLED --body false --repo frubble-ai/platform`
 2. Actions, `stg-switch`, `state: off` (frubble-ai's members only). It checks the
-   variable and starts `stg-cd`. Running `stg-cd` by hand does the same.
+   variable and starts `stg-cd`. Running `stg-cd` by hand does the same. Off runs in
+   the reverse order of on: `stg/cloudflare` removes the DNS records first, without
+   waiting on GCP or Mailgun, and `stg/gcp` releases the load balancer's address only
+   after that succeeded, so no public name points at an address stg no longer holds.
 3. Read the plan: only the resources above, destroyed. Nothing in `_setup`, nothing
    in mailgun.
 
