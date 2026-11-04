@@ -55,6 +55,28 @@ jobs:
       contents: read
       id-token: write
 
+  # dev joins once its project exists: GCP_PROJECT_DEV is set after the org
+  # apply that creates it (docs/dev-environment.md). GCP_SETUP_DISABLE_DEV
+  # pauses this job without dropping dev from the org root's project map.
+  dev:
+    name: apply dev setup
+    needs: org
+    if: vars.GCP_PROJECT_DEV != '' && vars.GCP_SETUP_DISABLE_DEV != 'true'
+    uses: ./.github/workflows/_setup-apply.yml
+    with:
+      stack: dev
+      gh_environment: setup
+      root: terraform/live/dev/gcp/_setup
+      project_id: ${{ vars.GCP_PROJECT_DEV }}
+      management_project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
+      management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      service_account: ${{ vars.GCP_BOOTSTRAP_SERVICE_ACCOUNT }}
+      workload_identity_provider: ${{ vars.GCP_APPLY_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    permissions:
+      contents: read
+      id-token: write
+
   stg:
     name: apply stg setup
     needs: org

@@ -20,7 +20,7 @@ module.exports = async ({ github, context, core }) => {
     'gcp-stg', 'gcp-prd',
     'cloudflare-org', 'cloudflare-stg', 'cloudflare-prd',
     'posthog-org',
-    'setup-org', 'setup-stg', 'setup-prd',
+    'setup-org', 'setup-dev', 'setup-stg', 'setup-prd',
   ]
   const label = key => {
     const [provider, env] = key.split('-')
