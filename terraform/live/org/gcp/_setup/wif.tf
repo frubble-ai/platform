@@ -88,18 +88,25 @@ resource "google_iam_workload_identity_pool_provider" "apply" {
       "assertion.ref",
     ])
 
-    # The same claims with the branch collapsed to a class: any branch reads
-    # `branch`, anything else (a tag, a pull request's merge ref) keeps its
-    # ref, so it can never match. Only dev's deploy trust names it, so dev
-    # can deploy whatever branch it is run from; the run still has to be the
-    # named workflow file in the named GitHub environment of the named
-    # repository. Every other hub binds apply_entry, exact ref included, and
-    # adding this changes nothing for them.
+    # The same claims with the branch collapsed to a class, and the person
+    # who started the run: any branch reads `branch`, anything else (a tag, a
+    # pull request's merge ref) keeps its ref, so it can never match; then
+    # the numeric GitHub id of the run's actor, which unlike the login cannot
+    # be renamed or re-registered. Only dev's deploy trust names it, so dev
+    # can deploy whatever branch it is run from, by the people that trust
+    # lists; the run still has to be the named workflow file in the named
+    # GitHub environment of the named repository. Every other hub binds
+    # apply_entry, exact ref included, and adding this changes nothing for
+    # them.
     "attribute.deploy_entry" = join("", [
       "assertion.repository + '|' + ",
       "assertion.job_workflow_ref.split('@')[0] + '|' + ",
       "assertion.environment + '|' + ",
-      "(assertion.ref.startsWith('refs/heads/') ? 'branch' : assertion.ref)",
+      "(assertion.ref.startsWith('refs/heads/') ? 'branch' : assertion.ref) + '|' + ",
+      # Guarded, since a mapping that fails fails every exchange on this
+      # provider, stg's and prd's included: without the claim it is empty
+      # and matches nothing.
+      "(has(assertion.actor_id) ? assertion.actor_id : '')",
     ])
   }
 

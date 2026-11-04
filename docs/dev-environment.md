@@ -147,7 +147,10 @@ The application (frubble-ai/app), not this repository
     can be deployed to dev before it merges, and `db-reset.yml` in `backend-dev` from the
     `dev` branch only. The `backend-dev` and `app-dev` environments must therefore accept
     deployments from all branches; the workflows keep a run from `stg` (or `prd`) out of
-    them. A tag or a pull request's merge ref is never trusted.
+    them. A tag or a pull request's merge ref is never trusted, and only a run whose
+    actor is one of the organization members listed by GitHub id in `dev_deployers`
+    (`dev/gcp/trust.tf`) is: when someone joins or leaves frubble-ai, change that list
+    (`gh api orgs/frubble-ai/members --jq '.[] | "\(.login) \(.id)"'`).
     The app repository needs those environments (variables from the dev outputs, as
     `backend-stg` and `app-stg` have; `GCP_DEPLOY_HUB` is the full email from
     org/gcp/_setup's `backend_deploy_hubs["dev"]` output,
