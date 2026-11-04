@@ -40,6 +40,7 @@ no workflow, so run the environment's CD by hand after editing it.
    Mailgun admin key as `MAILGUN_APPLY_API_KEY` on `setup` and on every environment that
    applies a mailgun root: `stg` today, `prd` before `TF_APPLY_ENABLE_PRD` is turned on,
    since `MAILGUN_ENABLED` is one switch for both and a prd apply without its key fails.
+   `dev` holds the admin key of its own Mailgun account instead (dev-environment.md).
 5. Email, in this order, since each step needs the one before: set the repository variable
    `MAILGUN_ENABLED` to `true` (a repository variable, not an environment one: the jobs it
    gates read it before any environment is attached) and run `stg-cd` by hand

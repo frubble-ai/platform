@@ -15,10 +15,19 @@ remove the old one; the root's comment spells the steps. Changing a sending doma
 same way: the worker that `stg-cd` rolls onto the new domain still holds the old domain's
 key until it is rolled once more after `mailgun-setup-cd` has written the new one. The credential both
 use is the account's admin key, made once in the Mailgun dashboard and held as
-`MAILGUN_APPLY_API_KEY` by the `stg` and `setup` environments (and `dev`, which holds an
-admin-role key of its own, never stg's): Mailgun has no narrower role
+`MAILGUN_APPLY_API_KEY` by the `stg` and `setup` environments: Mailgun has no narrower role
 that creates domains or keys, so there is nothing to mint for CI, unlike Cloudflare. There
 is no `org/mailgun` live root: the account holds nothing shared that the provider manages.
+
+dev is the exception to all of that: `dev.frubble.ai` lives in a Mailgun account of its
+own (the main account's plan allows one custom domain, which is stg's), so nothing of dev's
+is in the main account and `org/mailgun/_setup` never sees dev. dev's `MAILGUN_APPLY_API_KEY`
+is that account's admin key, and `dev/mailgun` mints dev's sending key itself
+(`sending_key.tf`, the same generations and the same write-only secret version as the setup
+root) in the `dev-cd` run that registers the domain. Its federated identity may add and
+destroy versions of `frubble_dev_email_api-key` and read none (`dev/gcp`'s `secrets.tf`).
+The key is in `dev/mailgun`'s state, which only that identity and the bootstrap admin read,
+and that identity already holds the account's admin key. dev-environment.md has the account.
 
 The three roots are the exception to "planned on every pull request". Mailgun has no
 read-only key: even its least role reads stored messages and logs, so a plan key would be a

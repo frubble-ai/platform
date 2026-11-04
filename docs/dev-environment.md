@@ -5,7 +5,8 @@ spokes and deploy hub; its own hostnames under the shared zone (`api.dev.frubble
 `app.dev.frubble.ai`); its own Mailgun sending domain (`dev.frubble.ai`) with its own
 sending key, SPF, DKIM and DMARC; its own Composio project key and auth configs; and its
 own GitHub environment, `dev`, holding its own Cloudflare mint token and Mailgun key.
-Nothing in dev reads or sends with anything of stg's. The names come from
+Its Mailgun is a separate account too (below). Nothing in dev reads or sends with
+anything of stg's. The names come from
 `modules/naming` (shared-values.md), so nothing below spells them.
 
 It lands as four pull requests, each applied before the next is merged, because each
@@ -16,7 +17,7 @@ needs what the one before created:
 | 1  | `org/gcp/_setup` and `organization-member-access` learn about dev: the project, its plan and apply hubs, its deploy hub, its state and handoff grants, human access | `setup-cd` (org), `organization-member-access-cd` |
 | 2  | `dev/gcp/_setup`: state bucket, keys, spokes, runtime identities, deny policies | `setup-cd` (dev) |
 | 3  | `dev/shared`, `dev/gcp`, `dev/cloudflare`, `dev/mailgun`, `dev-cd`, the dev plans | `dev-cd` |
-| 4  | `org/mailgun/_setup` keys `dev.frubble.ai` and writes its secret | `mailgun-setup-cd` |
+| 4  | `dev/mailgun` mints dev's sending key in dev's Mailgun account and writes its secret; `dev/gcp` lets it | `dev-cd` |
 
 The switches, all repository variables, none set until its step:
 
@@ -27,6 +28,26 @@ The switches, all repository variables, none set until its step:
   nothing) and the dev `setup-cd` job. dev stays in `environment_projects`.
 - `TF_PLAN_ENABLE_DEV`: the dev GCP and Cloudflare plans on pull requests.
 - `TF_APPLY_ENABLE_DEV`: `dev-cd`.
+
+## dev's Mailgun account
+
+`dev.frubble.ai` is not in the main Mailgun account (`platform+mailgun@frubble.ai`): that
+account's plan allows one custom domain, and it is stg's. dev has a free account of its
+own:
+
+- Login: `platform+mailgun-dev@frubble.ai`, in Bitwarden as `Mailgun - Frubble dev`. US
+  region. Activating it took a mobile number (Mailgun's anti-abuse check).
+- Free plan: 100 emails a day, one custom domain (`dev.frubble.ai`) beside the sandbox
+  domain, no dedicated IP, short log retention. Enough for dev's sign-up and reset codes;
+  a dev load test would hit the daily cap. Moving to a paid plan is a dashboard change and
+  nothing in this repository.
+- Its admin key, named for dev terraform apply, is dev's `MAILGUN_APPLY_API_KEY`, in
+  Bitwarden as `Mailgun API key - dev terraform apply (dev account)`. It is the account's
+  only credential CI holds: `dev/mailgun` registers the domain and mints the worker's
+  sending key with it (email.md). The sending key itself is in no vault: it goes from
+  Mailgun straight into `frubble_dev_email_api-key`.
+- `org/mailgun/_setup`, `mailgun-setup-cd` and the `setup` environment's key are the main
+  account's and know nothing of dev.
 
 ## Bootstrap, in order
 
@@ -40,8 +61,9 @@ Before PR 1 merges
 3. In `dev`, add its own secrets, made fresh for dev and never copied from `stg`:
    - `CLOUDFLARE_MINT_TOKEN`: a new account token from the Create Additional Tokens
      template (Manage Account → API Tokens), as for stg (org/cloudflare/_setup).
-   - `MAILGUN_APPLY_API_KEY`: a new Mailgun key with the admin role, named for dev, in
-     the same account. Mailgun has no narrower role that creates domains (email.md).
+   - `MAILGUN_APPLY_API_KEY`: the admin-role key of dev's own Mailgun account (see dev's
+     Mailgun account above), never the main account's. Mailgun has no narrower role
+     that creates domains (email.md).
 
 PR 1, then
 
@@ -95,8 +117,8 @@ Before PR 3 merges
 PR 3, then
 
 13. Set `TF_APPLY_ENABLE_DEV=true` and merge. `dev-cd` applies GCP, then Mailgun
-    (registers `dev.frubble.ai` and hands its DKIM over, since `MAILGUN_ENABLED` is
-    already true), then Cloudflare (SPF, DMARC, DKIM, the certificate authorizations).
+    (registers `dev.frubble.ai` in dev's own Mailgun account and hands its DKIM over,
+    since `MAILGUN_ENABLED` is already true), then Cloudflare (SPF, DMARC, DKIM, the certificate authorizations).
 14. Run `dev-cd` by hand a few minutes later, once the certificates are issued, so the
     A records of `api.dev` and `app.dev` are published (crossing-roots.md).
 15. Add dev's Composio project API key (secrets.md), into the project chosen in step 1
@@ -104,14 +126,17 @@ PR 3, then
     `PROJECT="$(gh variable get GCP_PROJECT_DEV)"`, then
     `read -rs KEY && [ -n "$KEY" ] && printf '%s' "$KEY" | gcloud secrets versions add frubble_dev_composio_api-key --data-file=- --project "$PROJECT"`,
     and roll the API.
-16. Check `dev.frubble.ai` shows as verified in the Mailgun dashboard (SPF and DKIM
-    published by step 13).
+16. Check `dev.frubble.ai` shows as verified in dev's Mailgun dashboard (signed in as
+    `Mailgun - Frubble dev`; SPF and DKIM published by step 13).
 
 PR 4, then
 
-17. Merge after step 13: the domain must exist before a key can be scoped to it.
-    `mailgun-setup-cd` waits for `dev-cd`, mints dev's sending key and writes it into
-    `frubble_dev_email_api-key`; roll the dev worker so it reads it.
+17. Merge after step 13. `dev-cd`'s GCP job grants dev's Mailgun identity the right to
+    write versions of `frubble_dev_email_api-key` (`Plan dev` shows that one binding),
+    then its Mailgun job mints dev's sending key in dev's account, scoped to
+    `dev.frubble.ai`, and writes it into that secret. `mailgun-setup-cd` does not run for
+    it. If the Mailgun job fails with a 403 on the secret, the binding had not
+    propagated yet: re-run the failed job. Roll the dev worker so it reads the key.
 
 The application (frubble-ai/app), not this repository
 
