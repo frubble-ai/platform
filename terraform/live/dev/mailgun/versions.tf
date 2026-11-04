@@ -6,7 +6,8 @@ terraform {
       source  = "wgebis/mailgun"
       version = "~> 0.10"
     }
-    # Only the handoff object (handoff.tf).
+    # The handoff object (handoff.tf) and the sending key's secret version
+    # (sending_key.tf).
     google = {
       source  = "hashicorp/google"
       version = "~> 6.0"
@@ -26,6 +27,6 @@ terraform {
 provider "mailgun" {}
 
 # The federated identity the workflow signs in with, which may write the one
-# handoff object and nothing else in Google (state_access.tf in
-# org/gcp/_setup).
+# handoff object (state_access.tf in org/gcp/_setup) and versions of the one
+# email key secret (dev/gcp's secrets.tf), and nothing else in Google.
 provider "google" {}

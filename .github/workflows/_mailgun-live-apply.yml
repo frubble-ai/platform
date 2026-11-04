@@ -22,6 +22,14 @@ on:
       audience:
         required: true
         type: string
+      # Only for a root that writes into its environment's project, as
+      # dev/mailgun does with its sending key (dev-environment.md). The other
+      # roots declare no project_id, and Terraform ignores a TF_VAR_ for a
+      # variable a root does not declare.
+      project_id:
+        required: false
+        type: string
+        default: ''
     secrets:
       # An environment secret. A job that declares an environment reads that
       # environment's value, so the caller has nothing to pass; the
@@ -89,6 +97,7 @@ jobs:
           PLAN_STORE_BUCKET: ${{ vars.PLAN_STORE_BUCKET }}
           # Where the root writes its handoff for the Cloudflare root.
           TF_VAR_management_state_bucket: ${{ inputs.state_bucket }}
+          TF_VAR_project_id: ${{ inputs.project_id }}
         run: |
           set -euo pipefail
           scripts="$GITHUB_WORKSPACE/.github/scripts/terraform"
