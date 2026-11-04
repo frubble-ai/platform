@@ -18,9 +18,11 @@ module "project" {
   depends_on = [google_org_policy_policy.no_domain_rule]
 }
 
-# Created by org/gcp/_setup before this root took it over.
+# Created by org/gcp/_setup before this root took it over: stg's and prd's.
+# dev's project came after the move, so its policy is created here, not
+# imported.
 import {
-  for_each = var.environment_projects
+  for_each = { for env, project in var.environment_projects : env => project if contains(["stg", "prd"], env) }
 
   to = module.project[each.key].google_iam_deny_policy.no_secret_values
   id = "${urlencode("cloudresourcemanager.googleapis.com/projects/${each.value}")}/frubble-developers-no-secret-values"

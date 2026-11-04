@@ -59,6 +59,16 @@ output "backend_deploy_hub_name" {
   value = google_service_account.backend_deploy_hub.name
 }
 
+output "backend_deploy_hubs" {
+  description = "Deploy hub email per environment the application deploys to. backend_deploy_hub is stg's, kept for the roots that read it."
+  value       = { for env, hub in local.deploy_hubs : env => hub.email }
+}
+
+output "backend_deploy_hub_names" {
+  description = "Full resource name of each environment's deploy hub."
+  value       = { for env, hub in local.deploy_hubs : env => hub.name }
+}
+
 output "hub_trust_editor_role" {
   description = "Role an environment's apply spoke holds on its own hubs, and on nothing else."
   value       = google_project_iam_custom_role.hub_trust_editor.id

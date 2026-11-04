@@ -1,4 +1,4 @@
-# Human access is granted here, on both environment projects, because who may
+# Human access is granted here, on every environment project, because who may
 # look and who may act are single facts about the organization rather than
 # something each environment decides for itself.
 module "human_access" {

@@ -19,7 +19,7 @@ variable "management_project_id" {
 }
 
 variable "environment_projects" {
-  description = "Project id per environment. Stated explicitly rather than generated: these ids are the hard wall between environments and appear in every trust rule."
+  description = "Project id per environment: stg and prd, and dev once its project is wanted. Stated explicitly rather than generated: these ids are the hard wall between environments and appear in every trust rule."
   type        = map(string)
 
   validation {
@@ -51,7 +51,7 @@ variable "backend_repository" {
 
 variable "developer_group" {
   description = <<-EOT
-    Group granted the read-only role on stg and prd, as `group:address`. IAM
+    Group granted the read-only role on every environment project, as `group:address`. IAM
     accepts both Workspace groups and consumer googlegroups.com addresses. The
     group is created by hand: Google exposes no API for creating consumer
     groups, and this organization has no directory for the Cloud Identity API
@@ -62,7 +62,7 @@ variable "developer_group" {
 
 variable "administrator" {
   description = <<-EOT
-    The one account granted the administration role on stg and prd, as
+    The one account granted the administration role on every environment project, as
     `user:address`. Full access, used for what CI cannot do, and held by one
     person so every out-of-band change has an owner.
   EOT

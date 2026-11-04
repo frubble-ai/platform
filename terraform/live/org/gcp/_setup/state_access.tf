@@ -28,8 +28,10 @@ locals {
   # own identities already read.
   direct_state_stacks = {
     cloudflare-org      = { prefix = "org/cloudflare/live/", plan = local.cloudflare_plan_entries, apply = local.cloudflare_apply_entries.org, handoff = null }
+    cloudflare-dev      = { prefix = "dev/cloudflare/", plan = local.cloudflare_plan_entries, apply = local.cloudflare_apply_entries.dev, handoff = null }
     cloudflare-stg      = { prefix = "stg/cloudflare/", plan = local.cloudflare_plan_entries, apply = local.cloudflare_apply_entries.stg, handoff = null }
     cloudflare-prd      = { prefix = "prd/cloudflare/", plan = local.cloudflare_plan_entries, apply = local.cloudflare_apply_entries.prd, handoff = null }
+    mailgun-dev         = { prefix = "dev/mailgun/", plan = [], apply = local.mailgun_apply_entries.dev, handoff = "dev/cloudflare/handoff/mailgun" }
     mailgun-stg         = { prefix = "stg/mailgun/", plan = [], apply = local.mailgun_apply_entries.stg, handoff = "stg/cloudflare/handoff/mailgun" }
     mailgun-prd         = { prefix = "prd/mailgun/", plan = [], apply = local.mailgun_apply_entries.prd, handoff = "prd/cloudflare/handoff/mailgun" }
     posthog-org         = { prefix = "org/posthog/live/", plan = local.posthog_plan_entries, apply = local.posthog_apply_entries, handoff = null }

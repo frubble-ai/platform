@@ -18,6 +18,7 @@ billing_account = "000000-000000-000000"
 management_project_id = "frubble-mgmt"
 
 environment_projects = {
+  dev = "frubble-dev"
   stg = "frubble-stg"
   prd = "frubble-prd"
 }
@@ -35,6 +36,6 @@ backend_repository  = "app"
 # is denied every secret value. Nobody in it gets a shell on the VM.
 developer_group = "group:frubble-platform-developers@googlegroups.com"
 
-# The administration role: full access on stg and prd, for what CI cannot do.
+# The administration role: full access on dev, stg and prd, for what CI cannot do.
 # One person, so every change made outside CI has an owner.
 administrator = "user:daniel@example.com"

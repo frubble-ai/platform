@@ -33,10 +33,10 @@ variable "org_members_access" {
       for p in values(try(jsondecode(var.org_members_access), {})) :
       can(regex("^[^@\\s]+@[^@\\s]+$", p.email))
       && length(setsubtract(keys(p), ["email", "gcp", "posthog"])) == 0
-      && length(setsubtract(keys(try(p.gcp, {})), ["account", "stg", "prd"])) == 0
+      && length(setsubtract(keys(try(p.gcp, {})), ["account", "dev", "stg", "prd"])) == 0
       && (try(p.posthog, null) == null ? true : contains(["member", "admin"], p.posthog))
     ])
-    error_message = "Each entry takes email, gcp (account, stg, prd) and posthog (member or admin) only."
+    error_message = "Each entry takes email, gcp (account, dev, stg, prd) and posthog (member or admin) only."
   }
 
   validation {
