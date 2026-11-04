@@ -47,7 +47,7 @@ permissions:
   id-token: write
 
 env:
-  TERRAFORM_VERSION: 1.16.6
+  TOFU_VERSION: 1.13.2
 
 jobs:
   # A push that touches a _setup root starts setup-cd beside the caller, and
@@ -111,10 +111,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-          terraform_wrapper: false
+          tofu_version: ${{ env.TOFU_VERSION }}
+          tofu_wrapper: false
 
       - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
@@ -125,7 +125,7 @@ jobs:
       - name: Init
         working-directory: ${{ inputs.root }}
         run: |
-          terraform init -lockfile=readonly \
+          tofu init -lockfile=readonly \
             -backend-config="bucket=${{ inputs.state_bucket }}" \
             -backend-config="impersonate_service_account=${{ inputs.spoke_service_account }}"
 
@@ -143,10 +143,10 @@ jobs:
         run: |
           set -euo pipefail
           scripts="$GITHUB_WORKSPACE/.github/scripts/terraform"
-          "$scripts/terraform-quiet.sh" plan.txt \
+          "$scripts/tofu-quiet.sh" plan.txt \
             plan -no-color -input=false -lock-timeout=5m -out=tfplan
-          "$scripts/terraform-plan-summary.sh" tfplan
-          "$scripts/terraform-quiet.sh" apply.txt \
+          "$scripts/tofu-plan-summary.sh" tfplan
+          "$scripts/tofu-quiet.sh" apply.txt \
             apply -no-color -input=false -lock-timeout=5m tfplan
           grep -E '^Apply complete!' apply.txt | "$scripts/redact.sh"
 

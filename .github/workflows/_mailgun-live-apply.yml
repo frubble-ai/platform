@@ -24,7 +24,7 @@ on:
         type: string
       # For a root that writes into its environment's project, as dev/mailgun
       # and stg/mailgun do with their sending keys (docs/email.md). prd/mailgun
-      # declares no project_id, and Terraform ignores a TF_VAR_ for a variable
+      # declares no project_id, and OpenTofu ignores a TF_VAR_ for a variable
       # a root does not declare.
       project_id:
         required: false
@@ -42,7 +42,7 @@ permissions:
   id-token: write
 
 env:
-  TERRAFORM_VERSION: 1.16.6
+  TOFU_VERSION: 1.13.2
 
 jobs:
   apply:
@@ -72,10 +72,10 @@ jobs:
           echo "::add-mask::$APPLY_KEY"
           echo "MAILGUN_API_KEY=$APPLY_KEY" >> "$GITHUB_ENV"
 
-      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-          terraform_wrapper: false
+          tofu_version: ${{ env.TOFU_VERSION }}
+          tofu_wrapper: false
 
       # No service account: the federated GitHub identity reads this stack's
       # state prefix directly (state_access.tf in org/gcp/_setup).
@@ -86,7 +86,7 @@ jobs:
 
       - name: Init
         working-directory: ${{ inputs.root }}
-        run: terraform init -lockfile=readonly -backend-config="bucket=${{ inputs.state_bucket }}"
+        run: tofu init -lockfile=readonly -backend-config="bucket=${{ inputs.state_bucket }}"
 
       # Re-plan against current state and apply that saved plan. Raw output
       # to files only.
@@ -101,10 +101,10 @@ jobs:
         run: |
           set -euo pipefail
           scripts="$GITHUB_WORKSPACE/.github/scripts/terraform"
-          "$scripts/terraform-quiet.sh" plan.txt \
+          "$scripts/tofu-quiet.sh" plan.txt \
             plan -no-color -input=false -lock-timeout=5m -out=tfplan
-          "$scripts/terraform-plan-summary.sh" tfplan
-          "$scripts/terraform-quiet.sh" apply.txt \
+          "$scripts/tofu-plan-summary.sh" tfplan
+          "$scripts/tofu-quiet.sh" apply.txt \
             apply -no-color -input=false -lock-timeout=5m tfplan
           grep -E '^Apply complete!' apply.txt | "$scripts/redact.sh"
 

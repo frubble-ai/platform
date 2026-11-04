@@ -21,7 +21,7 @@ on:
       - terraform/modules/gcp/wif-spoke/**
       - .github/workflows/_setup-apply.yml
       - .github/workflows/setup-cd.yml
-      # The apply runs terraform through these, checks its environment and
+      # The apply runs tofu through these, checks its environment and
       # records its output with them, so a change to them is a change to what
       # the apply does. The other script folders serve other workflows; the
       # wait that gates the workload applies lives in scripts/workflows/ for

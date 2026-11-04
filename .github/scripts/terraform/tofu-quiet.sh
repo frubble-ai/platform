@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
-# Runs terraform with its output in a file and prints a status line. On
+# Runs tofu with its output in a file and prints a status line. On
 # failure it prints the redacted error headlines; when the plan store is not
 # configured (PLAN_STORE_BUCKET unset), the whole redacted error blocks
 # instead, so the failure can still be diagnosed from the log.
 #
-# Usage: terraform-quiet.sh <log file> <terraform arguments...>
+# Usage: tofu-quiet.sh <log file> <tofu arguments...>
 set -euo pipefail
 
-log=${1:?usage: terraform-quiet.sh <log file> <terraform arguments...>}
+log=${1:?usage: tofu-quiet.sh <log file> <tofu arguments...>}
 shift
 here=$(dirname "$0")
 
-if terraform "$@" > "$log" 2>&1; then
-  echo "terraform $1: ok"
+if tofu "$@" > "$log" 2>&1; then
+  echo "tofu $1: ok"
   exit 0
 fi
 
-echo "::error::terraform $1 failed"
+echo "::error::tofu $1 failed"
 if [ -n "${PLAN_STORE_BUCKET:-}" ]; then
   grep -E '^(│ )?Error: ' "$log" | sed 's/^│ //' | "$here/redact.sh" || true
 else

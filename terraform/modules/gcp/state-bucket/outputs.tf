@@ -1,5 +1,5 @@
 output "name" {
-  description = "Bucket name, passed to `terraform init -backend-config=bucket=...` by the workflows."
+  description = "Bucket name, passed to `tofu init -backend-config=bucket=...` by the workflows."
   value       = google_storage_bucket.state.name
 }
 

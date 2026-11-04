@@ -11,7 +11,7 @@ permissions:
   actions: write # needed to cancel this workflow's older runs
 
 env:
-  TERRAFORM_VERSION: 1.16.6
+  TOFU_VERSION: 1.13.2
   TFLINT_VERSION: v0.64.0
   ACTIONLINT_VERSION: 1.7.12
   GITLEAKS_VERSION: 8.30.1
@@ -95,19 +95,19 @@ jobs:
           echo "roots=$(echo "$chosen" | jq -R . | jq -sc .)" >> "$GITHUB_OUTPUT"
 
   format:
-    name: terraform fmt
+    name: tofu fmt
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
-      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-          terraform_wrapper: false
+          tofu_version: ${{ env.TOFU_VERSION }}
+          tofu_wrapper: false
       # Every root and every module, not just what changed: formatting is
       # cheap to check and confusing to fix in a later, unrelated pull request.
-      - run: terraform fmt -check -recursive -diff terraform
+      - run: tofu fmt -check -recursive -diff terraform
 
   validate:
     name: validate
@@ -122,11 +122,11 @@ jobs:
         if: matrix.root != 'none'
         with:
           persist-credentials: false
-      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         if: matrix.root != 'none'
         with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-          terraform_wrapper: false
+          tofu_version: ${{ env.TOFU_VERSION }}
+          tofu_wrapper: false
       - uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6
         if: matrix.root != 'none'
         with:
@@ -138,8 +138,8 @@ jobs:
         if: matrix.root != 'none'
         working-directory: ${{ matrix.root }}
         run: |
-          terraform init -backend=false -input=false
-          terraform validate
+          tofu init -backend=false -input=false
+          tofu validate
 
       - name: tflint
         if: matrix.root != 'none'

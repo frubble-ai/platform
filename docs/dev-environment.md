@@ -85,8 +85,8 @@ Before PR 2 merges
 
 7. A plan identity cannot create an empty state (state_access.tf in org/gcp/_setup),
    so create dev's setup state once, as the bootstrap admin (`.envrc.local`), from PR 2's
-   branch: `terraform -chdir=terraform/live/dev/gcp/_setup init -backend-config="bucket=frubble-mgmt-tfstate"`
-   then `terraform -chdir=terraform/live/dev/gcp/_setup state list` (empty). Re-run the
+   branch: `tofu -chdir=terraform/live/dev/gcp/_setup init -backend-config="bucket=frubble-mgmt-tfstate"`
+   then `tofu -chdir=terraform/live/dev/gcp/_setup state list` (empty). Re-run the
    PR's checks; `Plan dev setup` should only create.
 
 PR 2, then
@@ -104,10 +104,10 @@ PR 2, then
 10. Create the two empty states a plan cannot create, as the bootstrap admin, from
    PR 3's branch, with the bucket from step 9:
    `STATE_BUCKET_DEV="$(gh variable get STATE_BUCKET_DEV)"`, then
-   `terraform -chdir=terraform/live/dev/gcp init -backend-config="bucket=$STATE_BUCKET_DEV"`
-   and `terraform -chdir=terraform/live/dev/gcp state list` (empty), then
-   `terraform -chdir=terraform/live/dev/cloudflare init -backend-config="bucket=frubble-mgmt-tfstate"`
-   and `terraform -chdir=terraform/live/dev/cloudflare state list` (empty).
+   `tofu -chdir=terraform/live/dev/gcp init -backend-config="bucket=$STATE_BUCKET_DEV"`
+   and `tofu -chdir=terraform/live/dev/gcp state list` (empty), then
+   `tofu -chdir=terraform/live/dev/cloudflare init -backend-config="bucket=frubble-mgmt-tfstate"`
+   and `tofu -chdir=terraform/live/dev/cloudflare state list` (empty).
 
 Before PR 3 merges
 
@@ -173,7 +173,7 @@ Do not unset `GCP_PROJECT_DEV` once the project exists: dev would drop out of
 `prevent_destroy` refuses it, and the org job fails, which also stops the stg and prd
 setup jobs that need it. Taking dev out of management is a Terraform change first, in
 the same pull request as unsetting the variable: as the
-bootstrap admin, `terraform -chdir=terraform/live/org/gcp/_setup state rm 'module.environment_project["dev"]'`
+bootstrap admin, `tofu -chdir=terraform/live/org/gcp/_setup state rm 'module.environment_project["dev"]'`
 to keep the project but stop managing it, or delete it deliberately after lifting
 `prevent_destroy`.
 

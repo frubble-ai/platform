@@ -47,7 +47,7 @@ permissions:
   id-token: write
 
 env:
-  TERRAFORM_VERSION: 1.16.6
+  TOFU_VERSION: 1.13.2
 
 jobs:
   plan:
@@ -90,14 +90,14 @@ jobs:
             echo "no change under ${{ inputs.root }}/, the modules the _setup roots use, .github/scripts/terraform/ or the plan workflows"
           fi
 
-      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         if: steps.scope.outputs.relevant == 'true'
         with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-          terraform_wrapper: false
+          tofu_version: ${{ env.TOFU_VERSION }}
+          tofu_wrapper: false
 
       # No spoke to become afterwards: the plan identity is the credential
-      # Terraform runs as, which is also what the roots' remote_state reads
+      # OpenTofu runs as, which is also what the roots' remote_state reads
       # with.
       - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         if: steps.scope.outputs.relevant == 'true'
@@ -110,7 +110,7 @@ jobs:
         if: steps.scope.outputs.relevant == 'true'
         working-directory: ${{ inputs.root }}
         run: |
-          terraform init -lockfile=readonly \
+          tofu init -lockfile=readonly \
             -backend-config="bucket=${{ inputs.management_state_bucket }}"
 
       # The _setup inputs come from repository variables, none of them secret;
@@ -146,9 +146,9 @@ jobs:
           TF_VAR_backend_repository: ${{ vars.BACKEND_REPOSITORY }}
         run: |
           set -euo pipefail
-          "$GITHUB_WORKSPACE/.github/scripts/terraform/terraform-quiet.sh" plan.txt \
+          "$GITHUB_WORKSPACE/.github/scripts/terraform/tofu-quiet.sh" plan.txt \
             plan -no-color -input=false -lock=false -out=tfplan
-          "$GITHUB_WORKSPACE/.github/scripts/terraform/terraform-plan-summary.sh" tfplan \
+          "$GITHUB_WORKSPACE/.github/scripts/terraform/tofu-plan-summary.sh" tfplan \
             | tee summary.txt
 
       - name: Keep the full plan (private)

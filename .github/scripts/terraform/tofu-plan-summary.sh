@@ -4,13 +4,13 @@
 # pull-request/plan-comment.js parses). No attribute values. for_each keys
 # must be handles.
 #
-# Usage: terraform-plan-summary.sh <saved plan file>   (run in the root)
+# Usage: tofu-plan-summary.sh <saved plan file>   (run in the root)
 set -euo pipefail
 
-plan_file=${1:?usage: terraform-plan-summary.sh <saved plan file>}
+plan_file=${1:?usage: tofu-plan-summary.sh <saved plan file>}
 here=$(dirname "$0")
 
-terraform show -json "$plan_file" | jq -r '
+tofu show -json "$plan_file" | jq -r '
   def verb:
     .change.actions as $a
     | if   $a == ["create"] then "create"

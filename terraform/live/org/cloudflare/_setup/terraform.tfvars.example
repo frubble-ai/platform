@@ -10,14 +10,14 @@
 # root.
 #
 #   export CLOUDFLARE_API_TOKEN="<the bootstrap account token>"
-#   terraform init -backend-config="bucket=<management_state_bucket>"
-#   terraform apply -input=false
+#   tofu init -backend-config="bucket=<management_state_bucket>"
+#   tofu apply -input=false
 #
 # Then pipe each token it created into GitHub, once. Piping rather than
 # copying: a value printed to the terminal stays in the scrollback, and one
 # echoed stays in the shell history.
 #
-#   terraform output -raw plan_token | gh secret set CLOUDFLARE_PLAN_TOKEN
+#   tofu output -raw plan_token | gh secret set CLOUDFLARE_PLAN_TOKEN
 #
 # The mint token is not created here — Cloudflare refuses to mint a token that
 # manages tokens, on both the user and the account API. Make it by hand from

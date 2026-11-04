@@ -56,7 +56,7 @@ permissions:
   id-token: write
 
 env:
-  TERRAFORM_VERSION: 1.16.6
+  TOFU_VERSION: 1.13.2
 
 jobs:
   plan:
@@ -104,11 +104,11 @@ jobs:
             echo "no change under ${{ inputs.root }}/, terraform/modules/, .github/scripts/{terraform,pull-request}/ or the plan workflows"
           fi
 
-      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         if: steps.scope.outputs.relevant == 'true'
         with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-          terraform_wrapper: false
+          tofu_version: ${{ env.TOFU_VERSION }}
+          tofu_wrapper: false
 
       - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         if: steps.scope.outputs.relevant == 'true'
@@ -123,14 +123,14 @@ jobs:
         if: steps.scope.outputs.relevant == 'true'
         working-directory: ${{ inputs.root }}
         run: |
-          terraform init -lockfile=readonly \
+          tofu init -lockfile=readonly \
             -backend-config="bucket=${{ inputs.state_bucket }}" \
             -backend-config="impersonate_service_account=${{ inputs.spoke_service_account }}"
 
       # -lock=false: a plan writes no state, so it has no reason to take the
       # lock, and taking it broke an apply. A pull request's plan can run while
       # a CD apply of the same stack is in progress. The apply found the lock
-      # held (412); by the time Terraform read who held it, the plan had
+      # held (412); by the time OpenTofu read who held it, the plan had
       # released it (404), and that error is not one -lock-timeout retries.
       - name: Plan
         id: plan
@@ -146,9 +146,9 @@ jobs:
         # Raw output to plan.txt only; summary.txt feeds the log and comment.
         run: |
           set -euo pipefail
-          "$GITHUB_WORKSPACE/.github/scripts/terraform/terraform-quiet.sh" plan.txt \
+          "$GITHUB_WORKSPACE/.github/scripts/terraform/tofu-quiet.sh" plan.txt \
             plan -no-color -input=false -lock=false -out=tfplan
-          "$GITHUB_WORKSPACE/.github/scripts/terraform/terraform-plan-summary.sh" tfplan \
+          "$GITHUB_WORKSPACE/.github/scripts/terraform/tofu-plan-summary.sh" tfplan \
             | tee summary.txt
 
       # Raw plan to the plan store (org/gcp/_setup/plan_store.tf), never an artifact.
