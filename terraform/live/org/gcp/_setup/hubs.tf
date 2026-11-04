@@ -64,6 +64,30 @@ removed {
   }
 }
 
+# dev's deploy hub, the same shape as stg's above: the account here, its trust
+# rule in terraform/live/dev/gcp/trust.tf. Its own account rather than a
+# second member on stg's, so a dev deploy can never become stg's deploy spoke
+# and the two are revoked separately. Created once dev is one of the
+# environment projects. stg's keeps its own resource address, so this adds an
+# account and changes nothing about the one that exists.
+resource "google_service_account" "env_deploy_hub" {
+  for_each = contains(keys(var.environment_projects), "dev") ? toset(["dev"]) : toset([])
+
+  account_id   = "frubble-${each.key}-deploy-hub"
+  project      = var.management_project_id
+  display_name = "frubble-app ${each.key} deploy entry point"
+  description  = "frubble-app ${each.key} deploy entry point"
+}
+
+locals {
+  # Every environment's deploy hub, by environment. stg's is the original
+  # account; the others are env_deploy_hub's.
+  deploy_hubs = merge(
+    { stg = google_service_account.backend_deploy_hub },
+    google_service_account.env_deploy_hub,
+  )
+}
+
 # What an environment's apply spoke may do to its hub: read and set the whole
 # IAM policy of the hub account. setIamPolicy cannot be narrowed to one
 # binding, so this is more than the trust rule: the holder could also grant

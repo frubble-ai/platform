@@ -18,6 +18,11 @@ billing_account = "000000-000000-000000"
 management_project_id = "frubble-mgmt"
 
 environment_projects = {
+  # Only together with the GCP_PROJECT_DEV repository variable, after the
+  # first bootstrap (docs/dev-environment.md). Uncommented while CI's map has
+  # no dev, the next CI plan would try to destroy the project, which
+  # prevent_destroy refuses, and every setup run would fail.
+  # dev = "frubble-dev"
   stg = "frubble-stg"
   prd = "frubble-prd"
 }
@@ -35,6 +40,6 @@ backend_repository  = "app"
 # is denied every secret value. Nobody in it gets a shell on the VM.
 developer_group = "group:frubble-platform-developers@googlegroups.com"
 
-# The administration role: full access on stg and prd, for what CI cannot do.
+# The administration role: full access on dev, stg and prd, for what CI cannot do.
 # One person, so every change made outside CI has an owner.
 administrator = "user:daniel@example.com"

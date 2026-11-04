@@ -9,7 +9,7 @@ holds its own `POSTHOG_APPLY_API_KEY` and `POSTHOG_OWNER_EMAIL`, the account tha
 to, which never gets a level.
 
 ```json
-{ "alex": { "email": "alex@example.com", "gcp": { "stg": ["administration"], "prd": ["read_only"] }, "posthog": "member" } }
+{ "alex": { "email": "alex@example.com", "gcp": { "dev": ["administration"], "stg": ["administration"], "prd": ["read_only"] }, "posthog": "member" } }
 ```
 
 GCP profiles are `read_only`, `administration` and `logs`, granted to `gcp.account` when the

@@ -16,7 +16,7 @@ and so does every hand apply, as `TF_VAR_*` in the environment; the file is dele
 stale copy rewrites what CI last applied. The mapping: `TF_SETUP_ORG_ID` (`org_id`),
 `TF_SETUP_BILLING_ACCOUNT` (`billing_account`), `TF_SETUP_DEVELOPER_GROUP`
 (`developer_group`), `TF_SETUP_ADMINISTRATOR` (`administrator`), `GCP_MANAGEMENT_PROJECT`
-(`management_project_id`), `GCP_PROJECT_STG` and `GCP_PROJECT_PRD` (`environment_projects`),
+(`management_project_id`), `GCP_PROJECT_STG`, `GCP_PROJECT_PRD` and, once dev exists, `GCP_PROJECT_DEV` (`environment_projects`),
 `BACKEND_REPOSITORY` (`backend_repository`), and this repository's owner and name
 (`github_owner`, `platform_repository`). `gh variable list` prints them.
 
@@ -59,7 +59,9 @@ no workflow, so run the environment's CD by hand after editing it.
 6. Sign up at PostHog with the owner account (never managed by Terraform), create the
    two personal API keys, and invite the human members (human-access.md).
 
-Environments `stg`, `prd`, `cloudflare-org`, `posthog-org`, `setup` and
+dev is bootstrapped after the rest, in its own order (dev-environment.md).
+
+Environments `dev`, `stg`, `prd`, `cloudflare-org`, `posthog-org`, `setup` and
 `organization-member-access` must exist and accept deployments from `dev` only; `setup` and
 `organization-member-access` also require a reviewer and bar self-review,
 which `_setup-apply.yml` checks before it runs. Their names are part of the trust rules,

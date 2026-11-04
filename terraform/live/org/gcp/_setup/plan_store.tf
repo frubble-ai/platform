@@ -5,11 +5,12 @@
 # and commit. Random because the prefix is linked from pull-request comments
 # on a public repository (plan-store-upload.sh).
 #   kind  = plan | apply
-#   stack = gcp-stg, gcp-prd, cloudflare-org, cloudflare-stg, cloudflare-prd,
-#           posthog-org, setup-org, setup-stg, setup-prd: the keys
+#   stack = gcp-dev, gcp-stg, gcp-prd, cloudflare-org, cloudflare-dev,
+#           cloudflare-stg, cloudflare-prd, posthog-org, setup-org, setup-dev,
+#           setup-stg, setup-prd: the keys
 #           .github/scripts/pull-request/plan-comment.js labels the comment with;
-#           mailgun-stg, mailgun-prd: apply output only, those roots have no
-#           pull-request plan.
+#           mailgun-dev, mailgun-stg, mailgun-prd: apply output only, those
+#           roots have no pull-request plan.
 #
 # Every grant below is additive and narrow:
 #   - CI writes with objectCreator, conditioned on its own <kind>/<stack>/
@@ -24,7 +25,7 @@
 #     CMEK is applied by GCS on the caller's behalf.
 #
 # The GCP plan and apply spokes live in the environment projects, so their
-# grants are made by stg/gcp/_setup and prd/gcp/_setup from this root's
+# grants are made by dev/gcp/_setup, stg/gcp/_setup and prd/gcp/_setup from this root's
 # outputs, beside their existing management-bucket grants.
 
 module "plan_store" {

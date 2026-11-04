@@ -1,5 +1,5 @@
 # One project per environment — the hard wall. A stg credential has no path to
-# prd, so isolation does not depend on every IAM binding being right.
+# prd or dev, so isolation does not depend on every IAM binding being right.
 module "environment_project" {
   for_each = var.environment_projects
   source   = "../../../../modules/gcp/project"

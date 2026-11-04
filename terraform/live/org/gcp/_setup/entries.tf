@@ -34,6 +34,7 @@ locals {
   # Apply is pinned to the branch as well. Without the ref, the same workflow
   # run from a tag or a fork would be accepted.
   apply_entries = {
+    dev = ["${local.platform_repo}|${local.wf.gcp_apply}|dev|refs/heads/dev"]
     stg = ["${local.platform_repo}|${local.wf.gcp_apply}|stg|refs/heads/dev"]
     prd = ["${local.platform_repo}|${local.wf.gcp_apply}|prd|refs/heads/dev"]
   }
@@ -43,11 +44,12 @@ locals {
     "${local.platform_repo}|${local.wf.cloudflare_plan}|refs/heads/dev",
   ]
 
-  # org has no environment of its own, so it gets a dedicated one. stg and prd
-  # reuse theirs, because the Cloudflare apply for an environment runs beside
+  # org has no environment of its own, so it gets a dedicated one. dev, stg
+  # and prd reuse theirs, because the Cloudflare apply for an environment runs beside
   # that environment's GCP apply.
   cloudflare_apply_entries = {
     org = ["${local.platform_repo}|${local.wf.cloudflare_apply}|cloudflare-org|refs/heads/dev"]
+    dev = ["${local.platform_repo}|${local.wf.cloudflare_apply}|dev|refs/heads/dev"]
     stg = ["${local.platform_repo}|${local.wf.cloudflare_apply}|stg|refs/heads/dev"]
     prd = ["${local.platform_repo}|${local.wf.cloudflare_apply}|prd|refs/heads/dev"]
   }
@@ -57,6 +59,7 @@ locals {
   # Mailgun has no read-only key, so nothing reachable from pull-request code
   # holds one (docs/email.md). The apply plans before it applies.
   mailgun_apply_entries = {
+    dev = ["${local.platform_repo}|${local.wf.mailgun_apply}|dev|refs/heads/dev"]
     stg = ["${local.platform_repo}|${local.wf.mailgun_apply}|stg|refs/heads/dev"]
     prd = ["${local.platform_repo}|${local.wf.mailgun_apply}|prd|refs/heads/dev"]
   }

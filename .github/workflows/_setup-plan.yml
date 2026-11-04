@@ -9,7 +9,7 @@ on:
   workflow_call:
     inputs:
       stack:
-        description: Which _setup root — org, stg or prd. Names the plan artifact and the plan-store prefix.
+        description: Which _setup root — org, dev, stg or prd. Names the plan artifact and the plan-store prefix.
         required: true
         type: string
       root:
@@ -123,7 +123,11 @@ jobs:
           TF_VAR_billing_account: ${{ vars.TF_SETUP_BILLING_ACCOUNT }}
           TF_VAR_developer_group: ${{ vars.TF_SETUP_DEVELOPER_GROUP }}
           TF_VAR_administrator: ${{ vars.TF_SETUP_ADMINISTRATOR }}
-          TF_VAR_environment_projects: '{"stg":"${{ vars.GCP_PROJECT_STG }}","prd":"${{ vars.GCP_PROJECT_PRD }}"}'
+          # dev joins once GCP_PROJECT_DEV is set (docs/getting-started.md);
+          # unset, the map is exactly stg and prd, as before.
+          TF_VAR_environment_projects: >-
+            {"stg":"${{ vars.GCP_PROJECT_STG }}","prd":"${{ vars.GCP_PROJECT_PRD }}"${{
+            vars.GCP_PROJECT_DEV != '' && format(',"dev":"{0}"', vars.GCP_PROJECT_DEV) || '' }} }
           TF_VAR_github_owner: ${{ github.repository_owner }}
           TF_VAR_platform_repository: ${{ github.event.repository.name }}
           TF_VAR_backend_repository: ${{ vars.BACKEND_REPOSITORY }}

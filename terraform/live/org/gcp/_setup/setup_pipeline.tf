@@ -33,9 +33,10 @@ locals {
     "${pair[0]}|${pair[1]}" => { project = local.setup_plan_projects[pair[0]], role = pair[1] }
   }
 
-  # The state prefixes of the three roots, with the trailing slash so that
+  # The state prefixes of the _setup roots, with the trailing slash so that
   # `stg/gcp/setup` does not also match a future `stg/gcp/setup-anything`.
-  setup_state_prefixes = toset(["org/gcp/setup/", "stg/gcp/setup/", "prd/gcp/setup/"])
+  # One per environment project, so dev joins when it is listed.
+  setup_state_prefixes = toset(concat(["org/gcp/setup/"], [for env in keys(var.environment_projects) : "${env}/gcp/setup/"]))
 }
 
 # Not a hub. A hub is powerless and becomes a spoke in the project it
