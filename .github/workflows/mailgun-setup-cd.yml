@@ -25,7 +25,7 @@ concurrency:
   group: mailgun-setup-cd
   cancel-in-progress: false
 
-# actions: read is for the waits on stg-cd and dev-cd below.
+# actions: read is for the wait on stg-cd below.
 permissions:
   contents: read
   id-token: write
@@ -41,7 +41,7 @@ jobs:
   # the one job that makes the domain, so the Cloudflare or GCP apply beside
   # it failing holds nothing here.
   wait:
-    name: wait for stg-cd and dev-cd
+    name: wait for stg-cd
     if: vars.MAILGUN_ENABLED == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -61,24 +61,6 @@ jobs:
           WORKFLOW: stg-cd.yml
           PATHS: '.'
           JOBS: 'apply stg mailgun / apply'
-        run: |
-          "$GITHUB_WORKSPACE/.github/scripts/workflows/wait-for-workflow.sh"
-
-      # dev's domain is dev-cd's, the same way. Only while dev applies at all:
-      # with TF_APPLY_ENABLE_DEV off its jobs are skipped and there is no
-      # domain run to wait for.
-      - name: Wait for dev-cd on this commit
-        if: vars.TF_APPLY_ENABLE_DEV == 'true'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
-          BEFORE: ${{ github.event.before }}
-          BRANCH: ${{ github.ref_name }}
-          WORKFLOW: dev-cd.yml
-          PATHS: '.'
-          JOBS: 'apply dev mailgun / apply'
         run: |
           "$GITHUB_WORKSPACE/.github/scripts/workflows/wait-for-workflow.sh"
 
