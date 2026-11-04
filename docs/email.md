@@ -53,7 +53,10 @@ prd is turned on.
 A worker instance reads the secret when it starts and keeps that key until it stops, so a
 rotation keeps two keys alive: add the next generation in the root that mints it (the
 secret moves to it), roll the worker, then remove the old one; the comment in
-`sending_key.tf` (or `org/mailgun/_setup/main.tf`) spells the steps.
+`sending_key.tf` (or `org/mailgun/_setup/main.tf`) spells the steps. Changing a sending
+domain ends the same way: the GCP apply rolls the worker onto the new domain before the
+mailgun apply (or, for prd, `mailgun-setup-cd`) has written the new domain's key, so the
+worker holds the old domain's key until it is rolled once more after that.
 
 ## Moving stg to its own account (once)
 
@@ -66,23 +69,28 @@ roughly five minutes) and then dead-letters, which alerts; dead-lettered message
 re-published by hand once stg sends again. Keep the window short by running the steps back
 to back.
 
-1. Merge the pull request. `stg-cd`, `dev-cd` and `mailgun-setup-cd` start; `stg-cd`'s
-   jobs and `mailgun-setup-cd` wait for approval. Approve nothing yet.
-2. Switch the `stg` environment's `MAILGUN_APPLY_API_KEY` to the stg account's admin key
+`stg-cd` waits for no reviewer (the `stg` environment has none), so it runs the moment
+the pull request merges, and the order is set before the merge:
+
+1. Switch the `stg` environment's `MAILGUN_APPLY_API_KEY` to the stg account's admin key
    (Bitwarden `Mailgun API key - stg terraform apply (stg account)`), with nothing printed:
    `bw get item <id> | jq -r .login.password | gh secret set MAILGUN_APPLY_API_KEY --env stg --repo frubble-ai/platform`.
-   A job reads an environment secret when it starts, so the waiting jobs get the new key.
-3. Delete `stg.frubble.ai` from the main account (stg's mail stops here):
+   Safe on its own: a `stg-cd` run before step 3 can only fail, because the stg account
+   cannot create a domain the main account still holds, and it never touches the main
+   account. Never merge with the main account's key still there: that run would mint
+   stg's new key in the main account.
+2. Delete `stg.frubble.ai` from the main account (stg's mail stops here):
    `curl -s --user "api:$MAIN_KEY" -X DELETE https://api.mailgun.net/v3/domains/stg.frubble.ai`,
    with `MAIN_KEY` from `Mailgun API key - terraform`. This also takes the domain's sending
    key (`frubble stg worker, generation 1`) and its logs and stats with it.
-4. Approve `stg-cd`'s `apply stg gcp` job (the plan adds `mailgun_writes_email_key`),
-   then `apply stg mailgun`. Its refresh finds no `stg.frubble.ai` in the stg account and
+3. Merge the pull request at once. `dev-cd`, `stg-cd` and `mailgun-setup-cd` start.
+4. `stg-cd` applies without approval: `apply stg gcp` adds `mailgun_writes_email_key`,
+   then `apply stg mailgun`'s refresh finds no `stg.frubble.ai` in the stg account and
    drops it from state; the plan is 5 to add, 1 to destroy: the domain in the stg account,
    its sending key, `terraform_data.sending_key_identity`, the secret's new version, and
    the handoff object replaced (new DKIM). No `state rm` and no `removed` block is needed.
    If that job fails with a 403 on the secret, the binding had not propagated: re-run the
-   failed jobs. Then approve `apply stg cloudflare`, which updates the DKIM record
+   failed jobs. Then `apply stg cloudflare` updates the DKIM record
    (`mg._domainkey.stg.frubble.ai`); SPF and DMARC do not change.
 5. Approve `mailgun-setup-cd`'s `apply mailgun setup` job. Its `wait` job waits for
    `stg-cd`'s mailgun job on the same commit and asks for approval only once that has
@@ -101,9 +109,9 @@ to back.
    superseded `Mailgun API key - dev terraform apply` key), and note in Bitwarden that
    `Mailgun API key - stg (frubble_stg_email_api-key)` is superseded.
 
-If `apply stg mailgun` runs before step 3, Mailgun refuses the domain (it is taken by
-another account) and the job fails with nothing changed; do step 3 and re-run the failed
-jobs.
+If `apply stg mailgun` runs between steps 1 and 2, Mailgun refuses the domain (it is
+taken by another account) and the job fails, with the domain only dropped from
+`stg/mailgun`'s state; do step 2 and re-run the failed jobs, then `mailgun-setup-cd`.
 
 ## Plans and records
 
