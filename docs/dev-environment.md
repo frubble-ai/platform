@@ -90,10 +90,13 @@ PR 3, then
     already true), then Cloudflare (SPF, DMARC, DKIM, the certificate authorizations).
 14. Run `dev-cd` by hand a few minutes later, once the certificates are issued, so the
     A records of `api.dev` and `app.dev` are published (crossing-roots.md).
-15. Add dev's Composio project API key (secrets.md):
-    `ENV=dev`, then the `gcloud secrets versions add "frubble_dev_composio_api-key"` line there.
+15. Add dev's Composio project API key (secrets.md), into the project chosen in step 1
+    (the `GCP_PROJECT_DEV` value), not `frubble-${ENV}`, which differs if that id was taken:
+    `PROJECT="$(gh variable get GCP_PROJECT_DEV)"`, then
+    `read -rs KEY && [ -n "$KEY" ] && printf '%s' "$KEY" | gcloud secrets versions add frubble_dev_composio_api-key --data-file=- --project "$PROJECT"`,
+    and roll the API.
 16. Check `dev.frubble.ai` shows as verified in the Mailgun dashboard (SPF and DKIM
-    published by step 12).
+    published by step 13).
 
 PR 4, then
 
@@ -106,7 +109,9 @@ The application (frubble-ai/app), not this repository
 18. The deploy trust rules here expect `backend-cd.yml` and `db-reset.yml` in a
     `backend-dev` environment and `app-cd.yml` in `app-dev`, from the `dev` branch.
     The app repository needs those environments (variables from the dev outputs, as
-    `backend-stg` and `app-stg` have, `GCP_DEPLOY_HUB` being `frubble-dev-deploy-hub`),
+    `backend-stg` and `app-stg` have; `GCP_DEPLOY_HUB` is the full email from
+    org/gcp/_setup's `backend_deploy_hubs["dev"]` output,
+    `frubble-dev-deploy-hub@frubble-mgmt.iam.gserviceaccount.com`),
     workflows that deploy `dev` there, its own `COMPOSIO_API_KEY` for dev rather than
     the repository-wide one, and `dev` accepted as an `APP_ENV`. Until then the dev
     services run their placeholder images.
