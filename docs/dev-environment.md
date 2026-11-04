@@ -142,8 +142,12 @@ PR 4, then
 
 The application (frubble-ai/app), not this repository
 
-18. The deploy trust rules here expect `backend-cd.yml` and `db-reset.yml` in a
-    `backend-dev` environment and `app-cd.yml` in `app-dev`, from the `dev` branch.
+18. The deploy trust rules here (`dev/gcp/trust.tf`) expect `backend-cd.yml` in a
+    `backend-dev` environment and `app-cd.yml` in `app-dev`, from any branch, so a branch
+    can be deployed to dev before it merges, and `db-reset.yml` in `backend-dev` from the
+    `dev` branch only. The `backend-dev` and `app-dev` environments must therefore accept
+    deployments from all branches; the workflows keep a run from `stg` (or `prd`) out of
+    them. A tag or a pull request's merge ref is never trusted.
     The app repository needs those environments (variables from the dev outputs, as
     `backend-stg` and `app-stg` have; `GCP_DEPLOY_HUB` is the full email from
     org/gcp/_setup's `backend_deploy_hubs["dev"]` output,

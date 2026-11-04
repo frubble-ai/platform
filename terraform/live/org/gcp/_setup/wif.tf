@@ -87,6 +87,20 @@ resource "google_iam_workload_identity_pool_provider" "apply" {
       "assertion.environment + '|' + ",
       "assertion.ref",
     ])
+
+    # The same claims with the branch collapsed to a class: any branch reads
+    # `branch`, anything else (a tag, a pull request's merge ref) keeps its
+    # ref, so it can never match. Only dev's deploy trust names it, so dev
+    # can deploy whatever branch it is run from; the run still has to be the
+    # named workflow file in the named GitHub environment of the named
+    # repository. Every other hub binds apply_entry, exact ref included, and
+    # adding this changes nothing for them.
+    "attribute.deploy_entry" = join("", [
+      "assertion.repository + '|' + ",
+      "assertion.job_workflow_ref.split('@')[0] + '|' + ",
+      "assertion.environment + '|' + ",
+      "(assertion.ref.startsWith('refs/heads/') ? 'branch' : assertion.ref)",
+    ])
   }
 
   oidc {

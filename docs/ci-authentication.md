@@ -2,7 +2,12 @@
 
 GitHub OIDC → identity pool → **hub** service account (no permissions) → impersonates the
 **spoke** in the target project. Trust rules match the repo, the workflow file, the
-environment and the branch exactly. The rules for CI's own plan and apply hubs live in
+environment and the branch exactly. One exception: dev's app deploys (`backend-cd.yml` in
+`backend-dev`, `app-cd.yml` in `app-dev`) are trusted from any branch of frubble-ai/app, through
+the apply provider's `deploy_entry`, which is `apply_entry` with any `refs/heads/*` collapsed to
+`branch`; a tag or a pull request's merge ref never matches, and the repository, workflow file
+and environment still must. Dev's `db-reset.yml` and everything of stg's and prd's stay on
+`apply_entry`, exact branch included. The rules for CI's own plan and apply hubs live in
 `org/gcp/_setup`; the rules for an environment's deploy identities (the app deploy) live in
 that environment's workload root, so a renamed workflow is a planned, CI-applied change. The `_setup` roots are the one exception to the hub and spoke
 shape: their plan identity and the bootstrap admin act on the management project directly,
