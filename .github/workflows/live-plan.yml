@@ -46,6 +46,29 @@ jobs:
       contents: read
       id-token: write
 
+  # Off until dev is bootstrapped (docs/dev-environment.md).
+  gcp-dev:
+    name: Plan dev
+    uses: ./.github/workflows/_gcp-live-plan.yml
+    concurrency:
+      group: plan-gcp-dev-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: false
+    with:
+      enabled: ${{ vars.TF_PLAN_ENABLE_DEV == 'true' }}
+      environment: dev
+      root: terraform/live/dev/gcp
+      project_id: ${{ vars.GCP_PROJECT_DEV }}
+      state_bucket: ${{ vars.STATE_BUCKET_DEV }}
+      management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      spoke_service_account: ${{ vars.GCP_PLAN_SPOKE_DEV }}
+      service_account: ${{ vars.GCP_PLAN_HUB_DEV }}
+      workload_identity_provider: ${{ vars.GCP_PLAN_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+      composio_auth_config_ids: ${{ vars.COMPOSIO_AUTH_CONFIG_IDS_DEV }}
+    permissions:
+      contents: read
+      id-token: write
+
   gcp-prd:
     name: Plan prd
     uses: ./.github/workflows/_gcp-live-plan.yml
@@ -95,6 +118,25 @@ jobs:
     with:
       stack: stg
       root: terraform/live/stg/cloudflare
+      state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      workload_identity_provider: ${{ vars.GCP_PLAN_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    secrets:
+      CLOUDFLARE_PLAN_TOKEN: ${{ secrets.CLOUDFLARE_PLAN_TOKEN }}
+    permissions:
+      contents: read
+      id-token: write
+
+  cloudflare-dev:
+    name: Plan dev cloudflare
+    uses: ./.github/workflows/_cloudflare-live-plan.yml
+    concurrency:
+      group: plan-cloudflare-dev-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: false
+    with:
+      enabled: ${{ vars.TF_PLAN_ENABLE_DEV == 'true' }}
+      stack: dev
+      root: terraform/live/dev/cloudflare
       state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
       workload_identity_provider: ${{ vars.GCP_PLAN_PROVIDER }}
       audience: ${{ vars.GCP_WIF_AUDIENCE }}
@@ -227,9 +269,11 @@ jobs:
   plan-comment:
     name: Plan comment
     needs:
+      - gcp-dev
       - gcp-stg
       - gcp-prd
       - cloudflare-org
+      - cloudflare-dev
       - cloudflare-stg
       - cloudflare-prd
       - posthog-org

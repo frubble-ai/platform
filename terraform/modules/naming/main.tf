@@ -21,17 +21,17 @@ output "name" {
 }
 
 output "api_hostname" {
-  description = "Public hostname of the API: `api.stg.frubble.ai`, `api.frubble.ai`."
+  description = "Public hostname of the API: `api.dev.frubble.ai`, `api.stg.frubble.ai`, `api.frubble.ai`."
   value       = "api.${local.host_prefix}${var.zone}"
 }
 
 output "app_hostname" {
-  description = "Public hostname of the web app: `app.stg.frubble.ai`, `app.frubble.ai`."
+  description = "Public hostname of the web app: `app.dev.frubble.ai`, `app.stg.frubble.ai`, `app.frubble.ai`."
   value       = "app.${local.host_prefix}${var.zone}"
 }
 
 output "sending_domain" {
-  description = "Domain the worker sends from. A subdomain, never the apex, whose mail belongs to the people at it: `stg.frubble.ai`, `mail.frubble.ai`."
+  description = "Domain the worker sends from. A subdomain, never the apex, whose mail belongs to the people at it: `dev.frubble.ai`, `stg.frubble.ai`, `mail.frubble.ai`. Each environment its own, so dev never sends as stg."
   value       = var.environment == "prd" ? "mail.${var.zone}" : "${var.environment}.${var.zone}"
 }
 
