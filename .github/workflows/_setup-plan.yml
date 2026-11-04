@@ -1,4 +1,4 @@
-# Shared by the three _setup plan callers. The identity a caller may request is
+# Shared by the _setup plan callers. The identity a caller may request is
 # pinned to this file's path in the identity pool, so a workflow added in a
 # pull request cannot reach it by copying these steps. It is read-only across
 # the management and environment projects and denied every secret value: this
@@ -8,6 +8,11 @@ name: _setup-plan
 on:
   workflow_call:
     inputs:
+      enabled:
+        description: false for a root whose project does not exist yet; the job then plans nothing and passes.
+        required: false
+        type: boolean
+        default: true
       stack:
         description: Which _setup root — org, dev, stg or prd. Names the plan artifact and the plan-store prefix.
         required: true
@@ -62,6 +67,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [ "${{ inputs.enabled }}" != "true" ]; then
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+            echo "plan disabled"
+            exit 0
+          fi
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
             exit 0

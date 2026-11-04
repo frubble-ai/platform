@@ -162,6 +162,27 @@ jobs:
       contents: read
       id-token: write
 
+  # Off until dev's project exists (docs/dev-environment.md).
+  setup-dev:
+    name: Plan dev setup
+    uses: ./.github/workflows/_setup-plan.yml
+    concurrency:
+      group: plan-setup-dev-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: false
+    with:
+      enabled: ${{ vars.GCP_PROJECT_DEV != '' }}
+      stack: dev
+      root: terraform/live/dev/gcp/_setup
+      project_id: ${{ vars.GCP_PROJECT_DEV }}
+      management_project_id: ${{ vars.GCP_MANAGEMENT_PROJECT }}
+      management_state_bucket: ${{ vars.MANAGEMENT_STATE_BUCKET }}
+      service_account: ${{ vars.GCP_SETUP_PLAN_IDENTITY }}
+      workload_identity_provider: ${{ vars.GCP_PLAN_PROVIDER }}
+      audience: ${{ vars.GCP_WIF_AUDIENCE }}
+    permissions:
+      contents: read
+      id-token: write
+
   setup-stg:
     name: Plan stg setup
     uses: ./.github/workflows/_setup-plan.yml
@@ -204,7 +225,17 @@ jobs:
   # failed, so a red stack is named in the comment instead of silently absent.
   plan-comment:
     name: Plan comment
-    needs: [gcp-stg, gcp-prd, cloudflare-org, cloudflare-stg, cloudflare-prd, posthog-org, setup-org, setup-stg, setup-prd]
+    needs:
+      - gcp-stg
+      - gcp-prd
+      - cloudflare-org
+      - cloudflare-stg
+      - cloudflare-prd
+      - posthog-org
+      - setup-org
+      - setup-dev
+      - setup-stg
+      - setup-prd
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
