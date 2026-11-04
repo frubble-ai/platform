@@ -6,7 +6,7 @@ variable decides whether stg's running resources exist.
 
 ## The switch
 
-`STG_ENABLED`, a repository variable. Unset or anything but `false` is on. `stg-cd`
+`STG_ENABLED`, a repository variable. `false` is off, in any letter case (`FALSE` too, because Actions compares strings case-insensitively). Unset or anything else is on. `stg-cd`
 and the pull-request plans (`Plan stg`, `Plan stg cloudflare`) pass it to the roots
 as `enabled` (`stack_enabled` in the reusable workflows), so every run, a push to
 `dev` included, plans towards what it says. Only repository admins can change a

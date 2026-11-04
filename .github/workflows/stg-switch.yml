@@ -61,8 +61,9 @@ jobs:
         run: |
           set -euo pipefail
           want=$([ "$WANTED" = "on" ] && echo true || echo false)
-          # Unset reads as on, as in stg-cd.
-          now=$([ "$CURRENT" = "false" ] && echo false || echo true)
+          # Unset reads as on, and false in any letter case as off, as in
+          # stg-cd (Actions expressions compare strings case-insensitively).
+          now=$([ "${CURRENT,,}" = "false" ] && echo false || echo true)
           if [ "$want" != "$now" ]; then
             echo "::error::STG_ENABLED is '${CURRENT:-unset}', which keeps stg $([ "$now" = true ] && echo on || echo off)."
             echo "A repository admin sets it first, then runs this again:"
