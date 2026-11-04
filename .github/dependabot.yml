@@ -39,6 +39,7 @@ updates:
       - /terraform/live/dev/gcp
       - /terraform/live/dev/gcp/_setup
       - /terraform/live/dev/cloudflare
+      - /terraform/live/dev/mailgun
       - /terraform/live/stg/gcp
       - /terraform/live/stg/gcp/_setup
       - /terraform/live/stg/cloudflare
