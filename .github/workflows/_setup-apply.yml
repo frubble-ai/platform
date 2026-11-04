@@ -131,7 +131,10 @@ jobs:
           TF_VAR_administrator: ${{ vars.TF_SETUP_ADMINISTRATOR }}
           TF_VAR_org_members_access: ${{ secrets.ORG_MEMBERS_ACCESS }}
           # dev joins once GCP_PROJECT_DEV is set (docs/getting-started.md);
-          # unset, the map is exactly stg and prd, as before.
+          # unset, the map is exactly stg and prd, as before. Once the project
+          # exists it stays set: GCP_SETUP_DISABLE_DEV, not this, turns the dev
+          # setup jobs off, so pausing them never drops dev from this map
+          # (docs/dev-environment.md).
           TF_VAR_environment_projects: >-
             {"stg":"${{ vars.GCP_PROJECT_STG }}","prd":"${{ vars.GCP_PROJECT_PRD }}"${{
             vars.GCP_PROJECT_DEV != '' && format(',"dev":"{0}"', vars.GCP_PROJECT_DEV) || '' }} }

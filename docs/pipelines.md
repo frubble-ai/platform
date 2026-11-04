@@ -16,4 +16,4 @@
 The dev plans (`Plan dev`, `Plan dev cloudflare`, `Plan dev setup`) run behind
 `TF_PLAN_ENABLE_DEV` and `GCP_PROJECT_DEV` and are not required checks.
 
-Required checks: `Plan stg / plan`, `Plan prd / plan`, `Plan org setup / plan`, `Plan stg setup / plan`, `Plan prd setup / plan`, `Code Quality Summary`, `pr template`.
+Required checks: `Plan stg / plan`, `Plan prd / plan`, `Plan org setup / plan`, `Plan dev setup / plan`, `Plan stg setup / plan`, `Plan prd setup / plan`, `Code Quality Summary`, `pr template`.
