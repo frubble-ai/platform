@@ -23,6 +23,9 @@ This script writes, and holds both to hard rules whatever they said:
   open, and approved, after its earlier requests for changes are dismissed, when none is. An
   unchanged request for changes is edited in place; an older verdict is dismissed and collapsed.
 
+Every write first checks that the pull request is still at the head this run reviewed, and stops
+the run when a newer push has landed.
+
 Prints `open=<n>` to $GITHUB_OUTPUT for the step that holds the check red.
 """
 
@@ -51,8 +54,24 @@ HEAD = os.environ["HEAD_SHA"]
 API = f"repos/{REPO}/pulls/{PR}"
 
 
+def still_head():
+    """Stops the run when the pull request has moved past the commit this run reviewed."""
+    done = subprocess.run(["gh", "api", API, "--jq", ".head.sha"], capture_output=True, text=True)
+    live = done.stdout.strip()
+    if done.returncode != 0 or live != HEAD:
+        sys.exit(f"the pull request's head is now {live[:7] or 'unknown'}, not {HEAD[:7]}: this run is "
+                 "superseded, so it writes nothing more")
+
+
 def gh(*args, payload=None, check=True):
-    """Calls `gh api`, sending `payload` as the JSON body, and returns the parsed answer."""
+    """Calls `gh api`, sending `payload` as the JSON body, and returns the parsed answer.
+
+    Before every write, it checks the pull request is still at the reviewed head. That narrows the
+    window for a stale write to one read and one write; it cannot stop a write already sent.
+    """
+    if ("-X" in args and args[args.index("-X") + 1] != "GET") or any(
+            str(arg).startswith("query=mutation") for arg in args):
+        still_head()
     cmd = ["gh", "api", *args]
     if payload is not None:
         cmd += ["--input", "-"]
