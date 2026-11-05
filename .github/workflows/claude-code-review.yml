@@ -13,18 +13,56 @@ on:
         required: true
         type: number
 
-# A new push cancels the review of the old head: only the latest commit is
-# worth a review, and each run spends the subscription's usage.
-concurrency:
-  group: claude-code-review-${{ github.event.pull_request.number || inputs.pr }}
-  cancel-in-progress: true
-
 # No id-token: this workflow never needs a cloud identity, so it cannot ask
 # for one.
 permissions:
   contents: read
 
 jobs:
+  # A new push supersedes the review of the old head: only the latest commit
+  # is worth a review, and each run spends the subscription's usage. This is
+  # done here rather than with workflow-level concurrency, which leaves the new
+  # run pending until the old one stops, and a run inside its Claude step can
+  # take minutes to stop after a cancel. So: cancel every older run of this
+  # workflow for this branch, give it 20 seconds, then force whatever is still
+  # alive. Only older runs (lower ids): a late run never cancels a newer one.
+  cancel-stale:
+    name: Review — Cancel stale runs
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Cancel older review runs for this pull request
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.head_ref }}
+          THIS_RUN: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          stale=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow=claude-code-review.yml \
+                    --branch "$BRANCH" --event pull_request --limit 50 --json databaseId,status \
+                    --jq ".[] | select(.databaseId < $THIS_RUN)
+                         | select(.status | IN(\"queued\", \"in_progress\", \"pending\", \"waiting\", \"requested\"))
+                         | .databaseId")
+          [ -z "$stale" ] && { echo "nothing to cancel"; exit 0; }
+
+          for id in $stale; do
+            echo "cancelling $id"
+            gh run cancel "$id" --repo "$GITHUB_REPOSITORY" || true
+          done
+
+          sleep 20
+
+          for id in $stale; do
+            state=$(gh run view "$id" --repo "$GITHUB_REPOSITORY" --json status --jq .status 2>/dev/null || echo gone)
+            if [ "$state" != completed ] && [ "$state" != gone ]; then
+              echo "still $state, forcing $id"
+              gh api -X POST "repos/$GITHUB_REPOSITORY/actions/runs/$id/force-cancel" || true
+            fi
+          done
   # Decides whether the pull request is reviewed at all. Forks and drafts never
   # are. On a push, the author needs write access to the repository. The
   # association alone cannot decide it: this token cannot see private
@@ -444,6 +482,11 @@ jobs:
     if: always() && needs.gate.outputs.allowed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # One publisher per pull request at a time: a superseded run that is still
+    # being stopped never writes alongside the new one.
+    concurrency:
+      group: claude-code-review-publish-${{ needs.gate.outputs.number }}
+      cancel-in-progress: false
     permissions:
       contents: write
       pull-requests: write
