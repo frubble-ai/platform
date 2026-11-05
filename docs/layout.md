@@ -3,7 +3,7 @@
 ```
 terraform/
   live/
-    org/gcp/_setup            projects, state bucket, identity pool, hubs
+    org/gcp/_setup            projects, state bucket, identity pool, hubs (the application's, and osiris's `frubble-<env>-osiris-deploy-hub`)
     org/cloudflare/_setup     zone-wide settings and the plan token
     org/cloudflare            DNS shared by every environment
     org/posthog               the PostHog project

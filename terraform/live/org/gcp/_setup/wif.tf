@@ -1,6 +1,7 @@
 locals {
   platform_repo = "${var.github_owner}/${var.platform_repository}"
   backend_repo  = "${var.github_owner}/${var.backend_repository}"
+  osiris_repo   = "${var.github_owner}/${var.osiris_repository}"
 
   # Pinning the audience means a token minted for some other Google resource
   # cannot be replayed here, even if it is otherwise valid.
@@ -72,7 +73,7 @@ resource "google_iam_workload_identity_pool_provider" "apply" {
   display_name                       = "GitHub — apply"
   description                        = "Write entry point. Only reachable from a job running inside a GitHub environment."
 
-  attribute_condition = "assertion.repository in ['${local.platform_repo}', '${local.backend_repo}']"
+  attribute_condition = "assertion.repository in ['${local.platform_repo}', '${local.backend_repo}', '${local.osiris_repo}']"
 
   attribute_mapping = {
     # Carries the run, as above: the audit entry names the run that caused it.
