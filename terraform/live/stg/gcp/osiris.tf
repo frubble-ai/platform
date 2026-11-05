@@ -52,6 +52,7 @@ module "osiris_service" {
   image                 = var.api_bootstrap_image
   env = merge(local.osiris_database_env, local.osiris_runtime_env, {
     OSIRIS_PROCESS = "serve"
+    OSIRIS_ENV     = module.shared.environment
   })
   secret_env = merge(local.osiris_database_secret_env, {
     OSIRIS_ENCRYPTION_KEY = { secret = module.secrets["osiris_encryption_key"].secret_id }
@@ -83,6 +84,7 @@ module "osiris_worker_service" {
   image                 = var.api_bootstrap_image
   env = merge(local.osiris_database_env, local.osiris_runtime_env, {
     OSIRIS_PROCESS                = "worker"
+    OSIRIS_ENV                    = module.shared.environment
     OSIRIS__TASKS__MAX_CONCURRENT = tostring(local.osiris_max_connections)
   })
   secret_env = merge(local.osiris_database_secret_env, {
@@ -132,6 +134,7 @@ module "osiris_migrate_job" {
   image                 = var.api_bootstrap_image
   env = merge(local.osiris_database_env, {
     OSIRIS_PROCESS                    = "migrate"
+    OSIRIS_ENV                        = module.shared.environment
     LOG_FORMAT                        = "json"
     OSIRIS__DATABASE__MAX_CONNECTIONS = tostring(local.osiris_max_connections)
   })
