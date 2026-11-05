@@ -203,7 +203,8 @@ jobs:
               "nowhere else.\n"
               "4. **Review** only what your role and the contract define. Look at the repo's own files and docs "
               "with Read, Grep and Glob; the checkout is the head commit.\n"
-              "5. **Answer exactly as your role says** — a findings list, or the one clean line.\n\n"
+              "5. **Answer exactly as your role says** — a findings list, or the exact clean line (a short "
+              "note may follow it).\n\n"
               "You never change code and never post anything: you only hand findings back.\n\n"
           )
 
@@ -314,10 +315,14 @@ jobs:
           ]
 
           def usable(lens, text):
-              clean = f"Area clean ({lens}) — no findings." in text
-              # Claude Code indents a subagent's answer when it hands it back.
-              findings = re.search(r"^\s*#+\s*Findings", text, re.M) and re.search(r"[\w./-]+:\d+", text)
-              return bool(clean) != bool(findings)
+              # Clean: the clean line anywhere, on its own line, notes before or after it allowed.
+              # Findings: a findings heading with at least one `file:line` entry. Either is usable;
+              # both together count as findings. Only an answer with neither is lost. Claude Code
+              # indents a subagent's answer when it hands it back.
+              clean = re.search(rf"^\s*Area clean \({lens}\)\s*[—–-]+\s*no findings\.?\s*$", text, re.M | re.I)
+              heading = re.search(r"^\s*#+\s*Findings", text, re.M | re.I)
+              entries = re.search(r"[\w./-]+\.[\w]+:\d+", text)
+              return bool(clean) or bool(heading and entries)
 
           problems = []
           for lens in ["security", "correctness", "boundaries", "conventions", "tests", "performance", "intent"]:
