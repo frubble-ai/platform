@@ -203,7 +203,8 @@ jobs:
               "nowhere else.\n"
               "4. **Review** only what your role and the contract define. Look at the repo's own files and docs "
               "with Read, Grep and Glob; the checkout is the head commit.\n"
-              "5. **Answer exactly as your role says** — a findings list, or the exact clean line (a short note may follow it).\n\n"
+              "5. **Answer exactly as your role says** — a findings list, or the exact clean line (a short "
+              "note may follow it).\n\n"
               "You never change code and never post anything: you only hand findings back.\n\n"
           )
 
