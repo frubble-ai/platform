@@ -68,6 +68,12 @@ variable "enabled" {
   nullable    = false
 }
 
+variable "queue_name_suffix" {
+  description = "Appended to the osiris Cloud Tasks queue's name. Cloud Tasks keeps a deleted queue's name for about a week, so rebuilding stg sooner than that after switching it off needs a new name here, e.g. \"-2\" (docs/stg-switch.md). Changing it on a running stg replaces the queue and drops its pending tasks."
+  type        = string
+  default     = ""
+}
+
 variable "database_instance_suffix" {
   description = "Appended to the Cloud SQL instance's name. Cloud SQL keeps a deleted instance's name for up to a week, so rebuilding stg sooner than that after switching it off needs a new name here, e.g. \"-2\" (docs/stg-switch.md). Changing it on a running stg replaces the database."
   type        = string

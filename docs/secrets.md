@@ -24,8 +24,9 @@ the operator key. Read it as the administrator (the plan identity is denied ever
 secret value):
 
 ```sh
-PROJECT="$(gh variable get GCP_PROJECT_DEV)"  # or GCP_PROJECT_STG
-gcloud secrets versions access latest --secret "frubble_dev_osiris_admin-key" --project "$PROJECT"
+ENV=dev  # or stg
+PROJECT="$(gh variable get "GCP_PROJECT_$(echo "$ENV" | tr a-z A-Z)")"
+gcloud secrets versions access latest --secret "frubble_${ENV}_osiris_admin-key" --project "$PROJECT"
 ```
 
 The id is `frubble_<env>_osiris_admin-key` (the secret module joins the path with

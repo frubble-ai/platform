@@ -39,7 +39,7 @@ locals {
     local.setup.osiris_service_account,
     local.setup.osiris_worker_service_account,
   ])
-  database_grants_sql = "BEGIN; GRANT CONNECT ON DATABASE frubble TO frubble; GRANT CONNECT ON DATABASE osiris TO osiris; REVOKE CONNECT ON DATABASE frubble FROM PUBLIC; REVOKE CONNECT ON DATABASE osiris FROM PUBLIC; REVOKE cloudsqlsuperuser FROM osiris; COMMIT;"
+  database_grants_sql = "BEGIN; GRANT CONNECT ON DATABASE frubble TO frubble; GRANT CONNECT ON DATABASE osiris TO osiris; REVOKE CONNECT ON DATABASE frubble FROM PUBLIC; REVOKE CONNECT ON DATABASE osiris FROM PUBLIC; GRANT osiris TO grants; ALTER DATABASE osiris OWNER TO osiris; REVOKE cloudsqlsuperuser FROM osiris; COMMIT;"
 }
 
 module "osiris_service" {
@@ -158,7 +158,7 @@ module "osiris_migrate_job" {
 # worker's instance ceiling.
 resource "google_cloud_tasks_queue" "osiris" {
   project  = var.project_id
-  name     = "${local.name}-osiris"
+  name     = "${local.name}-osiris${var.queue_name_suffix}"
   location = var.region
 
   rate_limits {

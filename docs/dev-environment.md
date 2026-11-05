@@ -206,7 +206,9 @@ After the first dev apply, and again whenever stg is rebuilt:
 
 1. Run the database grant job once, as someone who can execute Cloud Run jobs.
    It revokes `CONNECT` between the `frubble` and `osiris` databases. The
-   application user keeps `CONNECT` on its own database.
+   application user keeps `CONNECT` on its own database. It also makes the
+   `osiris` user the owner of the `osiris` database, so migrations can create
+   tables, and then removes that user from `cloudsqlsuperuser`.
    `gcloud run jobs execute frubble-dev-db-grants --project "$PROJECT" --region us-central1 --wait`
    with `PROJECT` from `GCP_PROJECT_DEV` (`frubble-stg-db-grants` and `GCP_PROJECT_STG` for stg). If it fails, the
    transaction rolls back and `CONNECT` is unchanged.
