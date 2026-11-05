@@ -1,0 +1,478 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    branches: [dev]
+    types: [opened, synchronize, ready_for_review, reopened]
+  # Reviews one pull request on demand, with this workflow and the rules as
+  # they are on the branch it is run from.
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number
+        required: true
+        type: number
+
+# A new push cancels the review of the old head: only the latest commit is
+# worth a review, and each run spends the subscription's usage.
+concurrency:
+  group: claude-code-review-${{ github.event.pull_request.number || inputs.pr }}
+  cancel-in-progress: true
+
+# No id-token: this workflow never needs a cloud identity, so it cannot ask
+# for one.
+permissions:
+  contents: read
+
+jobs:
+  # Decides whether the pull request is reviewed at all. Forks and drafts never
+  # are. On a push, the author needs write access to the repository. The
+  # association alone cannot decide it: this token cannot see private
+  # organisation membership, so a private member reads as COLLABORATOR or
+  # CONTRIBUTOR. Bots and anyone without write access are not reviewed. A
+  # manual run skips the author check: whoever ran it has write access already.
+  gate:
+    name: Review — Gate
+    if: vars.CLAUDE_REVIEW_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      allowed: ${{ steps.pr.outputs.allowed }}
+      number: ${{ steps.pr.outputs.number }}
+      base_sha: ${{ steps.pr.outputs.base_sha }}
+      head_sha: ${{ steps.pr.outputs.head_sha }}
+    steps:
+      - name: Resolve the pull request
+        id: pr
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          pr=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$NUMBER")
+          author=$(jq -r '.user.login' <<<"$pr")
+          assoc=$(jq -r '.author_association' <<<"$pr")
+          head_repo=$(jq -r '.head.repo.full_name' <<<"$pr")
+          draft=$(jq -r '.draft' <<<"$pr")
+          state=$(jq -r '.state' <<<"$pr")
+          perm=$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$author/permission" \
+            --jq '.permission' 2>/dev/null || echo none)
+
+          allowed=false
+          if [ "$head_repo" = "$GITHUB_REPOSITORY" ] && [ "$draft" = false ] && [ "$state" = open ]; then
+            if [ "$EVENT" = workflow_dispatch ]; then
+              allowed=true
+            else
+              case "$perm" in admin | maintain | write) allowed=true ;; esac
+            fi
+          fi
+
+          echo "author=$author association=$assoc permission=$perm"
+          echo "head=$head_repo draft=$draft state=$state allowed=$allowed"
+          {
+            echo "allowed=$allowed"
+            echo "number=$NUMBER"
+            echo "base_sha=$(jq -r '.base.sha' <<<"$pr")"
+            echo "head_sha=$(jq -r '.head.sha' <<<"$pr")"
+          } >> "$GITHUB_OUTPUT"
+
+  # Claude reviews, read-only and blind to earlier review comments: it
+  # returns every finding present at the head commit as structured output.
+  # Nothing here writes, and nothing here decides what to post or resolve.
+  analyze:
+    name: Review — Analyze
+    needs: gate
+    if: needs.gate.outputs.allowed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    outputs:
+      result: ${{ steps.claude.outputs.structured_output }}
+      decisions: ${{ steps.reconcile.outputs.structured_output }}
+    env:
+      PR: ${{ needs.gate.outputs.number }}
+      BASE_SHA: ${{ needs.gate.outputs.base_sha }}
+      HEAD_SHA: ${{ needs.gate.outputs.head_sha }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ needs.gate.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The rules and the PR template come from the base branch, never from the
+      # pull request, so a pull request cannot weaken its own review. The one
+      # exception is the pull request that adds the rules, when the base has
+      # none yet.
+      - name: Take the rules from the base branch
+        shell: bash
+        env:
+          OUT: ${{ runner.temp }}/claude-review-rules.md
+          TEMPLATE: ${{ runner.temp }}/claude-review-template.md
+        run: |
+          set -euo pipefail
+          if git cat-file -e "$BASE_SHA:.github/pull_request_template.md" 2>/dev/null; then
+            git show "$BASE_SHA:.github/pull_request_template.md" > "$TEMPLATE"
+          else
+            echo "This repository has no pull request template." > "$TEMPLATE"
+          fi
+          take() {
+            if git cat-file -e "$BASE_SHA:$1" 2>/dev/null; then
+              git show "$BASE_SHA:$1" > "$2"
+            elif git cat-file -e "$GITHUB_SHA:$1" 2>/dev/null; then
+              git show "$GITHUB_SHA:$1" > "$2"
+            else
+              cp "$1" "$2"
+            fi
+          }
+          take .github/claude-review/rules.md "$OUT"
+          take .github/claude-review/reconcile.md "$RUNNER_TEMP/claude-review-reconcile.md"
+          take .github/claude-review/package.py "$RUNNER_TEMP/claude-review-package.py"
+          mkdir -p "$RUNNER_TEMP/claude-review-lenses"
+          for name in contract security correctness boundaries conventions tests performance intent checker; do
+            take ".github/claude-review/lenses/$name.md" "$RUNNER_TEMP/claude-review-lenses/$name.md"
+          done
+
+      # The review package, gathered deterministically so the review spends its
+      # turns on judgement: the whole diff, the changed files with their marks,
+      # the docs manifest, the bypass candidates by lens, the intent and the
+      # commits, and other reviewers' comments. Never this workflow's own.
+      - name: Build the review package
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 "$RUNNER_TEMP/claude-review-package.py"
+
+      # One subagent per lens, plus the checker: each holds its full role, the
+      # Review contract and the repo rules, all from the base branch. Read-only
+      # tools, high effort, 60 turns. User-level (~/.claude/agents), because on
+      # a pull request the action replaces the checkout's .claude/ with the base
+      # branch's, which would delete them.
+      - name: Build the review subagents
+        shell: python
+        env:
+          RULES: ${{ runner.temp }}/claude-review-rules.md
+          LENSES: ${{ runner.temp }}/claude-review-lenses
+        run: |
+          import os
+
+          rules = open(os.environ["RULES"], encoding="utf-8").read()
+          repo_rules = rules[rules.index("## Repo rules"):] if "## Repo rules" in rules else ""
+          lenses = os.environ["LENSES"]
+          contract = open(f"{lenses}/contract.md", encoding="utf-8").read()
+          agents = os.path.expanduser("~/.claude/agents")
+          os.makedirs(agents, exist_ok=True)
+
+          PREAMBLE = (
+              "You are a reviewer subagent of the pull request review, sent by its orchestrating session; you "
+              "are never run on your own. Your dispatch prompt gives you the review package and the diff.\n\n"
+              "## Your tools\n\n"
+              "You have **Read, Grep and Glob only** — no shell, no editing. That is on purpose: a reviewer reads "
+              "code, it does not run it. If something seems to need a shell command, it is out of scope; if that "
+              "truly blocks a finding, say so in your answer instead.\n\n"
+              "## What to do\n\n"
+              "1. **Follow your role** below exactly.\n"
+              "2. **Hold every finding to the Review contract** below — diff scope, severity labels, the "
+              "confidence bar, the overlap note, and the rest.\n"
+              "3. **Read the package, then the diff**, from the paths your dispatch prompt gives — page a large "
+              "diff with offset and limit, or Grep it for `^diff --git` to move between files. Look for the diff "
+              "nowhere else.\n"
+              "4. **Review** only what your role and the contract define. Look at the repo's own files and docs "
+              "with Read, Grep and Glob; the checkout is the head commit.\n"
+              "5. **Answer exactly as your role says** — a findings list, or the one clean line.\n\n"
+              "You never change code and never post anything: you only hand findings back.\n\n"
+          )
+
+          def write(name, description, role):
+              with open(f"{agents}/{name}.md", "w", encoding="utf-8") as out:
+                  out.write(
+                      f"---\nname: {name}\ndescription: {description}\n"
+                      "tools: Read, Grep, Glob\nmodel: claude-sonnet-5-5\neffort: high\n"
+                      "omitClaudeMd: true\nmaxTurns: 60\n---\n\n"
+                  )
+                  out.write(PREAMBLE + "# Your role\n\n" + role.strip() + "\n\n" + contract.strip()
+                            + "\n\n# " + repo_rules.removeprefix("## ").strip() + "\n")
+
+          for lens in ["security", "correctness", "boundaries", "conventions", "tests", "performance", "intent"]:
+              role = open(f"{lenses}/{lens}.md", encoding="utf-8").read()
+              write(f"review-{lens}", f"The {lens} lens of the pull request review. Dispatched only by the review.",
+                    role)
+          write("review-checker", "The independent checker of the pull request review. Dispatched only by the review.",
+                open(f"{lenses}/checker.md", encoding="utf-8").read())
+          print(agents, sorted(os.listdir(agents)))
+
+      # Authenticates with the Claude subscription (claude setup-token), not an
+      # API key. Claude only reads: it returns the review as structured output,
+      # and the Publish step posts it.
+      - uses: anthropics/claude-code-action@c0949c50a78c1ec8ce2647db36629b870e715d0c # v1
+        id: claude
+        env:
+          # Subagents run in the foreground, so every Agent call returns its
+          # result before the session can end.
+          CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ env.PR }}
+            BASE SHA: ${{ env.BASE_SHA }}
+            HEAD SHA: ${{ env.HEAD_SHA }}
+            RULES FILE: ${{ runner.temp }}/claude-review-rules.md
+            PACKAGE FILE: ${{ runner.temp }}/claude-review-package.md
+            DIFF FILE: ${{ runner.temp }}/claude-review.diff
+            TEMPLATE FILE: ${{ runner.temp }}/claude-review-template.md
+
+            You orchestrate this review; you review nothing yourself. Read the
+            rules file and follow its run order exactly: the package, the
+            lenses in three blocking batches, the completion gate, the merge,
+            the checker, and the structured answer. You never see this
+            workflow's earlier comments, and you decide nothing about posting.
+          claude_args: |
+            --model claude-sonnet-5-5
+            --max-turns 200
+            --add-dir ${{ runner.temp }}
+            --json-schema '{"type": "object",
+              "properties": {
+                "candidates": {"type": "integer"},
+                "partial": {"type": "array", "items": {"type": "string"}},
+                "findings": {"type": "array", "items": {"type": "object",
+                  "properties": {"path": {"type": "string"}, "line": {"type": "integer"},
+                    "lens": {"type": "string"}, "body": {"type": "string"}},
+                  "required": ["path", "line", "lens", "body"]}}},
+              "required": ["candidates", "partial", "findings"]}'
+            --allowedTools
+              "Read,Grep,Glob,Agent,Task"
+              "Bash(git diff:*),Bash(git log:*),Bash(git show:*)"
+              "Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh issue view:*)"
+
+      # The full transcript of the run — every tool call, every subagent's
+      # answer, every denial — kept for three days to debug a run that went
+      # wrong. The action hides it from the log.
+      - name: Keep the transcript
+        if: always() && steps.claude.outputs.execution_file != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: claude-review-transcript-pr${{ env.PR }}-${{ github.run_attempt }}
+          path: ${{ steps.claude.outputs.execution_file }}
+          retention-days: 3
+          if-no-files-found: warn
+
+      # The completion gate, checked from the run's own log rather than from
+      # what Claude says: every lens answered at least once with a usable
+      # result (a findings block or its exact clean line), no lens is left
+      # partial, and the checker ran whenever there was anything to check.
+      - name: Require every lens to have answered
+        shell: python
+        env:
+          EXECUTION: ${{ steps.claude.outputs.execution_file }}
+          RESULT: ${{ steps.claude.outputs.structured_output }}
+        run: |
+          import json, os, re, sys
+
+          log = json.load(open(os.environ["EXECUTION"]))
+          result = json.loads(os.environ["RESULT"] or "{}")
+          answers = {}
+          for entry in log:
+              if entry.get("type") != "user":
+                  continue
+              for block in entry.get("message", {}).get("content", []) or []:
+                  if isinstance(block, dict) and block.get("type") == "tool_result":
+                      content = block.get("content")
+                      text = content if isinstance(content, str) else " ".join(
+                          part.get("text", "") for part in content or [] if isinstance(part, dict))
+                      answers[block["tool_use_id"]] = (block.get("is_error"), text)
+          calls = [
+              block
+              for entry in log if entry.get("type") == "assistant" and not entry.get("parent_tool_use_id")
+              for block in entry.get("message", {}).get("content", []) or []
+              if isinstance(block, dict) and block.get("type") == "tool_use"
+              and block.get("name") in ("Agent", "Task")
+          ]
+
+          def usable(lens, text):
+              clean = f"Area clean ({lens}) — no findings." in text
+              # Claude Code indents a subagent's answer when it hands it back.
+              findings = re.search(r"^\s*#+\s*Findings", text, re.M) and re.search(r"[\w./-]+:\d+", text)
+              return bool(clean) != bool(findings)
+
+          problems = []
+          for lens in ["security", "correctness", "boundaries", "conventions", "tests", "performance", "intent"]:
+              name = f"review-{lens}"
+              tries = [answers.get(call["id"], (True, "")) for call in calls
+                       if call.get("input", {}).get("subagent_type") == name]
+              good = [text for error, text in tries if not error and usable(lens, text)]
+              print(f"{name}: {len(tries)} dispatch(es), {'usable' if good else 'NO usable answer'}")
+              if not good:
+                  problems.append(f"{name} gave no usable answer")
+          checker = [call for call in calls if call.get("input", {}).get("subagent_type") == "review-checker"]
+          print(f"review-checker: {len(checker)} dispatch(es); candidates: {result.get('candidates', 0)}")
+          if result.get("candidates", 0) and not checker:
+              problems.append("review-checker did not run")
+          if result.get("partial"):
+              problems.append(f"partial review: {', '.join(result['partial'])}")
+          for problem in problems:
+              print(f"::error::{problem}")
+          sys.exit(1 if problems else 0)
+
+      # The reconcile step's inputs: the review's findings, numbered, and every
+      # thread this workflow opened, with all its replies and who resolved it.
+      - name: Prepare the reconcile inputs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT: ${{ steps.claude.outputs.structured_output }}
+        run: |
+          set -euo pipefail
+          jq '[.findings | to_entries[] | {index: .key} + .value]' <<<"$RESULT" \
+            > "$RUNNER_TEMP/claude-review-findings.json"
+          # shellcheck disable=SC2016 # GraphQL variables, not shell ones
+          gh api graphql --paginate --slurp -F owner="${GITHUB_REPOSITORY%/*}" \
+            -F name="${GITHUB_REPOSITORY#*/}" -F number="$PR" -f query='
+            query($owner: String!, $name: String!, $number: Int!, $endCursor: String) {
+              repository(owner: $owner, name: $name) { pullRequest(number: $number) {
+                reviewThreads(first: 50, after: $endCursor) {
+                  pageInfo { hasNextPage endCursor }
+                  nodes { id isResolved resolvedBy { login } path line originalLine
+                    comments(first: 100) { nodes { author { login } createdAt body } } } } } } }' \
+            | jq '[.[].data.repository.pullRequest.reviewThreads.nodes[]
+                | select((.comments.nodes[0].author.login | IN("github-actions", "github-actions[bot]"))
+                    and (.comments.nodes[0].body | contains("<!-- claude-review -->")))
+                | {thread: .id, resolved: .isResolved, resolved_by: .resolvedBy.login,
+                   path, line: (.line // .originalLine),
+                   finding: .comments.nodes[0].body,
+                   replies: [.comments.nodes[1:][] | {author: .author.login, at: .createdAt, body}]}]' \
+            > "$RUNNER_TEMP/claude-review-threads.json"
+          echo "findings: $(jq length "$RUNNER_TEMP/claude-review-findings.json")," \
+            "threads: $(jq length "$RUNNER_TEMP/claude-review-threads.json")"
+
+      # A separate Claude call that never reviews code: it lines the blind
+      # review up with the existing threads by meaning, and decides each
+      # thread's action. publish.py carries it out under its own rules.
+      - uses: anthropics/claude-code-action@c0949c50a78c1ec8ce2647db36629b870e715d0c # v1
+        id: reconcile
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ env.PR }}
+            HEAD SHA: ${{ env.HEAD_SHA }}
+            INSTRUCTIONS FILE: ${{ runner.temp }}/claude-review-reconcile.md
+            FINDINGS FILE: ${{ runner.temp }}/claude-review-findings.json
+            THREADS FILE: ${{ runner.temp }}/claude-review-threads.json
+
+            Read the instructions file and follow it exactly. You do not
+            review the code: you match the findings to the threads, decide
+            each thread's action, and answer with the structured output.
+          claude_args: |
+            --model claude-sonnet-5-5
+            --max-turns 40
+            --add-dir ${{ runner.temp }}
+            --json-schema '{"type": "object",
+              "properties": {
+                "matches": {"type": "array", "items": {"type": "object",
+                  "properties": {"finding": {"type": "integer"}, "thread": {"type": "string"}},
+                  "required": ["finding", "thread"]}},
+                "threads": {"type": "array", "items": {"type": "object",
+                  "properties": {"thread": {"type": "string"},
+                    "action": {"type": "string", "enum": ["keep", "resolve", "reopen"]},
+                    "reply": {"type": "string"}},
+                  "required": ["thread", "action", "reply"]}}},
+              "required": ["matches", "threads"]}'
+            --allowedTools
+              "Read,Grep,Glob"
+              "Bash(git diff:*),Bash(git log:*),Bash(git show:*)"
+
+      - name: Keep the reconcile transcript
+        if: always() && steps.reconcile.outputs.execution_file != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: claude-reconcile-transcript-pr${{ env.PR }}-${{ github.run_attempt }}
+          path: ${{ steps.reconcile.outputs.execution_file }}
+          retention-days: 3
+          if-no-files-found: warn
+
+  # Writes the review to the pull request. No Claude and no code from the pull
+  # request run here: only publish.py, taken from the base branch. It needs
+  # contents: write because GitHub requires it to resolve a review thread. This
+  # is the check the ruleset requires, so it runs whenever the pull request is
+  # in scope and fails unless the analysis succeeded: a skipped or broken
+  # review never counts as a pass.
+  publish:
+    name: Review — Claude
+    needs: [gate, analyze]
+    if: always() && needs.gate.outputs.allowed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      PR: ${{ needs.gate.outputs.number }}
+      BASE_SHA: ${{ needs.gate.outputs.base_sha }}
+      HEAD_SHA: ${{ needs.gate.outputs.head_sha }}
+    steps:
+      - name: Require the analysis to have succeeded
+        if: needs.analyze.result != 'success'
+        shell: bash
+        env:
+          ANALYZE: ${{ needs.analyze.result }}
+        run: |
+          echo "::error::the review analysis did not succeed ($ANALYZE); nothing was published"
+          exit 1
+
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ needs.gate.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # publish.py from the base branch, like the rules; the diff tells it which
+      # lines a comment may sit on.
+      - name: Take the publisher from the base branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          path=.github/claude-review/publish.py
+          if git cat-file -e "$BASE_SHA:$path" 2>/dev/null; then
+            git show "$BASE_SHA:$path" > "$RUNNER_TEMP/claude-review-publish.py"
+          else
+            git show "$GITHUB_SHA:$path" > "$RUNNER_TEMP/claude-review-publish.py"
+          fi
+          git diff "$BASE_SHA...$HEAD_SHA" > "$RUNNER_TEMP/claude-review.diff"
+
+      # Carries out the reconciled review: the reconcile step's thread actions
+      # and replies, then every unmatched finding in one review with the
+      # verdict. See .github/claude-review/publish.py for the rules it holds.
+      - name: Publish the review
+        id: publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT: ${{ needs.analyze.outputs.result }}
+          DECISIONS: ${{ needs.analyze.outputs.decisions }}
+          DIFF: ${{ runner.temp }}/claude-review.diff
+        run: python3 "$RUNNER_TEMP/claude-review-publish.py"
+
+      # Every finding is required: the check stays red while any is open, the
+      # review requests changes, and the dev ruleset requires every review
+      # thread to be resolved.
+      - name: Require every finding to be resolved
+        shell: bash
+        env:
+          OPEN: ${{ steps.publish.outputs.open }}
+        run: |
+          if [ "$OPEN" != 0 ]; then
+            echo "::error::$OPEN open finding(s) from the Claude review: fix each one, or dispute it in a reply"
+            exit 1
+          fi
+          echo "no open findings"

@@ -13,6 +13,7 @@
 | `prd-cd`       | merge to `dev` | the same three for prd, behind `TF_APPLY_ENABLE_PRD`; off |
 | `organization-member-access-cd` | by hand | applies `ORG_MEMBERS_ACCESS` (human-access.md) |
 | `stg-switch`   | by hand        | switches stg off or on, after `STG_ENABLED` is set: starts `stg-cd` (stg-switch.md) |
+| `claude-code-review` | PR → `dev`, or by hand with a PR number | a Claude review, behind `CLAUDE_REVIEW_ENABLED` and signed in with the `CLAUDE_CODE_OAUTH_TOKEN` secret: seven read-only lenses, then inline `issue (blocking, <lens>)` comments and one verdict review; red while any of its threads is open; no cloud identity (`.github/claude-review/`) |
 
 `Plan dev` and `Plan dev cloudflare` run behind `TF_PLAN_ENABLE_DEV` and are not
 required checks. `Plan dev setup` runs behind `GCP_PROJECT_DEV` and is required, like
