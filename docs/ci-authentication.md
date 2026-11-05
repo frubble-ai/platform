@@ -22,6 +22,10 @@ The apply provider also accepts frubble-ai/osiris. Its deploy hubs are
 `frubble-dev-osiris-deploy-hub` and `frubble-stg-osiris-deploy-hub`, created here.
 Who may become each hub is that environment's workload root, the same place the
 application's deploy trust lives.
+Each environment's `_setup` root creates the osiris deploy spoke, which trusts only its own
+hub, and lets the apply spoke edit and the plan spoke read the policy of the osiris hub. It
+also gives the apply spoke `roles/cloudtasks.admin` and the plan spoke the
+`frubbleCloudTasksPolicyViewer` custom role, which reads a queue's IAM policy and nothing else.
 
 The identities a workload runs as (the API's service account) are created in the
 environment's `_setup` root and bound in the workload root. Owning an identity means

@@ -95,7 +95,10 @@ PR 2, then
 8. Merge. `setup-cd` applies
    `dev/gcp/_setup` after a reviewer approves: the `frubble-dev-tfstate` bucket, the
    state and secrets keys, the plan, apply and deploy spokes, the API, app, worker and
-   push identities, and the deny policies. The hand path
+   push identities, the osiris runtime identities (serve, worker, the Cloud Tasks caller
+   and the database grant job), the osiris deploy spoke, and the deny policies. The apply
+   spoke gains `roles/cloudtasks.admin`, and the plan spoke gains the
+   `frubbleCloudTasksPolicyViewer` custom role (`cloudtasks.queues.getIamPolicy` only). The hand path
    (`terraform.tfvars.example` there) is the fallback. Then add `Plan dev setup / plan`
    to the `protected-branches` ruleset's required checks and to pipelines.md. Not
    before: a pull request whose branch predates this one has no such job, and a
