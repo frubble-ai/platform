@@ -45,6 +45,36 @@ output "push_service_account" {
   value       = google_service_account.push.email
 }
 
+output "osiris_service_account" {
+  description = "Identity the osiris API service and migration job run as."
+  value       = google_service_account.osiris.email
+}
+
+output "osiris_worker_service_account" {
+  description = "Identity the osiris worker service runs as."
+  value       = google_service_account.osiris_worker.email
+}
+
+output "osiris_tasks_service_account" {
+  description = "Identity Cloud Tasks calls the osiris worker as."
+  value       = google_service_account.osiris_tasks.email
+}
+
+output "database_grants_service_account" {
+  description = "Identity the database grant job runs as."
+  value       = google_service_account.database_grants.email
+}
+
+output "osiris_deploy_spoke" {
+  description = "Identity osiris deploys as."
+  value       = module.osiris_deploy_spoke.email
+}
+
+output "osiris_deploy_hub_name" {
+  description = "Full resource name of this environment's osiris deploy hub."
+  value       = local.org.osiris_deploy_hub_names[var.environment]
+}
+
 # Passed through from org for the workload root, which can read this state and
 # not the org one. The value crosses two roots by reference, never by hand.
 output "workload_identity_pool" {

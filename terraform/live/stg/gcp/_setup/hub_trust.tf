@@ -11,7 +11,10 @@
 # Authoritative per role, like the trust binding in the workload root: a
 # member that appears under either role from anywhere else is a diff here.
 locals {
-  env_hubs = var.environment == "stg" ? { backend-deploy = local.org.backend_deploy_hub_name } : {}
+  env_hubs = var.environment == "stg" ? {
+    backend-deploy = local.org.backend_deploy_hub_name
+    osiris-deploy  = local.org.osiris_deploy_hub_names[var.environment]
+  } : {}
 }
 
 resource "google_service_account_iam_binding" "apply_edits_hub_trust" {
