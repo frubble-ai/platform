@@ -267,6 +267,7 @@ def main():
             print(f"resolved {where}")
         elif action == "reopen" and thread["isResolved"] and not by_person:
             reopen(thread)
+            thread["reopened"] = True
             thread["isResolved"] = False
             print(f"reopened {where}")
         elif action in ("resolve", "reopen"):
@@ -313,11 +314,18 @@ def main():
 
     # The verdict follows the threads: every open one, old or new, is a required finding.
     open_count = len(open_threads) + len(comments) + len(unplaced)
+    # What the number is made of, so it never reads as a count of this review's comments alone.
+    fresh = len(comments) + len(unplaced)
+    reopened = len([thread for thread in open_threads if thread.get("reopened")])
+    earlier = len(open_threads) - reopened
+    parts = [text for count, text in ((fresh, f"{fresh} new in this review"),
+                                      (reopened, f"{reopened} reopened"),
+                                      (earlier, f"{earlier} still open from earlier reviews")) if count]
     if open_count:
         event = "REQUEST_CHANGES"
         listed = ("\n\nNo line of the diff can hold these, so they are listed here:\n\n"
                   + "\n".join(unplaced)) if unplaced else ""
-        body = (f"❌ **Changes requested** — {open_count} open finding(s).\n\n"
+        body = (f"❌ **Changes requested** — {open_count} open finding(s): {', '.join(parts)}.\n\n"
                 "Every finding is required: each one blocks the merge until it is fixed, or someone "
                 "with write access replies with why it does not apply and resolves its thread. "
                 f"Resolve every thread before merging.{listed}\n{VERDICT_MARKER}")
