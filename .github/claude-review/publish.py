@@ -150,7 +150,7 @@ query($owner: String!, $name: String!, $number: Int!, $endCursor: String) {
     reviewThreads(first: 100, after: $endCursor) {
       pageInfo { hasNextPage endCursor }
       nodes { id isResolved resolvedBy { login } path line originalLine
-        comments(first: 1) { nodes { id databaseId author { login } body } } } } } }
+        comments(first: 1) { nodes { id databaseId url author { login } body } } } } } }
 }"""
 
 
@@ -268,6 +268,8 @@ def main():
         elif action == "reopen" and thread["isResolved"] and not by_person:
             reopen(thread)
             thread["reopened"] = True
+            gh(f"{API}/comments/{thread['root']['databaseId']}/replies", "-X", "POST",
+               payload={"body": f"Reopened at `{HEAD[:7]}`: this review found the same problem again.\n{MARKER}"})
             thread["isResolved"] = False
             print(f"reopened {where}")
         elif action in ("resolve", "reopen"):
@@ -321,6 +323,14 @@ def main():
     parts = [text for count, text in ((fresh, f"{fresh} new in this review"),
                                       (reopened, f"{reopened} reopened"),
                                       (earlier, f"{earlier} still open from earlier reviews")) if count]
+    # Open threads from earlier reviews sit further up the pull request: link each one, so the
+    # count never points at findings nobody can see in this review.
+    carried = "".join(
+        f"\n- [`{t['path']}:{t['line'] or t['originalLine']}`]({t['root']['url']}) — "
+        + ("reopened" if t.get("reopened") else "still open")
+        for t in open_threads
+    )
+    carried = f"\n\nFrom earlier reviews:{carried}" if carried else ""
     if open_count:
         event = "REQUEST_CHANGES"
         listed = ("\n\nNo line of the diff can hold these, so they are listed here:\n\n"
@@ -328,7 +338,7 @@ def main():
         body = (f"❌ **Changes requested** — {open_count} open finding(s): {', '.join(parts)}.\n\n"
                 "Every finding is required: each one blocks the merge until it is fixed, or someone "
                 "with write access replies with why it does not apply and resolves its thread. "
-                f"Resolve every thread before merging.{listed}\n{VERDICT_MARKER}")
+                f"Resolve every thread before merging.{listed}{carried}\n{VERDICT_MARKER}")
     else:
         event = "APPROVE"
         body = ("✅ **Approved** — no open findings.\n\n"
