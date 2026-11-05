@@ -2,8 +2,10 @@
 locals {
   # Spelled out rather than read from the resource: the spoke module keys its
   # bindings by role, and a key must be known before the role exists.
-  pubsub_policy_viewer_role_id = "frubblePubsubPolicyViewer"
-  pubsub_policy_viewer_role    = "projects/${var.project_id}/roles/${local.pubsub_policy_viewer_role_id}"
+  pubsub_policy_viewer_role_id     = "frubblePubsubPolicyViewer"
+  pubsub_policy_viewer_role        = "projects/${var.project_id}/roles/${local.pubsub_policy_viewer_role_id}"
+  cloudtasks_policy_viewer_role_id = "frubbleCloudTasksPolicyViewer"
+  cloudtasks_policy_viewer_role    = "projects/${var.project_id}/roles/${local.cloudtasks_policy_viewer_role_id}"
 }
 
 resource "google_project_iam_custom_role" "pubsub_policy_viewer" {
@@ -14,6 +16,16 @@ resource "google_project_iam_custom_role" "pubsub_policy_viewer" {
   permissions = [
     "pubsub.topics.getIamPolicy",
     "pubsub.subscriptions.getIamPolicy",
+  ]
+}
+
+resource "google_project_iam_custom_role" "cloudtasks_policy_viewer" {
+  project     = var.project_id
+  role_id     = local.cloudtasks_policy_viewer_role_id
+  title       = "Cloud Tasks policy viewer"
+  description = "Read the IAM policy of a Cloud Tasks queue, and nothing else."
+  permissions = [
+    "cloudtasks.queues.getIamPolicy",
   ]
 }
 
@@ -32,9 +44,13 @@ module "plan_spoke" {
     # reads those without writing them or reading every policy in the
     # project, so the two permissions are a role of their own.
     { role = local.pubsub_policy_viewer_role },
+    { role = local.cloudtasks_policy_viewer_role },
   ]
 
-  depends_on = [google_project_iam_custom_role.pubsub_policy_viewer]
+  depends_on = [
+    google_project_iam_custom_role.pubsub_policy_viewer,
+    google_project_iam_custom_role.cloudtasks_policy_viewer,
+  ]
 }
 
 # Read the state, and nothing else.
@@ -86,6 +102,7 @@ module "apply_spoke" {
     { role = "roles/cloudsql.admin" },
     { role = "roles/servicenetworking.networksAdmin" },
     { role = "roles/pubsub.admin" },
+    { role = "roles/cloudtasks.admin" },
 
     # Project-level bindings are part of applying the stack (the instance
     # needs logWriter), but projectIamAdmin unconditionally would let the
@@ -132,5 +149,21 @@ module "deploy_spoke" {
 
   # No project role. What the deploy may touch is bound on the registry, the
   # job and the services, in the workload root.
+  roles = []
+}
+
+# Osiris's deploy spoke. Its own account, so it cannot roll the application's
+# services and the application's deploy cannot roll osiris.
+# Unlike the application's deploy spoke above, it is not gated: the org makes
+# an osiris deploy hub for every environment this root can be applied to, so
+# the hub lookup always has an entry.
+module "osiris_deploy_spoke" {
+  source = "../../../../modules/gcp/wif-spoke"
+
+  project_id  = var.project_id
+  name        = "frubble-osiris-deploy"
+  description = "osiris deploy: push an image, run the migration job, roll out the serve and worker services."
+  hub_member  = "serviceAccount:${local.org.osiris_deploy_hubs[var.environment]}"
+
   roles = []
 }
