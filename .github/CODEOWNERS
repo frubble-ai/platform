@@ -1,3 +1,6 @@
+# Two code owners, so neither one's own pull request can pass on the automated
+# review's approval alone: GitHub waives the code-owner rule when the author is
+# the only owner, and the review's approval would then count.
 # Review is required on everything, and specifically on the paths where a
 # mistake is not visible in a plan: the workflows that decide which identity
 # CI may request, the _setup roots that define what those identities can do,
@@ -7,8 +10,8 @@
 # Code-owner approval is required by the dev ruleset, so an approval from the
 # automated review never counts toward a merge: only these people's does.
 
-*                               @drn1996
-/.github/workflows/**           @drn1996
-/.github/claude-review/**       @drn1996
-/.github/CODEOWNERS             @drn1996
-/terraform/live/**/_setup/      @drn1996
+*                               @drn1996 @frubble-platform
+/.github/workflows/**           @drn1996 @frubble-platform
+/.github/claude-review/**       @drn1996 @frubble-platform
+/.github/CODEOWNERS             @drn1996 @frubble-platform
+/terraform/live/**/_setup/      @drn1996 @frubble-platform
