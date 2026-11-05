@@ -108,6 +108,22 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # Claude reads its project settings, hooks and MCP servers from the
+      # checkout before any tool permission applies. The action restores them
+      # from the base only on pull_request events, so do it here for every
+      # event, manual runs included: a pull request cannot bring its own.
+      - name: Take the Claude configuration from the base branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in .claude .mcp.json .claude.json .gitmodules .ripgreprc \
+            CLAUDE.md CLAUDE.local.md .husky; do
+            rm -rf -- "$path"
+            if git cat-file -e "$BASE_SHA:$path" 2>/dev/null; then
+              git checkout "$BASE_SHA" -- "$path"
+            fi
+          done
+
       # The rules and the PR template come from the base branch, never from the
       # pull request, so a pull request cannot weaken its own review. The one
       # exception is the pull request that adds the rules, when the base has
