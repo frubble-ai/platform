@@ -1,8 +1,9 @@
 name: Claude Code Review
 
 on:
+  # Any base branch: a stacked pull request is reviewed against the branch it
+  # targets, with the rules taken from that branch.
   pull_request:
-    branches: [dev]
     types: [opened, synchronize, ready_for_review, reopened]
   # Reviews one pull request on demand, with this workflow and the rules as
   # they are on the branch it is run from.
@@ -276,6 +277,9 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
+          # Runs a Cursor agent pushed to are allowed; the gate still requires the
+          # pull request's author to have write access.
+          allowed_bots: cursor
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ env.PR }}
@@ -432,6 +436,9 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
+          # Runs a Cursor agent pushed to are allowed; the gate still requires the
+          # pull request's author to have write access.
+          allowed_bots: cursor
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ env.PR }}
