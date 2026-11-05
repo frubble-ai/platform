@@ -69,8 +69,3 @@ output "osiris_events_topic" {
 output "osiris_tasks_queue" {
   value = try(google_cloud_tasks_queue.osiris.name, null)
 }
-
-output "database_grants_job_name" {
-  description = "Job that revokes CONNECT between the application database and osiris. Run it once after apply, and again after stg is rebuilt."
-  value       = try(module.database_grants_job.name, null)
-}

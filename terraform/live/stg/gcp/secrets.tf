@@ -10,7 +10,6 @@ locals {
     auth_secret              = { domain = "auth", name = "secret", generated = true, version = var.secrets_version }
     email_api_key            = { domain = "email", name = "api-key", generated = false, version = var.secrets_version }
     composio_api_key         = { domain = "composio", name = "api-key", generated = false, version = var.secrets_version }
-    database_grants_password = { domain = "database", name = "grants-password", generated = true, version = var.secrets_version }
     osiris_database_password = { domain = "osiris", name = "database-password", generated = true, version = var.secrets_version }
     osiris_api_key           = { domain = "osiris", name = "api-key", generated = true, version = var.secrets_version }
     osiris_admin_key         = { domain = "osiris", name = "admin-key", generated = true, version = var.secrets_version }
@@ -31,7 +30,6 @@ locals {
   worker_secrets          = [for key in ["email_api_key"] : key if contains(keys(local.active_secrets), key)]
   osiris_secrets          = [for key in ["osiris_database_password", "osiris_encryption_key", "osiris_api_key", "osiris_admin_key"] : key if contains(keys(local.active_secrets), key)]
   osiris_worker_secrets   = [for key in ["osiris_database_password", "osiris_encryption_key"] : key if contains(keys(local.active_secrets), key)]
-  database_grants_secrets = [for key in ["database_grants_password"] : key if contains(keys(local.active_secrets), key)]
 }
 
 # Made fresh on every run and recorded nowhere; only the version number is.
@@ -43,11 +41,6 @@ ephemeral "random_password" "database" {
 
 ephemeral "random_password" "auth_secret" {
   length  = 64
-  special = false
-}
-
-ephemeral "random_password" "database_grants" {
-  length  = 40
   special = false
 }
 
@@ -75,7 +68,6 @@ locals {
   generated_values = {
     database_password        = ephemeral.random_password.database.result
     auth_secret              = ephemeral.random_password.auth_secret.result
-    database_grants_password = ephemeral.random_password.database_grants.result
     osiris_database_password = ephemeral.random_password.osiris_database.result
     osiris_api_key           = ephemeral.random_password.osiris_api_key.result
     osiris_admin_key         = ephemeral.random_password.osiris_admin_key.result
@@ -133,15 +125,6 @@ resource "google_secret_manager_secret_iam_member" "osiris_worker_reads" {
   secret_id = module.secrets[each.key].secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${local.setup.osiris_worker_service_account}"
-}
-
-resource "google_secret_manager_secret_iam_member" "database_grants_reads" {
-  for_each = toset(local.database_grants_secrets)
-
-  project   = var.project_id
-  secret_id = module.secrets[each.key].secret_id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${local.setup.database_grants_service_account}"
 }
 
 # The Mailgun sending key is minted by this environment's own mailgun root, in

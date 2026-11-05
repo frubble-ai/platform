@@ -30,8 +30,7 @@ gcloud secrets versions access latest --secret "frubble_${ENV}_osiris_admin-key"
 ```
 
 The id is `frubble_<env>_osiris_admin-key` (the secret module joins the path with
-underscores). `frubble_<env>_osiris_api-key` is the client key. `frubble_<env>_database_grants-password`
-is only for the database grant job.
+underscores). `frubble_<env>_osiris_api-key` is the client key.
 
 Composio's project API key has no root that writes it: after the apply, add the value by hand,
 then roll the API so its next revision reads it.

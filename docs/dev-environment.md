@@ -95,8 +95,7 @@ PR 2, then
 8. Merge. `setup-cd` applies
    `dev/gcp/_setup` after a reviewer approves: the `frubble-dev-tfstate` bucket, the
    state and secrets keys, the plan, apply and deploy spokes, the API, app, worker and
-   push identities, the osiris runtime identities (serve, worker, the Cloud Tasks caller
-   and the database grant job), the osiris deploy spoke, and the deny policies. The apply
+   push identities, the osiris runtime identities (serve, worker and the Cloud Tasks caller), the osiris deploy spoke, and the deny policies. The apply
    spoke gains `roles/cloudtasks.admin`, and the plan spoke gains the
    `frubbleCloudTasksPolicyViewer` custom role (`cloudtasks.queues.getIamPolicy` only). The hand path
    (`terraform.tfvars.example` there) is the fallback. Then add `Plan dev setup / plan`
@@ -204,26 +203,11 @@ The image is built with `--build-arg OSIRIS_COMMIT=<commit>`. The workflow pushe
 that image, executes the migrate job, then rolls serve and the worker. It does
 not set a command or arguments: the services read `OSIRIS_PROCESS`.
 
-After the first dev apply, and again whenever stg is rebuilt:
+After the first dev apply:
 
-1. Run the database grant job once, as someone who can execute Cloud Run jobs.
-   This step is required: until it has run, `CONNECT` is open to every database user
-   and `osiris` is still in `cloudsqlsuperuser`, so the two databases are not isolated.
-   It revokes `CONNECT` between the `frubble` and `osiris` databases. The
-   application user keeps `CONNECT` on its own database. It also makes each user the
-   owner of its own database, so migrations can still create tables, and then removes
-   both `osiris` and `frubble` from `cloudsqlsuperuser`, so neither can reach the
-   other's database.
-   `gcloud run jobs execute frubble-dev-db-grants --project "$PROJECT" --region us-central1 --wait`
-   with `PROJECT` from `GCP_PROJECT_DEV` (`frubble-stg-db-grants` and `GCP_PROJECT_STG` for stg). If it fails, the
-   transaction rolls back and nothing is changed. Afterwards, check it worked: connect as
-   an administrator and run
-   `SELECT r.rolname FROM pg_auth_members m JOIN pg_roles r ON r.oid = m.member WHERE m.roleid = 'cloudsqlsuperuser'::regrole;`
-   (neither `osiris` nor `frubble` should be listed) and `\l` (each database is owned
-   by its user).
-2. On the dev GitHub, Linear and Slack apps, set the OAuth callback to
+1. On the dev GitHub, Linear and Slack apps, set the OAuth callback to
    `https://osiris.dev.frubble.ai/oauth/callback` (stg: `https://osiris.stg.frubble.ai/oauth/callback`).
-3. Read the admin key with the command in secrets.md. It is not in CI.
+2. Read the admin key with the command in secrets.md. It is not in CI.
 
 The hostname's A record is published on the apply after the certificate is
 issued, same as `app.dev` (crossing-roots.md). Until the first osiris deploy,

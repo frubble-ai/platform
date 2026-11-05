@@ -18,10 +18,10 @@ checks `var.enabled` first or uses `try()`. The outputs are `null` while stg is 
 
 ## What goes and what stays
 
-Off destroys, in `stg/gcp`: the Cloud SQL instance (its data and its backups), the
+Off destroys, in `stg/gcp`: the Cloud SQL instances (the application's and osiris's, with their data and backups), the
 migration job, the api, app and worker services, osiris's serve and worker services,
-its migration job, its Cloud Tasks queue, its events topic and the database grant
-job, the email queue and its alert, the load balancer with its certificates and
+its migration job, its Cloud Tasks queue, its events topic and its own Cloud SQL instance,
+the email queue and its alert, the load balancer with its certificates and
 address, Cloud Armor, the alerts, the registry with its images, the deploy
 identity's grants on all of those, the generated secrets (database password, auth
 secret, and osiris's database password, API key, admin key and encryption key),
@@ -69,12 +69,11 @@ repository's `stg` branch) have nothing to deploy to and fail.
    (crossing-roots.md).
 4. Deploy the application to stg (its `Backend - CD` and `App - CD`), which also
    runs the migrations. Until then the services run the placeholder image.
-   Osiris is the same: its `osiris-cd` on the `stg` branch, then the database
-   grant job once (dev-environment.md). The rebuilt database is empty and the
-   encryption key is a new one.
+   Osiris is the same: its `osiris-cd` on the `stg` branch. The rebuilt
+   databases are empty and the encryption key is a new one.
 
 Cloud SQL keeps a deleted instance's name for up to a week. To switch on sooner
-than that after switching off, set `database_instance_suffix` in
+than that after switching off, set `database_instance_suffix` (it names both instances) in
 `terraform/live/stg/gcp/variables.tf` to something new (`"-2"`) in a pull request
 first. Osiris's Cloud Tasks queue is the same: it keeps a deleted queue's name for
 up to 3 days, so set `queue_name_suffix` there too.

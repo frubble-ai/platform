@@ -6,17 +6,17 @@ data "google_project" "this" {
 }
 
 locals {
-  # Two instances, two connections each: eight connections at the ceiling,
-  # on the instance the application already uses.
+  # Two instances, two connections each: four connections at the ceiling on
+  # osiris's own database instance.
   osiris_max_instances   = 2
   osiris_max_connections = 2
   osiris_worker_url      = "https://${local.name}-osiris-worker-${data.google_project.this.number}.${var.region}.run.app"
   osiris_database_env = {
-    DB_HOST   = module.database.private_ip
+    DB_HOST   = module.osiris_database.private_ip
     DB_PORT   = "5432"
-    DB_NAME   = google_sql_database.osiris.name
-    DB_USER   = google_sql_user.osiris.name
-    DB_CA_PEM = module.database.server_ca_pem
+    DB_NAME   = module.osiris_database.database_name
+    DB_USER   = module.osiris_database.user_name
+    DB_CA_PEM = module.osiris_database.server_ca_pem
   }
   osiris_database_secret_env = {
     DB_PASSWORD = { secret = module.secrets["osiris_database_password"].secret_id }
