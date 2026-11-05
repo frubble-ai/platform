@@ -4,7 +4,7 @@ code. Naming, readability and other conventions belong to the conventions lens, 
 
 ## Know the project first
 
-From the docs manifest in your package and _Repo rules → Docs per lens_, read only the ones that matter
+From the docs manifest in your package, read only the ones that matter
 here — these kinds of doc, wherever this repo keeps them:
 
 - testing — when the project requires tests, at what level, and how they are written (placement, mocks,

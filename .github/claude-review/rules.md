@@ -4,7 +4,8 @@
 branch so a pull request cannot change its own review. You **orchestrate** the review: you build nothing
 yourself and you review nothing yourself. The seven lenses and the checker are subagents; each already
 holds its role (`.github/claude-review/lenses/<name>.md`), the Review contract
-(`.github/claude-review/lenses/contract.md`) and the _Repo rules_ below.
+(`.github/claude-review/lenses/contract.md`) and reads the project's own rules from
+its docs, through the package's docs manifest.
 
 **Every finding is required.** Nothing this review raises is optional: each one blocks the merge until it
 is fixed, or until someone with write access resolves its thread. The check stays red while any finding is
@@ -125,102 +126,3 @@ Fill the structured output:
 
 You post nothing: you have no tool that can. Never put anything in `findings` that is not a defect at the
 head commit — no summary, no praise, no note about an earlier review.
-
-## Repo rules
-
-`frubble-ai/platform`: the infrastructure of every environment of `frubble-ai/app`, written in the
-Terraform language and run with OpenTofu (`tofu`, pinned as `TOFU_VERSION` in the workflows). One root
-per scope and provider under `terraform/live/{org,dev,stg,prd}`, shared code under `terraform/modules`,
-and the GitHub workflows that plan and apply them. Taken from `README.md`, `docs/`, `.github/CODEOWNERS`
-and the committed config; each finding cites the file by path. A mistake here changes who can change
-production, so every lens reads the trust model first.
-
-### Blockers (🚨, whatever the lens)
-
-- A trust rule loosened: a `principalSet` or binding that matches more than the exact composite
-  attribute (`plan_entry`, `apply_entry`, `deploy_entry`) — repository, workflow file, environment and
-  branch — a wildcard, or a pin on `workflow_ref` instead of `job_workflow_ref`
-  (`docs/ci-authentication.md`, `terraform/live/org/gcp/_setup/wif.tf`).
-- `deploy_entry` (any branch, the actor's id appended) used for anything but dev's app deploys
-  (`backend-cd.yml` in `backend-dev`, `app-cd.yml` in `app-dev`), or `dev_deployers` gaining anyone who
-  is not an organization member: an outside collaborator or a bot (`docs/ci-authentication.md`,
-  `terraform/live/dev/gcp/trust.tf`).
-- A hub given any permission beyond impersonating its spoke, a spoke reaching outside its own project,
-  or a second path to a spoke (`docs/ci-authentication.md`).
-- A secret value that reaches state or a plan: a generated value written through anything but a
-  write-only attribute (`secret_data_wo`) from an `ephemeral "random_password"`, an outside value
-  written by Terraform instead of over the placeholder (`REPLACE_ME_VIA_SECRET_MANAGER`), or an output
-  carrying one (`docs/secrets.md`, `terraform/modules/gcp/secret`).
-- A role that grants a shell, a key, or a secret value to a human, the developer group made more than
-  read-only, or a change to a `_setup` root's IAM deny policy (`docs/human-access.md`,
-  `terraform/live/*/gcp/_setup/deny.tf`).
-- A workflow that gains `id-token: write`, a wider `permissions:` block, a `pull_request_target`
-  trigger, or untrusted input (a PR title, body, branch name) interpolated into `run:` with
-  `${{ }}` instead of passed through `env` (`.github/workflows/*.yml`).
-- An action not pinned to a full commit SHA, or a downloaded tool not checked against its checksum
-  (the pattern every workflow here follows).
-- A prd apply switched on (`TF_APPLY_ENABLE_PRD`), or a change under `terraform/live/**/_setup/`,
-  without the reason in the PR body (`docs/pipelines.md`, `.github/CODEOWNERS`).
-- The stg switch broken: `STG_ENABLED` compared in an Actions expression instead of a shell step, or a
-  stg resource that should go when stg is off left without `lifecycle { enabled = var.enabled }`, or a
-  read of a disabled module without `var.enabled` or `try()` (`docs/stg-switch.md`).
-- A committed secret, token, state file, `*.tfvars` or `.envrc.local` (`.gitignore`).
-
-### Conventions (⚠️)
-
-- Layout: one root per scope and provider, one state each; modules hold no state of their own. In a
-  root, `main.tf` holds only its wiring; every other resource sits in a sibling file named for what it
-  is (`docs/layout.md`).
-- Placement: a value one root needs lives in that root; one several roots of an environment agree on
-  lives in its `shared/`; a derivation every environment shares lives in `modules/`
-  (`docs/shared-values.md`).
-- A value one root produces and another needs crosses as a handoff object, never as a repository
-  variable (`docs/crossing-roots.md`).
-- Secret Manager ids join the four parts with `_`: `frubble_<env>_<domain>_<name>`
-  (`terraform/modules/gcp/secret/main.tf`).
-- OpenTofu, not Terraform: workflows call `tofu` through `opentofu/setup-opentofu` at `TOFU_VERSION`,
-  roots keep `required_version` and lock files on `registry.opentofu.org` (`README.md`,
-  `docs/getting-started.md`).
-- A required check must always report: no path filter on a workflow whose job is required; a summary
-  job when skipped jobs could count as passed (`docs/pipelines.md`, `Code Quality Summary` in
-  `.github/workflows/code-quality.yml`).
-- An output holding a secret is marked `sensitive`.
-- `.tflint.hcl`, `.trivyignore.yaml` and `.yamllint.yaml`: a new ignore or a relaxed rule carries
-  its reason; a `.trivyignore.yaml` entry has its id, narrowest path, statement and `expired_at`.
-- A change to the bootstrap, the trust model, the pipelines, the stg switch or the variables a
-  workflow reads with no matching change to `README.md` or `docs/`.
-
-### Tests
-
-There is no test suite. The checks are `tofu fmt`, `tofu validate`, tflint, actionlint, gitleaks
-and trivy in `code-quality`, the title and body check in `pr-template`, and the plans in
-`live-plan`. The tests lens checks that a change keeps them meaningful: a stack left out of the
-plan, a check that can no longer fail, a scanner rule switched off, a required check renamed
-without the ruleset following (`docs/pipelines.md`, _Required checks_).
-
-### Docs per lens
-
-| Lens        | Read                                                                                                                                   |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| security    | `docs/ci-authentication.md`, `docs/secrets.md`, `docs/human-access.md`, `.github/CODEOWNERS`, every changed workflow and `_setup` root |
-| conventions | `docs/layout.md`, `docs/shared-values.md`, `.tflint.hcl`, `.yamllint.yaml`, neighbouring roots and modules                             |
-| tests       | `.github/workflows/code-quality.yml`, `.github/workflows/live-plan.yml`, `.github/workflows/pr-template.yml`, `lefthook.yml`           |
-| boundaries  | `docs/layout.md`, `docs/ci-authentication.md`, `docs/crossing-roots.md`, `terraform/modules` used by the changed roots                 |
-| performance | the changed workflows: concurrency, cancellation, jobs that run when they need not                                                     |
-| correctness | `docs/pipelines.md`, `docs/stg-switch.md`, `docs/dev-environment.md`, the variables and outputs the changed roots and workflows read   |
-| intent      | the PR body, the issue it closes                                                                                                       |
-
-### Leads
-
-`principalSet`, `principal://`, `workflow_ref`, `job_workflow_ref`, `deploy_entry`, `actor_id`,
-`roles/`, `members`, `id-token`, `permissions:`, `pull_request_target`, `${{ github.event.`,
-`secrets.`, `@v` without a SHA, `curl` without a checksum, `sensitive`, `secret_data`,
-`random_password`, `lifecycle`, `enabled`, `try(`, `STG_ENABLED`, `TF_APPLY_ENABLE_`,
-`prevent_destroy`, `ignore_changes`, `count = 0`, `tflint-ignore`, `trivy:ignore`,
-`# yamllint disable`, `--no-verify`, `TODO`, `FIXME`.
-
-### Already checked elsewhere
-
-`code-quality` runs fmt, validate, tflint, actionlint, gitleaks and trivy; `pr-template` checks the
-title and the body's sections; `live-plan` plans every stack. Don't run them again and don't repeat
-what they report.

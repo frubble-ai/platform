@@ -195,7 +195,7 @@ jobs:
         run: python3 "$RUNNER_TEMP/claude-review-package.py"
 
       # One subagent per lens, plus the checker: each holds its full role, the
-      # Review contract and the repo rules, all from the base branch. Read-only
+      # Review contract, both from the base branch. Read-only
       # tools, high effort, 60 turns. User-level (~/.claude/agents), because on
       # a pull request the action replaces the checkout's .claude/ with the base
       # branch's, which would delete them.
@@ -208,7 +208,6 @@ jobs:
           import os
 
           rules = open(os.environ["RULES"], encoding="utf-8").read()
-          repo_rules = rules[rules.index("## Repo rules"):] if "## Repo rules" in rules else ""
           lenses = os.environ["LENSES"]
           contract = open(f"{lenses}/contract.md", encoding="utf-8").read()
           agents = os.path.expanduser("~/.claude/agents")
@@ -242,8 +241,7 @@ jobs:
                       "tools: Read, Grep, Glob\nmodel: claude-sonnet-5-5\neffort: high\n"
                       "omitClaudeMd: true\nmaxTurns: 60\n---\n\n"
                   )
-                  out.write(PREAMBLE + "# Your role\n\n" + role.strip() + "\n\n" + contract.strip()
-                            + "\n\n# " + repo_rules.removeprefix("## ").strip() + "\n")
+                  out.write(PREAMBLE + "# Your role\n\n" + role.strip() + "\n\n" + contract.strip() + "\n")
 
           for lens in ["security", "correctness", "boundaries", "conventions", "tests", "performance", "intent"]:
               role = open(f"{lenses}/{lens}.md", encoding="utf-8").read()

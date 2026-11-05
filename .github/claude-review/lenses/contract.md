@@ -108,12 +108,14 @@ neither is a finding.
 
 **Report everything you have now; no later round will pick it up.**
 
-## Repo rules
+## Project rules
 
-The **Repo rules** at the end of your prompt are binding for this project. They add to the general
-rules above: every general rule still holds, and the repo rules add defects specific to this project to
-look for. Take their severities as written — a rule listed under _Blockers_ is a Critical finding in
-your answer, even where your own judgement would rate it lower.
+The project's own rules are in its docs: the agent guide (`AGENTS.md`, `CLAUDE.md`) first, then the
+docs it links to and the rest of the docs manifest in your package. They are additive to the general
+rules above: every general rule still holds, and the project's docs add the defects specific to it.
+Take a rule's weight from the doc itself — a rule the docs mark as blocking, or state as a must or a
+never, is a Critical finding when the change breaks it, even where your own judgement would rate it
+lower. Cite the doc by path. Never enforce a rule the docs do not state.
 
 ## Verification
 

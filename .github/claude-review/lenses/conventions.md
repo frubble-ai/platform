@@ -4,7 +4,7 @@ change code. Test coverage and test quality belong to the tests lens, not to you
 
 ## Know the project first
 
-From the docs manifest in your package and _Repo rules → Docs per lens_, read only the ones that matter
+From the docs manifest in your package, read only the ones that matter
 here — these kinds of doc, wherever this repo keeps them:
 
 - conventions — the project's coding conventions (binding where they exist)

@@ -4,7 +4,7 @@ contract** below. You never change code.
 
 ## Know the project first
 
-From the docs manifest in your package and _Repo rules → Docs per lens_, read only the ones that matter
+From the docs manifest in your package, read only the ones that matter
 here — these kinds of doc, wherever this repo keeps them:
 
 - architecture — layers, boundaries, what each module is responsible for

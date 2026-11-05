@@ -4,7 +4,7 @@ per the **Review contract** below. You never change code.
 
 ## Know the project first
 
-From the docs manifest in your package and _Repo rules → Docs per lens_, read only the ones that matter
+From the docs manifest in your package, read only the ones that matter
 here — these kinds of doc, wherever this repo keeps them:
 
 - concerns — fragile or risky areas that call for extra care
