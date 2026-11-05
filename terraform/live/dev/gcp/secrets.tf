@@ -18,10 +18,10 @@ locals {
     osiris_encryption_key = { domain = "osiris", name = "encryption-key", generated = true, version = var.osiris_encryption_key_version }
   }
 
-  api_secrets             = ["database_password", "auth_secret", "composio_api_key"]
-  worker_secrets          = ["email_api_key"]
-  osiris_secrets          = ["osiris_database_password", "osiris_encryption_key", "osiris_api_key", "osiris_admin_key"]
-  osiris_worker_secrets   = ["osiris_database_password", "osiris_encryption_key"]
+  api_secrets           = ["database_password", "auth_secret", "composio_api_key"]
+  worker_secrets        = ["email_api_key"]
+  osiris_secrets        = ["osiris_database_password", "osiris_encryption_key", "osiris_api_key", "osiris_admin_key"]
+  osiris_worker_secrets = ["osiris_database_password", "osiris_encryption_key"]
 }
 
 # Made fresh on every run and recorded nowhere; only the version number is.

@@ -26,10 +26,10 @@ locals {
   # secrets, the encryption key included, go with the database.
   active_secrets = { for key, secret in local.secrets : key => secret if var.enabled || !secret.generated }
 
-  api_secrets             = [for key in ["database_password", "auth_secret", "composio_api_key"] : key if contains(keys(local.active_secrets), key)]
-  worker_secrets          = [for key in ["email_api_key"] : key if contains(keys(local.active_secrets), key)]
-  osiris_secrets          = [for key in ["osiris_database_password", "osiris_encryption_key", "osiris_api_key", "osiris_admin_key"] : key if contains(keys(local.active_secrets), key)]
-  osiris_worker_secrets   = [for key in ["osiris_database_password", "osiris_encryption_key"] : key if contains(keys(local.active_secrets), key)]
+  api_secrets           = [for key in ["database_password", "auth_secret", "composio_api_key"] : key if contains(keys(local.active_secrets), key)]
+  worker_secrets        = [for key in ["email_api_key"] : key if contains(keys(local.active_secrets), key)]
+  osiris_secrets        = [for key in ["osiris_database_password", "osiris_encryption_key", "osiris_api_key", "osiris_admin_key"] : key if contains(keys(local.active_secrets), key)]
+  osiris_worker_secrets = [for key in ["osiris_database_password", "osiris_encryption_key"] : key if contains(keys(local.active_secrets), key)]
 }
 
 # Made fresh on every run and recorded nowhere; only the version number is.
