@@ -7,7 +7,8 @@ data "google_project" "this" {
 }
 
 locals {
-  # Two instances, two connections each: four connections at the ceiling on
+  # Two instances, two connections each, for serve and for the worker: eight
+  # connections at the ceiling, and two more while the migrate job runs, on
   # osiris's own database instance.
   osiris_max_instances   = 2
   osiris_max_connections = 2
