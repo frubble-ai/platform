@@ -77,4 +77,4 @@ Cloud SQL keeps a deleted instance's name for up to a week. To switch on sooner
 than that after switching off, set `database_instance_suffix` in
 `terraform/live/stg/gcp/variables.tf` to something new (`"-2"`) in a pull request
 first. Osiris's Cloud Tasks queue is the same: it keeps a deleted queue's name for
-about a week, so set `queue_name_suffix` there too.
+up to 3 days, so set `queue_name_suffix` there too.

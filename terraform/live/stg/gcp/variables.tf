@@ -69,7 +69,7 @@ variable "enabled" {
 }
 
 variable "queue_name_suffix" {
-  description = "Appended to the osiris Cloud Tasks queue's name. Cloud Tasks keeps a deleted queue's name for about a week, so rebuilding stg sooner than that after switching it off needs a new name here, e.g. \"-2\" (docs/stg-switch.md). Changing it on a running stg replaces the queue and drops its pending tasks."
+  description = "Appended to the osiris Cloud Tasks queue's name. Cloud Tasks keeps a deleted queue's name for up to 3 days, so rebuilding stg sooner than that after switching it off needs a new name here, e.g. \"-2\" (docs/stg-switch.md). Changing it on a running stg replaces the queue and drops its pending tasks."
   type        = string
   default     = ""
 }
