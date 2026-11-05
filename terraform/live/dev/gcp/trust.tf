@@ -35,7 +35,8 @@ locals {
   # Linear's) redeploy it. frubble-ai/app's Actions policy "Only the
   # organization's members run deploys" closes that: on backend-cd.yml,
   # app-cd.yml and db-reset.yml, GitHub refuses any run or re-run whose
-  # starter it does not list. It lists the same ids as this; change both
+  # starter it does not list. It lists the same ids as this, and so does
+  # the policy on osiris-cd.yml in frubble-ai/osiris; change all three
   # (docs/dev-environment.md, step 18).
   dev_deployers = {
     drn1996          = 53837062
@@ -60,7 +61,8 @@ locals {
     "${local.repos.backend}|${local.repos.backend}/.github/workflows/db-reset.yml|backend-dev|refs/heads/dev",
   ]
 
-  # osiris-cd.yml in osiris-dev, from any branch, by the same people.
+  # osiris-cd.yml in osiris-dev, from any branch, by the same people. The
+  # Actions policy on that workflow in frubble-ai/osiris lists the same ids.
   osiris_deploy_branch_entries = [
     for pair in setproduct(
       ["${local.repos.osiris}|${local.repos.osiris}/.github/workflows/osiris-cd.yml|osiris-dev"],

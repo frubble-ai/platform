@@ -157,10 +157,11 @@ The application (frubble-ai/app), not this repository
     the app repository's Actions policy "Only the organization's members run deploys"
     lists the same ids: on `backend-cd.yml`, `app-cd.yml` and `db-reset.yml`, GitHub refuses
     a run or a re-run started by anyone else, a GitHub App included. When someone joins or
-    leaves frubble-ai, change both: `dev_deployers` here
-    (`gh api orgs/frubble-ai/members --jq '.[] | "\(.login) \(.id)"'`), and the policy's
-    `allowed_actors` (`gh api repos/frubble-ai/app/actions/policies`, then `PUT` its
-    `/actions/policies/<id>`).
+    leaves frubble-ai, change all three: `dev_deployers` here
+    (`gh api orgs/frubble-ai/members --jq '.[] | "\(.login) \(.id)"'`), the policy's
+    `allowed_actors` on frubble-ai/app (`gh api repos/frubble-ai/app/actions/policies`,
+    then `PUT` its `/actions/policies/<id>`), and the same policy on `osiris-cd.yml` in
+    frubble-ai/osiris (see Osiris, below).
     The app repository needs those environments (variables from the dev outputs, as
     `backend-stg` and `app-stg` have; `GCP_DEPLOY_HUB` is the full email from
     org/gcp/_setup's `backend_deploy_hubs["dev"]` output,
@@ -180,7 +181,8 @@ the `stg` branch only. `osiris-dev` accepts deployments from all branches;
 
 On frubble-ai/app, the Actions policy that refuses a re-run by anyone but the
 listed members covers `backend-cd.yml`, `app-cd.yml` and `db-reset.yml`. Osiris
-needs the same policy on `osiris-cd.yml`, with the same ids (`dev_deployers`).
+needs the same policy on `osiris-cd.yml`, with the same ids (`dev_deployers`), and
+when a member joins or leaves it is changed together with the other two (step 18).
 
 Each environment's variables, from this repository's outputs, using the names
 `backend-dev` and `backend-stg` already use:
