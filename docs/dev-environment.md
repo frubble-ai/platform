@@ -208,9 +208,9 @@ After the first dev apply, and again whenever stg is rebuilt:
    This step is required: until it has run, `CONNECT` is open to every database user
    and `osiris` is still in `cloudsqlsuperuser`, so the two databases are not isolated.
    It revokes `CONNECT` between the `frubble` and `osiris` databases. The
-   application user keeps `CONNECT` on its own database. It also makes the
-   `osiris` user the owner of the `osiris` database, so migrations can create
-   tables, and then removes that user from `cloudsqlsuperuser`.
+   application user keeps `CONNECT` on its own database. It also makes each
+   user the owner of its own database, so migrations can still create tables, and then removes both that user and the `frubble` user from
+   `cloudsqlsuperuser`, so neither can reach the other's database.
    `gcloud run jobs execute frubble-dev-db-grants --project "$PROJECT" --region us-central1 --wait`
    with `PROJECT` from `GCP_PROJECT_DEV` (`frubble-stg-db-grants` and `GCP_PROJECT_STG` for stg). If it fails, the
    transaction rolls back and `CONNECT` is unchanged.

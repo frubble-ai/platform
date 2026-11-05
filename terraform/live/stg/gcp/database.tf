@@ -130,7 +130,7 @@ module "migrate_job" {
 # Closes CONNECT between the two databases. Run once after apply, and again
 # after stg is rebuilt (docs/dev-environment.md). Not part of a deploy.
 locals {
-  database_grants_sql = "BEGIN; GRANT CONNECT ON DATABASE frubble TO frubble; GRANT CONNECT ON DATABASE osiris TO osiris; REVOKE CONNECT ON DATABASE frubble FROM PUBLIC; REVOKE CONNECT ON DATABASE osiris FROM PUBLIC; GRANT osiris TO grants; ALTER DATABASE osiris OWNER TO osiris; REVOKE cloudsqlsuperuser FROM osiris; COMMIT;"
+  database_grants_sql = "BEGIN; GRANT CONNECT ON DATABASE frubble TO frubble; GRANT CONNECT ON DATABASE osiris TO osiris; REVOKE CONNECT ON DATABASE frubble FROM PUBLIC; REVOKE CONNECT ON DATABASE osiris FROM PUBLIC; GRANT osiris TO grants; ALTER DATABASE osiris OWNER TO osiris; GRANT frubble TO grants; ALTER DATABASE frubble OWNER TO frubble; REVOKE cloudsqlsuperuser FROM osiris; REVOKE cloudsqlsuperuser FROM frubble; COMMIT;"
 }
 
 module "database_grants_job" {
