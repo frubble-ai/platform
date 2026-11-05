@@ -18,6 +18,11 @@ shape: their plan identity and the bootstrap admin act on the management project
 with no hub in between, since the management project is what they change. Cloudflare and
 PostHog have no federation, so they use tokens stored as GitHub secrets.
 
+The apply provider also accepts frubble-ai/osiris. Its deploy hubs are
+`frubble-dev-osiris-deploy-hub` and `frubble-stg-osiris-deploy-hub`, created here.
+Who may become each hub is that environment's workload root, the same place the
+application's deploy trust lives.
+
 The identities a workload runs as (the API's service account) are created in the
 environment's `_setup` root and bound in the workload root. Owning an identity means
 creating it and granting `actAs` on it, which is `serviceAccountAdmin`; that role also edits

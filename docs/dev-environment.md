@@ -74,7 +74,8 @@ PR 1, then
 5. Set `GCP_PROJECT_DEV`, run `setup-cd` by hand (Actions → setup-cd → Run workflow)
    and approve it. The org job creates the project on the billing account, its APIs,
    its plan and apply hubs (`frubble-dev-plan-hub`, `frubble-dev-apply-hub`), the dev
-   deploy hub (`frubble-dev-deploy-hub`), the developer group's and the administrator's
+   deploy hub (`frubble-dev-deploy-hub`), the osiris deploy hub
+   (`frubble-dev-osiris-deploy-hub`), the developer group's and the administrator's
    access, and the setup plan identity's read role. Set `GCP_PLAN_HUB_DEV` and
    `GCP_APPLY_HUB_DEV` from its `plan_hubs` and `apply_hubs` outputs.
 6. Add `dev` levels to whoever needs them in `ORG_MEMBERS_ACCESS` and run
