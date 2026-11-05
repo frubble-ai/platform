@@ -92,4 +92,5 @@ only knows the markers it lists, in the languages it scopes each one to.
 Answer with a short findings list. Each finding carries `file:line`, severity, a **one-sentence** problem,
 a **one-sentence** fix and — only where the reasoning truly needs it — an optional `detail` of two to
 four sentences, the **only** place longer reasoning may go. Don't pad the problem with evidence. If your
-lens is clean, answer exactly `Area clean (correctness) — no findings.`
+lens is clean, answer with the exact line `Area clean (correctness) — no findings.` — a short note may
+follow it.
