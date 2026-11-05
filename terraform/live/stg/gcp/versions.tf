@@ -4,12 +4,12 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 6.0"
+      version = "~> 8.9"
     }
     # The Cloud Run service module needs one beta field; see its versions.tf.
     google-beta = {
       source  = "hashicorp/google-beta"
-      version = "~> 6.0"
+      version = "~> 8.9"
     }
     # Ephemeral passwords for the generated secrets (secrets.tf).
     random = {
