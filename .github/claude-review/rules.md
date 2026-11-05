@@ -62,8 +62,8 @@ to the run log:
 
 - **findings** — a `Findings` heading (`### Findings`, or any heading level) followed by at least one
   entry carrying `file:line`, a severity label, a problem and a fix; or
-- **clean** — the line `Area clean (<lens>) — no findings.`, with its own lens name, anywhere in the
-  answer on a line of its own. A note, a `not examined:` line or a short explanation before or after it
+- **clean** — the line `Area clean (<lens>) — no findings.`, with its own lens name, at the start of a line —
+  anything may follow it on that line. A note, a `not examined:` line or a short explanation before or after it
   does not change that: the answer is still clean and usable, so never retry a lens for it.
 
 When an answer has both — real findings entries and a clean line — it counts as **findings**: never throw
