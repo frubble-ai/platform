@@ -88,6 +88,18 @@ locals {
   )
 }
 
+# Osiris's deploy hubs, one per environment it deploys to. Its own accounts,
+# so an osiris deploy can never become the application's deploy spoke. The
+# trust rule for each lives in that environment's workload root.
+resource "google_service_account" "osiris_deploy_hub" {
+  for_each = toset([for env in ["dev", "stg"] : env if contains(keys(var.environment_projects), env)])
+
+  account_id   = "frubble-${each.key}-osiris-deploy-hub"
+  project      = var.management_project_id
+  display_name = "osiris ${each.key} deploy entry point"
+  description  = "osiris ${each.key} deploy entry point"
+}
+
 # What an environment's apply spoke may do to its hub: read and set the whole
 # IAM policy of the hub account. setIamPolicy cannot be narrowed to one
 # binding, so this is more than the trust rule: the holder could also grant

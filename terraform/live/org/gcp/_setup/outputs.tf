@@ -75,11 +75,22 @@ output "hub_trust_editor_role" {
 }
 
 output "repositories" {
-  description = "owner/name of both repositories, as the trust entries spell them."
+  description = "owner/name of the repositories, as the trust entries spell them."
   value = {
     platform = local.platform_repo
     backend  = local.backend_repo
+    osiris   = local.osiris_repo
   }
+}
+
+output "osiris_deploy_hubs" {
+  description = "Osiris deploy hub email per environment osiris deploys to."
+  value       = { for env, hub in google_service_account.osiris_deploy_hub : env => hub.email }
+}
+
+output "osiris_deploy_hub_names" {
+  description = "Full resource name of each environment's osiris deploy hub."
+  value       = { for env, hub in google_service_account.osiris_deploy_hub : env => hub.name }
 }
 
 output "plan_store_bucket" {

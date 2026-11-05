@@ -30,6 +30,7 @@ environment_projects = {
 github_owner        = "frubble-ai"
 platform_repository = "platform"
 backend_repository  = "app"
+osiris_repository   = "osiris"
 
 # Created by hand at groups.google.com, invite-only. Google exposes no API for
 # creating consumer groups, and this organization has no directory for the

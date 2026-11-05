@@ -35,7 +35,7 @@ variable "region" {
 }
 
 variable "github_owner" {
-  description = "GitHub organization owning both repositories."
+  description = "GitHub organization owning the repositories."
   type        = string
 }
 
@@ -47,6 +47,12 @@ variable "platform_repository" {
 variable "backend_repository" {
   description = "Repository holding the application."
   type        = string
+}
+
+variable "osiris_repository" {
+  description = "Repository holding the osiris integrations service."
+  type        = string
+  default     = "osiris"
 }
 
 variable "developer_group" {
@@ -93,6 +99,10 @@ variable "apis" {
     "sqladmin.googleapis.com",
     "servicenetworking.googleapis.com",
     "pubsub.googleapis.com",
+
+    # Osiris schedules token refresh, consent expiry and event republish on
+    # Cloud Tasks. Cloud Scheduler is not used.
+    "cloudtasks.googleapis.com",
 
     "cloudkms.googleapis.com",
     "iam.googleapis.com",
