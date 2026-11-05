@@ -154,6 +154,9 @@ module "deploy_spoke" {
 
 # Osiris's deploy spoke. Its own account, so it cannot roll the application's
 # services and the application's deploy cannot roll osiris.
+# Unlike the application's deploy spoke above, it is not gated: the org makes
+# an osiris deploy hub for every environment this root can be applied to, so
+# the hub lookup always has an entry.
 module "osiris_deploy_spoke" {
   source = "../../../../modules/gcp/wif-spoke"
 

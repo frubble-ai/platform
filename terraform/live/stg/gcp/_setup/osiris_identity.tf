@@ -51,10 +51,12 @@ resource "google_service_account" "osiris_tasks" {
 }
 
 resource "google_service_account_iam_member" "osiris_schedules_tasks" {
-  for_each = toset([
-    google_service_account.osiris.email,
-    google_service_account.osiris_worker.email,
-  ])
+  # Keyed on fixed names: an email is only known once the account exists, and
+  # a key must be known at plan time.
+  for_each = {
+    serve  = google_service_account.osiris.email
+    worker = google_service_account.osiris_worker.email
+  }
 
   service_account_id = google_service_account.osiris_tasks.name
   role               = "roles/iam.serviceAccountUser"
