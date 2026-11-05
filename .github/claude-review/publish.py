@@ -11,9 +11,10 @@ This script writes, and holds both to hard rules whatever they said:
 
 - only this workflow's own threads are replied to, resolved or reopened;
 - a thread a person resolved is never reopened; only an open one is resolved;
-- a thread this workflow resolved is reopened when a finding matches it, unless it resolved it by
-  accepting a dispute, and an open thread no finding matches is resolved, whatever the reconcile
-  step chose for it;
+- a thread this workflow resolved is reopened when a finding matches it, and an open thread no
+  finding matches is resolved, whatever the reconcile step chose for it; a matched thread it
+  resolved by accepting a dispute is kept or reopened as the reconcile step judged, and every
+  accepted dispute gets a marked reply;
 - a finding the reconcile step matched is never posted; every other one is, all in one review,
   except one on the exact line of a thread that stays open, sharing a lens with it;
 - a finding on a line the diff does not carry moves to the nearest one it does; one with no line
@@ -129,13 +130,19 @@ query($owner: String!, $name: String!, $number: Int!, $endCursor: String) {
     reviewThreads(first: 100, after: $endCursor) {
       pageInfo { hasNextPage endCursor }
       nodes { id isResolved resolvedBy { login } path line originalLine
-        comments(first: 100) { nodes { id databaseId author { login } body } } } } } }
+        comments(first: 1) { nodes { id databaseId author { login } body } } } } } }
 }"""
 
 
 def own_threads():
     """This workflow's review threads: their root comment is the bot's and carries the marker."""
     owner, name = REPO.split("/")
+    # Every reply, from the paginated REST list: a thread's comments in GraphQL stop at a page.
+    accepted_roots = {
+        comment["in_reply_to_id"] for comment in paged(f"{API}/comments")
+        if comment.get("in_reply_to_id") and (comment.get("user") or {}).get("login") in BOT_LOGINS
+        and ACCEPTED_MARKER in (comment.get("body") or "")
+    }
     threads, cursor = [], None
     while True:
         extra = {"endCursor": cursor} if cursor else {}
@@ -147,9 +154,7 @@ def own_threads():
             author = (roots[0].get("author") or {}).get("login") if roots else None
             if roots and author in BOT_LOGINS and MARKER in roots[0]["body"]:
                 thread["root"] = roots[0]
-                thread["accepted"] = any(
-                    (comment.get("author") or {}).get("login") in BOT_LOGINS and ACCEPTED_MARKER in comment["body"]
-                    for comment in roots[1:])
+                thread["accepted"] = roots[0]["databaseId"] in accepted_roots
                 thread["lenses"] = lenses(roots[0]["body"])
                 line = thread["line"] or thread["originalLine"] or 0
                 thread["places"] = {(thread["path"], line)}
@@ -207,12 +212,16 @@ def main():
         action = decision.get("action", "keep")
         by_person = thread["isResolved"] and (thread["resolvedBy"] or {}).get("login") not in BOT_LOGINS
         # The reconcile table, held whatever the reconcile step chose: a defect that is back
-        # reopens this workflow's own resolved thread, unless it resolved it by accepting a
-        # dispute, and a defect that is gone resolves its open one. A matched open thread stays
-        # the reconcile step's call (a dispute).
+        # reopens this workflow's own resolved thread, and a defect that is gone resolves its
+        # open one. Two cases stay the reconcile step's call, judged against the code: a matched
+        # open thread (a dispute), and a matched thread resolved by accepting a dispute (does
+        # the reply it accepted still hold at the head?).
         matched = thread["id"] in matched_thread
         if matched and thread["isResolved"] and not by_person:
-            action = "keep" if thread["accepted"] else "reopen"
+            if not thread["accepted"]:
+                action = "reopen"
+            elif action not in ("keep", "reopen"):
+                action = "keep"
         elif not matched and not thread["isResolved"]:
             action = "resolve"
         accepting = matched and action == "resolve" and not thread["isResolved"]
@@ -230,6 +239,9 @@ def main():
         else:
             print(f"kept {where} ({'resolved' if thread['isResolved'] else 'open'})")
         reply = (decision.get("reply") or "").strip()
+        if accepting and not reply:
+            # An accepted dispute is always marked, so a later run knows it was accepted.
+            reply = "The reply above holds, so this finding is resolved."
         if reply:
             accepted = f"\n{ACCEPTED_MARKER}" if accepting else ""
             gh(f"{API}/comments/{thread['root']['databaseId']}/replies", "-X", "POST",

@@ -333,6 +333,10 @@ jobs:
           set -euo pipefail
           jq '[.findings | to_entries[] | {index: .key} + .value]' <<<"$RESULT" \
             > "$RUNNER_TEMP/claude-review-findings.json"
+          # Every reply comes from the paginated REST list: a thread's comments in
+          # GraphQL stop at a page.
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/pulls/$PR/comments" \
+            > "$RUNNER_TEMP/claude-review-comments.json"
           # shellcheck disable=SC2016 # GraphQL variables, not shell ones
           gh api graphql --paginate --slurp -F owner="${GITHUB_REPOSITORY%/*}" \
             -F name="${GITHUB_REPOSITORY#*/}" -F number="$PR" -f query='
@@ -341,17 +345,22 @@ jobs:
                 reviewThreads(first: 50, after: $endCursor) {
                   pageInfo { hasNextPage endCursor }
                   nodes { id isResolved resolvedBy { login } path line originalLine
-                    comments(first: 100) { nodes { author { login } createdAt body } } } } } } }' \
-            | jq '[.[].data.repository.pullRequest.reviewThreads.nodes[]
+                    comments(first: 1) { nodes { databaseId author { login } body } } } } } } }' \
+            | jq --slurpfile rest "$RUNNER_TEMP/claude-review-comments.json" '
+                ([$rest[0][][] | select(.in_reply_to_id != null)]
+                  | group_by(.in_reply_to_id) | map({key: (.[0].in_reply_to_id | tostring), value: .})
+                  | from_entries) as $replies
+                | [.[].data.repository.pullRequest.reviewThreads.nodes[]
                 | select((.comments.nodes[0].author.login | IN("github-actions", "github-actions[bot]"))
                     and (.comments.nodes[0].body | contains("<!-- claude-review -->")))
+                | ($replies[.comments.nodes[0].databaseId | tostring] // []) as $own
                 | {thread: .id, resolved: .isResolved, resolved_by: .resolvedBy.login,
-                   accepted: ([.comments.nodes[1:][]
-                     | select((.author.login | IN("github-actions", "github-actions[bot]"))
+                   accepted: ([$own[]
+                     | select((.user.login | IN("github-actions", "github-actions[bot]"))
                        and (.body | contains("<!-- claude-review-accepted -->")))] | length > 0),
                    path, line: (.line // .originalLine),
                    finding: .comments.nodes[0].body,
-                   replies: [.comments.nodes[1:][] | {author: .author.login, at: .createdAt, body}]}]' \
+                   replies: [$own | sort_by(.created_at)[] | {author: .user.login, at: .created_at, body}]}]' \
             > "$RUNNER_TEMP/claude-review-threads.json"
           echo "findings: $(jq length "$RUNNER_TEMP/claude-review-findings.json")," \
             "threads: $(jq length "$RUNNER_TEMP/claude-review-threads.json")"

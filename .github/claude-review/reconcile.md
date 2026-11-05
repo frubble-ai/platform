@@ -35,7 +35,7 @@ posting the same defect twice is worse than missing a nuance.
 | --- | --- | --- |
 | open | `keep` — still present | `resolve` — the defect is gone |
 | resolved by this workflow (`github-actions` or `github-actions[bot]`) after a fix | `reopen` — the defect is back | `keep` |
-| resolved by this workflow after accepting a dispute (`accepted`) | `keep` — the dispute stands | `keep` |
+| resolved by this workflow after accepting a dispute (`accepted`) | `keep` if the reply it accepted still holds at the head; `reopen` if the code that reply relied on is gone | `keep` |
 | resolved by a person | `keep` — their judgement stands | `keep` |
 
 **3. Disputes.** An open, matched thread whose latest reply is from a person, arguing the finding
@@ -47,6 +47,11 @@ the reply points to:
 - **It does not**: action `keep`, with a `reply` of one or two sentences quoting the line that
   shows the defect is still there. Only when this workflow has not already answered that reply.
 
+**4. Accepted disputes.** A thread this workflow resolved by accepting a dispute (`accepted`)
+that a finding matches again: read the reply it accepted against the code at the head. Still
+true: action `keep`, no reply. The code it relied on is gone: action `reopen`, with a `reply` of
+one sentence quoting the line that shows it.
+
 Reply nowhere else. A thread with nothing new from a person gets no reply.
 
 ## Your answer
@@ -55,7 +60,7 @@ The structured output:
 
 - `matches`: `{finding, thread}` — the finding's `index` and the thread's id, for every match.
 - `threads`: `{thread, action, reply}` for **every** thread in the threads file, `action` one of
-  `keep`, `resolve`, `reopen`, and `reply` empty unless step 3 calls for one.
+  `keep`, `resolve`, `reopen`, and `reply` empty unless step 3 or 4 calls for one.
 
 Every finding you do not list in `matches` is posted as new. Never put `'` or `"` between a `{`
 and its `}` in a reply; use backticks there instead.
