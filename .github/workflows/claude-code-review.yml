@@ -346,6 +346,9 @@ jobs:
                 | select((.comments.nodes[0].author.login | IN("github-actions", "github-actions[bot]"))
                     and (.comments.nodes[0].body | contains("<!-- claude-review -->")))
                 | {thread: .id, resolved: .isResolved, resolved_by: .resolvedBy.login,
+                   accepted: ([.comments.nodes[1:][]
+                     | select((.author.login | IN("github-actions", "github-actions[bot]"))
+                       and (.body | contains("<!-- claude-review-accepted -->")))] | length > 0),
                    path, line: (.line // .originalLine),
                    finding: .comments.nodes[0].body,
                    replies: [.comments.nodes[1:][] | {author: .author.login, at: .createdAt, body}]}]' \

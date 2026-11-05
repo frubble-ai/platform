@@ -12,7 +12,8 @@ and to decide what happens to each. `publish.py` then carries out what you decid
   and `body`. This is the truth about the head commit: a defect in the list is present; a defect
   not in the list is gone.
 - **The threads file** — every thread this workflow opened: its `thread` id, whether it is
-  resolved and by whom, its `path` and `line`, its first comment (the finding it raised), and
+  resolved and by whom, whether it was resolved by accepting a dispute (`accepted`), its `path`
+  and `line`, its first comment (the finding it raised), and
   every reply after it, with each author.
 - The code at the head commit, which you may read to judge a reply.
 
@@ -33,7 +34,8 @@ posting the same defect twice is worse than missing a nuance.
 | The thread | Matched by a finding | Matched by none |
 | --- | --- | --- |
 | open | `keep` — still present | `resolve` — the defect is gone |
-| resolved by this workflow (`github-actions` or `github-actions[bot]`) | `reopen` — the defect is back | `keep` |
+| resolved by this workflow (`github-actions` or `github-actions[bot]`) after a fix | `reopen` — the defect is back | `keep` |
+| resolved by this workflow after accepting a dispute (`accepted`) | `keep` — the dispute stands | `keep` |
 | resolved by a person | `keep` — their judgement stands | `keep` |
 
 **3. Disputes.** An open, matched thread whose latest reply is from a person, arguing the finding

@@ -11,8 +11,9 @@ This script writes, and holds both to hard rules whatever they said:
 
 - only this workflow's own threads are replied to, resolved or reopened;
 - a thread a person resolved is never reopened; only an open one is resolved;
-- a thread this workflow resolved is reopened when a finding matches it, and an open thread no
-  finding matches is resolved, whatever the reconcile step chose for it;
+- a thread this workflow resolved is reopened when a finding matches it, unless it resolved it by
+  accepting a dispute, and an open thread no finding matches is resolved, whatever the reconcile
+  step chose for it;
 - a finding the reconcile step matched is never posted; every other one is, all in one review,
   except one on the exact line of a thread that stays open, sharing a lens with it;
 - a finding on a line the diff does not carry moves to the nearest one it does; one with no line
@@ -33,6 +34,9 @@ import sys
 MARKER = "<!-- claude-review -->"
 VERDICT_MARKER = "<!-- claude-review-verdict -->"
 SUMMARY_MARKER = "<!-- claude-review-summary -->"
+# On this workflow's reply when it accepts a dispute and resolves the thread: a later run that
+# reports the same defect keeps the thread resolved instead of reopening it.
+ACCEPTED_MARKER = "<!-- claude-review-accepted -->"
 BOT = "github-actions[bot]"
 BOT_GRAPHQL = "github-actions"
 # GitHub names the bot both ways: `github-actions` as a comment's author, `github-actions[bot]`
@@ -125,7 +129,7 @@ query($owner: String!, $name: String!, $number: Int!, $endCursor: String) {
     reviewThreads(first: 100, after: $endCursor) {
       pageInfo { hasNextPage endCursor }
       nodes { id isResolved resolvedBy { login } path line originalLine
-        comments(first: 1) { nodes { id databaseId author { login } body } } } } } }
+        comments(first: 100) { nodes { id databaseId author { login } body } } } } } }
 }"""
 
 
@@ -143,6 +147,9 @@ def own_threads():
             author = (roots[0].get("author") or {}).get("login") if roots else None
             if roots and author in BOT_LOGINS and MARKER in roots[0]["body"]:
                 thread["root"] = roots[0]
+                thread["accepted"] = any(
+                    (comment.get("author") or {}).get("login") in BOT_LOGINS and ACCEPTED_MARKER in comment["body"]
+                    for comment in roots[1:])
                 thread["lenses"] = lenses(roots[0]["body"])
                 line = thread["line"] or thread["originalLine"] or 0
                 thread["places"] = {(thread["path"], line)}
@@ -200,13 +207,15 @@ def main():
         action = decision.get("action", "keep")
         by_person = thread["isResolved"] and (thread["resolvedBy"] or {}).get("login") not in BOT_LOGINS
         # The reconcile table, held whatever the reconcile step chose: a defect that is back
-        # reopens this workflow's own resolved thread, and a defect that is gone resolves its
-        # open one. A matched open thread stays the reconcile step's call (a dispute).
+        # reopens this workflow's own resolved thread, unless it resolved it by accepting a
+        # dispute, and a defect that is gone resolves its open one. A matched open thread stays
+        # the reconcile step's call (a dispute).
         matched = thread["id"] in matched_thread
         if matched and thread["isResolved"] and not by_person:
-            action = "reopen"
+            action = "keep" if thread["accepted"] else "reopen"
         elif not matched and not thread["isResolved"]:
             action = "resolve"
+        accepting = matched and action == "resolve" and not thread["isResolved"]
         if action == "resolve" and not thread["isResolved"]:
             resolve(thread)
             thread["isResolved"] = True
@@ -222,8 +231,9 @@ def main():
             print(f"kept {where} ({'resolved' if thread['isResolved'] else 'open'})")
         reply = (decision.get("reply") or "").strip()
         if reply:
+            accepted = f"\n{ACCEPTED_MARKER}" if accepting else ""
             gh(f"{API}/comments/{thread['root']['databaseId']}/replies", "-X", "POST",
-               payload={"body": f"{reply}\n{MARKER}"})
+               payload={"body": f"{reply}\n{MARKER}{accepted}"})
             print(f"replied on {where}")
 
     open_threads = [thread for thread in threads if not thread["isResolved"]]
@@ -233,8 +243,11 @@ def main():
     for index, finding in enumerate(findings):
         if index in matched_finding:
             continue
+        # A safety net for a match the reconcile step missed: only a thread no other finding
+        # matched can be this finding's twin.
         twin = next((thread for thread in open_threads
-                     if (finding["path"], finding["line"]) in thread["places"]
+                     if thread["id"] not in matched_thread
+                     and (finding["path"], finding["line"]) in thread["places"]
                      and thread["lenses"] & finding["lenses"]), None)
         if twin:
             print(f"skipped {finding['path']}:{finding['line']}: the same spot as open thread {twin['id']}")
