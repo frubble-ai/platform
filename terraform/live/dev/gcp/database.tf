@@ -104,3 +104,44 @@ module "migrate_job" {
     google_secret_manager_secret_iam_member.api_reads,
   ]
 }
+
+# Closes CONNECT between the two databases. Run once after apply, and again
+# after stg is rebuilt (docs/dev-environment.md). Not part of a deploy.
+locals {
+  database_grants_sql = "BEGIN; GRANT CONNECT ON DATABASE frubble TO frubble; GRANT CONNECT ON DATABASE osiris TO osiris; REVOKE CONNECT ON DATABASE frubble FROM PUBLIC; REVOKE CONNECT ON DATABASE osiris FROM PUBLIC; GRANT osiris TO grants; ALTER DATABASE osiris OWNER TO osiris; REVOKE cloudsqlsuperuser FROM osiris; COMMIT;"
+}
+
+module "database_grants_job" {
+  source = "../../../modules/gcp/cloud-run-job"
+
+  project_id            = var.project_id
+  name                  = "${local.name}-db-grants"
+  region                = var.region
+  service_account_email = local.setup.database_grants_service_account
+  image                 = "mirror.gcr.io/library/postgres:16-alpine"
+  command               = ["sh", "-c"]
+  args = [
+    "printf '%s\\n' \"$DB_CA_PEM\" > /tmp/ca.pem && psql \"host=$DB_HOST port=$DB_PORT dbname=postgres user=$DB_USER sslmode=verify-ca sslrootcert=/tmp/ca.pem\" -v ON_ERROR_STOP=1 -c \"$DATABASE_GRANTS_SQL\"",
+  ]
+  env = {
+    DB_HOST             = module.database.private_ip
+    DB_PORT             = "5432"
+    DB_USER             = google_sql_user.grants.name
+    DB_CA_PEM           = module.database.server_ca_pem
+    DATABASE_GRANTS_SQL = local.database_grants_sql
+  }
+  secret_env = {
+    PGPASSWORD = { secret = module.secrets["database_grants_password"].secret_id }
+  }
+  vpc                 = local.vpc
+  deletion_protection = module.shared.environment == "prd"
+  labels              = merge(local.labels, { component = "database" })
+
+  depends_on = [
+    google_sql_database.osiris,
+    google_sql_user.osiris,
+    google_sql_user.grants,
+    module.secrets,
+    google_secret_manager_secret_iam_member.database_grants_reads,
+  ]
+}

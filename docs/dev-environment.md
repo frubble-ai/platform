@@ -205,6 +205,8 @@ not set a command or arguments: the services read `OSIRIS_PROCESS`.
 After the first dev apply, and again whenever stg is rebuilt:
 
 1. Run the database grant job once, as someone who can execute Cloud Run jobs.
+   This step is required: until it has run, `CONNECT` is open to every database user
+   and `osiris` is still in `cloudsqlsuperuser`, so the two databases are not isolated.
    It revokes `CONNECT` between the `frubble` and `osiris` databases. The
    application user keeps `CONNECT` on its own database. It also makes the
    `osiris` user the owner of the `osiris` database, so migrations can create
