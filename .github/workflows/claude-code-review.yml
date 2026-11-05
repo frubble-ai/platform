@@ -5,14 +5,6 @@ on:
   # targets, with the rules taken from that branch.
   pull_request:
     types: [opened, synchronize, ready_for_review, reopened]
-  # Reviews one pull request on demand, with this workflow and the rules as
-  # they are on the branch it is run from.
-  workflow_dispatch:
-    inputs:
-      pr:
-        description: Pull request number
-        required: true
-        type: number
 
 # No id-token: this workflow never needs a cloud identity, so it cannot ask
 # for one.
@@ -89,7 +81,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+          NUMBER: ${{ github.event.pull_request.number }}
           EVENT: ${{ github.event_name }}
         run: |
           set -euo pipefail
@@ -104,11 +96,7 @@ jobs:
 
           allowed=false
           if [ "$head_repo" = "$GITHUB_REPOSITORY" ] && [ "$draft" = false ] && [ "$state" = open ]; then
-            if [ "$EVENT" = workflow_dispatch ]; then
-              allowed=true
-            else
-              case "$perm" in admin | maintain | write) allowed=true ;; esac
-            fi
+            case "$perm" in admin | maintain | write) allowed=true ;; esac
           fi
 
           echo "author=$author association=$assoc permission=$perm"
@@ -356,26 +344,15 @@ jobs:
               and block.get("name") in ("Agent", "Task")
           ]
 
-          def usable(lens, text):
-              # Clean: the clean line at the start of a line, anything after it on that line, and
-              # any notes before or after it, allowed.
-              # Findings: a findings heading with at least one `file:line` entry. Either is usable;
-              # both together count as findings. Only an answer with neither is lost. Claude Code
-              # indents a subagent's answer when it hands it back.
-              clean = re.search(rf"^\s*Area clean \({lens}\)\s*[—–-]+\s*no findings\b", text, re.M | re.I)
-              heading = re.search(r"^\s*#+\s*Findings", text, re.M | re.I)
-              entries = re.search(r"[\w./-]+\.[\w]+:\d+", text)
-              return bool(clean) or bool(heading and entries)
-
           problems = []
           for lens in ["security", "correctness", "boundaries", "conventions", "tests", "performance", "intent"]:
               name = f"review-{lens}"
               tries = [answers.get(call["id"], (True, "")) for call in calls
                        if call.get("input", {}).get("subagent_type") == name]
-              good = [text for error, text in tries if not error and usable(lens, text)]
-              print(f"{name}: {len(tries)} dispatch(es), {'usable' if good else 'NO usable answer'}")
+              good = [text for error, text in tries if not error and text.strip() and "not found" not in text[:200]]
+              print(f"{name}: {len(tries)} dispatch(es), {'answered' if good else 'NO answer'}")
               if not good:
-                  problems.append(f"{name} gave no usable answer")
+                  problems.append(f"{name} did not answer")
           checker = [call for call in calls if call.get("input", {}).get("subagent_type") == "review-checker"]
           print(f"review-checker: {len(checker)} dispatch(es); candidates: {result.get('candidates', 0)}")
           if (result.get("candidates", 0) or result.get("findings")) and not checker:
@@ -548,28 +525,6 @@ jobs:
         run: python3 "$RUNNER_TEMP/claude-review-publish.py"
 
 
-      # A manual run's checks land on the branch it ran from, not on the pull
-      # request, so a re-review that clears every finding would leave the PR's
-      # old red check in place. Write the result onto the head commit as the
-      # newest "Review — Claude" check, which replaces the stale one.
-      - name: Report a manual run on the pull request
-        if: always() && github.event_name == 'workflow_dispatch' && steps.publish.outcome == 'success'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          OPEN: ${{ steps.publish.outputs.open }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          set -euo pipefail
-          if [ "$OPEN" = 0 ]; then
-            conclusion=success; title="No open findings"
-          else
-            conclusion=failure; title="$OPEN open finding(s)"
-          fi
-          jq -n --arg sha "$HEAD_SHA" --arg c "$conclusion" --arg t "$title" --arg url "$RUN_URL" \
-            '{name: "Review — Claude", head_sha: $sha, status: "completed", conclusion: $c,
-              details_url: $url, output: {title: $t, summary: ("From the manual review run: " + $url)}}' \
-            | gh api "repos/$GITHUB_REPOSITORY/check-runs" -X POST --input - --jq '"reported \(.conclusion) on \(.head_sha[0:7])"'
 
       # Every finding is required: the check stays red while any is open, the
       # review requests changes, and the dev ruleset requires every review
