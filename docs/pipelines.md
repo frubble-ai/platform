@@ -19,4 +19,10 @@
 required checks. `Plan dev setup` runs behind `GCP_PROJECT_DEV` and is required, like
 the other setup plans.
 
+Osiris deploys from frubble-ai/osiris, not from this repository. `osiris-cd.yml`
+in the `osiris-dev` environment (any branch, the dev deployers list) and in
+`osiris-stg` (the `stg` branch only) is what `trust.tf` allows. The workflow's
+environment variables are the same names the application's `backend-cd` uses
+(dev-environment.md).
+
 Required checks: `Plan stg / plan`, `Plan prd / plan`, `Plan org setup / plan`, `Plan dev setup / plan`, `Plan stg setup / plan`, `Plan prd setup / plan`, `Code Quality Summary`, `pr template`.

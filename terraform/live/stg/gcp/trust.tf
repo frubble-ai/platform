@@ -21,6 +21,11 @@ locals {
     "${local.repos.backend}|${local.repos.backend}/.github/workflows/db-reset.yml|backend-stg|refs/heads/stg",
     "${local.repos.backend}|${local.repos.backend}/.github/workflows/app-cd.yml|app-stg|refs/heads/stg",
   ] : []
+
+  # osiris-cd.yml in osiris-stg, from the stg branch only.
+  osiris_deploy_entries = module.shared.environment == "stg" ? [
+    "${local.repos.osiris}|${local.repos.osiris}/.github/workflows/osiris-cd.yml|osiris-stg|refs/heads/stg",
+  ] : []
 }
 
 # Authoritative: this root is the only owner of the hub's members since
@@ -38,6 +43,17 @@ resource "google_service_account_iam_binding" "backend_deploy_trust" {
   role               = "roles/iam.workloadIdentityUser"
   members = [
     for entry in local.backend_deploy_entries :
+    "principalSet://iam.googleapis.com/${local.pool}/attribute.apply_entry/${entry}"
+  ]
+}
+
+resource "google_service_account_iam_binding" "osiris_deploy_trust" {
+  count = length(local.osiris_deploy_entries) > 0 ? 1 : 0
+
+  service_account_id = local.setup.osiris_deploy_hub_name
+  role               = "roles/iam.workloadIdentityUser"
+  members = [
+    for entry in local.osiris_deploy_entries :
     "principalSet://iam.googleapis.com/${local.pool}/attribute.apply_entry/${entry}"
   ]
 }

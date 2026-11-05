@@ -34,6 +34,11 @@ module "load_balancer" {
       region  = var.region
       host    = module.shared.app_hostname
     }
+    osiris = {
+      service = module.osiris_service.name
+      region  = var.region
+      host    = module.shared.osiris_hostname
+    }
   }
 }
 

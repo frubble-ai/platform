@@ -27,7 +27,7 @@ features are switched on. The exception is `_setup` outputs copied once at boots
 any pipeline exists to carry them.
 
 The GCP workload root hands the Cloudflare root two values. `certificate_dns_authorizations`,
-one CNAME per hostname (the API's, `api.`, and the web app's, `app.`): the Cloudflare root
+one CNAME per hostname (the API's, `api.`, the web app's, `app.`, and osiris's, `osiris.`): the Cloudflare root
 publishes each, DNS-only, and Certificate Manager issues that hostname's certificate against it;
 the records are permanent, since renewals reuse them. A certificate per hostname, so adding one
 never replaces the certificate another is serving with. `load_balancer_ip`: the hostnames' A

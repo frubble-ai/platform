@@ -169,6 +169,55 @@ The application (frubble-ai/app), not this repository
     the repository-wide one, and `dev` accepted as an `APP_ENV`. Until then the dev
     services run their placeholder images.
 
+## Osiris
+
+Osiris (frubble-ai/osiris) deploys the way the application does. `dev/gcp/trust.tf`
+expects `osiris-cd.yml` in an `osiris-dev` environment from any branch, by one of
+`dev_deployers`, and `stg/gcp/trust.tf` expects the same file in `osiris-stg` from
+the `stg` branch only. `osiris-dev` accepts deployments from all branches;
+`osiris-stg` from `stg` only. The workflow keeps a run from `stg` out of
+`osiris-dev`. A tag or a pull request's merge ref is never trusted.
+
+On frubble-ai/app, the Actions policy that refuses a re-run by anyone but the
+listed members covers `backend-cd.yml`, `app-cd.yml` and `db-reset.yml`. Osiris
+needs the same policy on `osiris-cd.yml`, with the same ids (`dev_deployers`).
+
+Each environment's variables, from this repository's outputs, using the names
+`backend-dev` and `backend-stg` already use:
+
+| Variable | What |
+| --- | --- |
+| `GCP_WIF_PROVIDER` | org/gcp/_setup `apply_provider` |
+| `GCP_WIF_AUDIENCE` | org/gcp/_setup `audience` |
+| `GCP_DEPLOY_HUB` | full email, `osiris_deploy_hubs["dev"]` or `["stg"]` from org/gcp/_setup |
+| `GCP_DEPLOY_SPOKE` | `osiris_deploy_spoke` from the environment's gcp/_setup |
+| `GCP_PROJECT_ID` | the environment project |
+| `GCP_REGION` | `us-central1` |
+| `GCP_REGISTRY` | the workload root's `registry_url` |
+| `GCP_RUN_SERVICE` | `osiris_service_name` (serve) |
+| `GCP_RUN_SERVICE_WORKER` | `osiris_worker_service_name` |
+| `GCP_RUN_JOB_MIGRATE` | `osiris_migrate_job_name` |
+
+The image is built with `--build-arg OSIRIS_COMMIT=<commit>`. The workflow pushes
+that image, executes the migrate job, then rolls serve and the worker. It does
+not set a command or arguments: the services read `OSIRIS_PROCESS`.
+
+After the first dev apply, and again whenever stg is rebuilt:
+
+1. Run the database grant job once, as someone who can execute Cloud Run jobs.
+   It revokes `CONNECT` between the `frubble` and `osiris` databases. The
+   application user keeps `CONNECT` on its own database.
+   `gcloud run jobs execute frubble-dev-db-grants --project "$PROJECT" --region us-central1 --wait`
+   with `PROJECT` from `GCP_PROJECT_DEV` (`frubble-stg-db-grants` and `GCP_PROJECT_STG` for stg). If it fails, the
+   transaction rolls back and `CONNECT` is unchanged.
+2. On the dev GitHub, Linear and Slack apps, set the OAuth callback to
+   `https://osiris.dev.frubble.ai/oauth/callback` (stg: `https://osiris.stg.frubble.ai/oauth/callback`).
+3. Read the admin key with the command in secrets.md. It is not in CI.
+
+The hostname's A record is published on the apply after the certificate is
+issued, same as `app.dev` (crossing-roots.md). Until the first osiris deploy,
+serve and the worker run the placeholder image.
+
 ## Rolling back
 
 To pause dev's setup jobs, set `GCP_SETUP_DISABLE_DEV=true`; unset it to resume.

@@ -19,18 +19,21 @@ checks `var.enabled` first or uses `try()`. The outputs are `null` while stg is 
 ## What goes and what stays
 
 Off destroys, in `stg/gcp`: the Cloud SQL instance (its data and its backups), the
-migration job, the api, app and worker services, the email queue and its alert,
-the load balancer with its certificates and address, Cloud Armor, the alerts, the
-registry with its images, the deploy identity's grants on all of those, the
-generated secrets (database password, auth secret), and the handoff object. In
-`stg/cloudflare`: the api and app A records and their certificate authorizations.
+migration job, the api, app and worker services, osiris's serve and worker services,
+its migration job, its Cloud Tasks queue, its events topic and the database grant
+job, the email queue and its alert, the load balancer with its certificates and
+address, Cloud Armor, the alerts, the registry with its images, the deploy
+identity's grants on all of those, the generated secrets (database password, auth
+secret, and osiris's database password, API key, admin key and encryption key),
+and the handoff object. In `stg/cloudflare`: the api, app and osiris A records
+and their certificate authorizations.
 
 Stays: `stg/gcp/_setup` (the project, the state bucket and its keys, the service
-accounts and deploy identities), the network and its private service connection
-(free, and deleting a peering right after Cloud SQL tends to fail), the Pub/Sub
-service identity, the Composio and email key secrets with their values and
-bindings, the deploy trust, `stg/mailgun` (the domain and its sending key) and the
-email DNS records.
+accounts and deploy identities, osiris's included), the network and its private
+service connection (free, and deleting a peering right after Cloud SQL tends to
+fail), the Pub/Sub service identity, the Composio and email key secrets with their
+values and bindings, the deploy trust (the application's and osiris's),
+`stg/mailgun` (the domain and its sending key) and the email DNS records.
 
 The database starts empty after a rebuild: the backend's next deploy runs the
 migrations. To keep data across a switch, export it before switching off
@@ -52,7 +55,8 @@ migrations. To keep data across a switch, export it before switching off
    in mailgun.
 
 While off, stg's application deploys (`Backend - CD`, `App - CD` and `DB - Reset` on
-the app repository's `stg` branch) have nothing to deploy to and fail.
+the app repository's `stg` branch) and osiris's (`osiris-cd` on the osiris
+repository's `stg` branch) have nothing to deploy to and fail.
 
 ## Switching on
 
@@ -65,6 +69,9 @@ the app repository's `stg` branch) have nothing to deploy to and fail.
    (crossing-roots.md).
 4. Deploy the application to stg (its `Backend - CD` and `App - CD`), which also
    runs the migrations. Until then the services run the placeholder image.
+   Osiris is the same: its `osiris-cd` on the `stg` branch, then the database
+   grant job once (dev-environment.md). The rebuilt database is empty and the
+   encryption key is a new one.
 
 Cloud SQL keeps a deleted instance's name for up to a week. To switch on sooner
 than that after switching off, set `database_instance_suffix` in

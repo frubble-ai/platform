@@ -28,6 +28,32 @@ module "database" {
   depends_on = [module.network]
 }
 
+# Osiris's database and user, on the instance above. A second database, not
+# a second instance. The grant job revokes CONNECT across the two.
+resource "google_sql_database" "osiris" {
+  project  = var.project_id
+  instance = module.database.instance_name
+  name     = "osiris"
+}
+
+resource "google_sql_user" "osiris" {
+  project             = var.project_id
+  instance            = module.database.instance_name
+  name                = "osiris"
+  password_wo         = local.generated_values["osiris_database_password"]
+  password_wo_version = var.secrets_version
+}
+
+# Holds cloudsqlsuperuser so it can revoke CONNECT. The osiris and
+# application users do not use this password.
+resource "google_sql_user" "grants" {
+  project             = var.project_id
+  instance            = module.database.instance_name
+  name                = "grants"
+  password_wo         = local.generated_values["database_grants_password"]
+  password_wo_version = var.secrets_version
+}
+
 locals {
   # What every workload that opens the database needs. The password comes
   # from Secret Manager, below, never from here.

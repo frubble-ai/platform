@@ -56,6 +56,54 @@ resource "google_cloud_run_v2_service_iam_member" "deploy_rolls_out_worker" {
   }
 }
 
+resource "google_cloud_run_v2_service_iam_member" "deploy_rolls_out_osiris" {
+  project  = var.project_id
+  location = var.region
+  name     = module.osiris_service.name
+  role     = "roles/run.developer"
+  member   = "serviceAccount:${local.setup.osiris_deploy_spoke}"
+
+  lifecycle {
+    enabled = var.enabled
+  }
+}
+
+resource "google_cloud_run_v2_job_iam_member" "deploy_runs_osiris_migrate" {
+  project  = var.project_id
+  location = var.region
+  name     = module.osiris_migrate_job.name
+  role     = "roles/run.developer"
+  member   = "serviceAccount:${local.setup.osiris_deploy_spoke}"
+
+  lifecycle {
+    enabled = var.enabled
+  }
+}
+
+resource "google_cloud_run_v2_service_iam_member" "deploy_rolls_out_osiris_worker" {
+  project  = var.project_id
+  location = var.region
+  name     = module.osiris_worker_service.name
+  role     = "roles/run.developer"
+  member   = "serviceAccount:${local.setup.osiris_deploy_spoke}"
+
+  lifecycle {
+    enabled = var.enabled
+  }
+}
+
+resource "google_artifact_registry_repository_iam_member" "osiris_deploy_pushes" {
+  project    = var.project_id
+  location   = module.registry.location
+  repository = module.registry.name
+  role       = "roles/artifactregistry.writer"
+  member     = "serviceAccount:${local.setup.osiris_deploy_spoke}"
+
+  lifecycle {
+    enabled = var.enabled
+  }
+}
+
 resource "google_cloud_run_v2_service_iam_member" "deploy_rolls_out_app" {
   project  = var.project_id
   location = var.region

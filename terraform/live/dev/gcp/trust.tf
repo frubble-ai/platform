@@ -59,6 +59,14 @@ locals {
   backend_deploy_entries = [
     "${local.repos.backend}|${local.repos.backend}/.github/workflows/db-reset.yml|backend-dev|refs/heads/dev",
   ]
+
+  # osiris-cd.yml in osiris-dev, from any branch, by the same people.
+  osiris_deploy_branch_entries = [
+    for pair in setproduct(
+      ["${local.repos.osiris}|${local.repos.osiris}/.github/workflows/osiris-cd.yml|osiris-dev"],
+      values(local.dev_deployers),
+    ) : "${pair[0]}|branch|${pair[1]}"
+  ]
 }
 
 # Authoritative: this root is the only owner of the hub's members since
@@ -84,4 +92,13 @@ resource "google_service_account_iam_binding" "backend_deploy_trust" {
       "principalSet://iam.googleapis.com/${local.pool}/attribute.apply_entry/${entry}"
     ],
   )
+}
+
+resource "google_service_account_iam_binding" "osiris_deploy_trust" {
+  service_account_id = local.setup.osiris_deploy_hub_name
+  role               = "roles/iam.workloadIdentityUser"
+  members = [
+    for entry in local.osiris_deploy_branch_entries :
+    "principalSet://iam.googleapis.com/${local.pool}/attribute.deploy_entry/${entry}"
+  ]
 }

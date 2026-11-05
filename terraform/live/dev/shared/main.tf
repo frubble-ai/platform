@@ -29,6 +29,10 @@ output "app_hostname" {
   value = module.naming.app_hostname
 }
 
+output "osiris_hostname" {
+  value = module.naming.osiris_hostname
+}
+
 output "sending_domain" {
   value = module.naming.sending_domain
 }
