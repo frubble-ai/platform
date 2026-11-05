@@ -357,11 +357,12 @@ jobs:
           ]
 
           def usable(lens, text):
-              # Clean: the clean line anywhere, on its own line, notes before or after it allowed.
+              # Clean: the clean line at the start of a line, anything after it on that line, and
+              # any notes before or after it, allowed.
               # Findings: a findings heading with at least one `file:line` entry. Either is usable;
               # both together count as findings. Only an answer with neither is lost. Claude Code
               # indents a subagent's answer when it hands it back.
-              clean = re.search(rf"^\s*Area clean \({lens}\)\s*[—–-]+\s*no findings\.?\s*$", text, re.M | re.I)
+              clean = re.search(rf"^\s*Area clean \({lens}\)\s*[—–-]+\s*no findings\b", text, re.M | re.I)
               heading = re.search(r"^\s*#+\s*Findings", text, re.M | re.I)
               entries = re.search(r"[\w./-]+\.[\w]+:\d+", text)
               return bool(clean) or bool(heading and entries)
