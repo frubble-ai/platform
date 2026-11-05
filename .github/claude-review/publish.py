@@ -11,9 +11,12 @@ This script writes, and holds both to hard rules whatever they said:
 
 - only this workflow's own threads are replied to, resolved or reopened;
 - a thread a person resolved is never reopened; only an open one is resolved;
+- a thread this workflow resolved is reopened when a finding matches it, and an open thread no
+  finding matches is resolved, whatever the reconcile step chose for it;
 - a finding the reconcile step matched is never posted; every other one is, all in one review,
   except one on the exact line of a thread that stays open, sharing a lens with it;
-- a finding on a line the diff does not carry moves to the nearest one it does;
+- a finding on a line the diff does not carry moves to the nearest one it does; one with no line
+  to sit on at all is listed in the verdict, and still counts as open;
 - the verdict follows the threads: changes are requested while any thread of this workflow is
   open, and approved, after its earlier requests for changes are dismissed, when none is. An
   unchanged request for changes is edited in place; an older verdict is dismissed and collapsed.
@@ -71,6 +74,7 @@ def paged(path):
 
 
 def graphql(query, **variables):
+    """Runs a GraphQL query or mutation and returns its `data`."""
     args = ["graphql", "-f", f"query={query}"]
     for key, value in variables.items():
         args += ["-F", f"{key}={value}"]
@@ -135,7 +139,9 @@ def own_threads():
         block = page["repository"]["pullRequest"]["reviewThreads"]
         for thread in block["nodes"]:
             roots = thread["comments"]["nodes"]
-            if roots and roots[0]["author"]["login"] in BOT_LOGINS and MARKER in roots[0]["body"]:
+            # A deleted account's comment has no author.
+            author = (roots[0].get("author") or {}).get("login") if roots else None
+            if roots and author in BOT_LOGINS and MARKER in roots[0]["body"]:
                 thread["root"] = roots[0]
                 thread["lenses"] = lenses(roots[0]["body"])
                 line = thread["line"] or thread["originalLine"] or 0
@@ -150,16 +156,19 @@ def own_threads():
 
 
 def resolve(thread):
+    """Resolves a review thread."""
     graphql("mutation($id: ID!) { resolveReviewThread(input: {threadId: $id}) { thread { id } } }",
             id=thread["id"])
 
 
 def reopen(thread):
+    """Reopens a resolved review thread."""
     graphql("mutation($id: ID!) { unresolveReviewThread(input: {threadId: $id}) { thread { id } } }",
             id=thread["id"])
 
 
 def main():
+    """Carries out the reconcile decisions, posts new findings and the verdict, and prints `open`."""
     result = json.loads(os.environ["RESULT"])
     decisions = json.loads(os.environ["DECISIONS"])
     valid = diff_lines(os.environ["DIFF"])
@@ -190,6 +199,14 @@ def main():
         decision = actions.get(thread["id"], {})
         action = decision.get("action", "keep")
         by_person = thread["isResolved"] and (thread["resolvedBy"] or {}).get("login") not in BOT_LOGINS
+        # The reconcile table, held whatever the reconcile step chose: a defect that is back
+        # reopens this workflow's own resolved thread, and a defect that is gone resolves its
+        # open one. A matched open thread stays the reconcile step's call (a dispute).
+        matched = thread["id"] in matched_thread
+        if matched and thread["isResolved"] and not by_person:
+            action = "reopen"
+        elif not matched and not thread["isResolved"]:
+            action = "resolve"
         if action == "resolve" and not thread["isResolved"]:
             resolve(thread)
             thread["isResolved"] = True
@@ -212,7 +229,7 @@ def main():
     open_threads = [thread for thread in threads if not thread["isResolved"]]
 
     # New findings: posted, all in one review.
-    comments = []
+    comments, unplaced = [], []
     for index, finding in enumerate(findings):
         if index in matched_finding:
             continue
@@ -224,7 +241,8 @@ def main():
             continue
         path, line, note = anchor(finding["path"], finding["line"], valid)
         if path is None:
-            print(f"skipped {finding['path']}:{finding['line']}: the diff carries no line to comment on")
+            unplaced.append(f"- On `{finding['path']}:{finding['line']}`: {' '.join(finding['body'].split())}")
+            print(f"listed {finding['path']}:{finding['line']} in the verdict: the diff carries no line to comment on")
             continue
         comments.append({
             "path": path, "line": line, "side": "RIGHT",
@@ -233,13 +251,15 @@ def main():
         print(f"new {finding['path']}:{finding['line']}")
 
     # The verdict follows the threads: every open one, old or new, is a required finding.
-    open_count = len(open_threads) + len(comments)
+    open_count = len(open_threads) + len(comments) + len(unplaced)
     if open_count:
         event = "REQUEST_CHANGES"
+        listed = ("\n\nNo line of the diff can hold these, so they are listed here:\n\n"
+                  + "\n".join(unplaced)) if unplaced else ""
         body = (f"❌ **Changes requested** — {open_count} open finding(s).\n\n"
                 "Every finding is required: each one blocks the merge until it is fixed, or someone "
                 "with write access replies with why it does not apply and resolves its thread. "
-                f"Resolve every thread before merging.\n{VERDICT_MARKER}")
+                f"Resolve every thread before merging.{listed}\n{VERDICT_MARKER}")
     else:
         event = "APPROVE"
         body = ("✅ **Approved** — no open findings.\n\n"

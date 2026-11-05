@@ -26,10 +26,12 @@ BOT_LOGINS = {"github-actions[bot]", "github-actions"}
 
 
 def run(*cmd):
+    """Runs a command and returns its standard output."""
     return subprocess.run(cmd, capture_output=True, text=True, check=True).stdout
 
 
 def api(path):
+    """Every item of a paginated REST list."""
     pages = json.loads(run("gh", "api", "--paginate", "--slurp", path))
     return [item for page in pages for item in (page if isinstance(page, list) else [page])]
 
@@ -53,11 +55,13 @@ MECHANICAL = [
 
 
 def attributes(paths):
-    """git attributes that mark a path as generated or vendored."""
+    """The base commit's git attributes that mark a path as generated or vendored."""
     if not paths:
         return {}
     marks = {}
-    out = run("git", "check-attr", "linguist-generated", "linguist-vendored", "--", *paths)
+    # From the base commit's .gitattributes, so a pull request cannot mark its own files as
+    # generated and hide them from the review.
+    out = run("git", "check-attr", f"--source={BASE}", "linguist-generated", "linguist-vendored", "--", *paths)
     for line in out.splitlines():
         path, attr, value = line.rsplit(": ", 2)
         if value in ("set", "true"):
@@ -66,6 +70,7 @@ def attributes(paths):
 
 
 def mechanical(path, attrs):
+    """Why a path is mechanical (lockfile, generated, vendored...), or None."""
     if path in attrs:
         return attrs[path]
     for reason, patterns in MECHANICAL:
@@ -129,6 +134,7 @@ SCANS = [
 
 
 def bypass_candidates():
+    """The scanner's hits on added lines: (lens, path, line, category, content, previous line)."""
     found, path, line, previous = [], None, 0, ""
     for raw in diff.splitlines():
         if raw.startswith("+++ "):

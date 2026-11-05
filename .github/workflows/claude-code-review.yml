@@ -251,7 +251,6 @@ jobs:
               "required": ["candidates", "partial", "findings"]}'
             --allowedTools
               "Read,Grep,Glob,Agent,Task"
-              "Bash(git diff:*),Bash(git log:*),Bash(git show:*)"
               "Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh issue view:*)"
 
       # The full transcript of the run — every tool call, every subagent's
@@ -390,7 +389,6 @@ jobs:
               "required": ["matches", "threads"]}'
             --allowedTools
               "Read,Grep,Glob"
-              "Bash(git diff:*),Bash(git log:*),Bash(git show:*)"
 
       - name: Keep the reconcile transcript
         if: always() && steps.reconcile.outputs.execution_file != ''
@@ -436,18 +434,19 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # publish.py from the base branch, like the rules; the diff tells it which
-      # lines a comment may sit on.
+      # publish.py from the base branch only, never the pull request's: this job
+      # holds the write token. Until the base has it, nothing is published. The
+      # diff tells it which lines a comment may sit on.
       - name: Take the publisher from the base branch
         shell: bash
         run: |
           set -euo pipefail
           path=.github/claude-review/publish.py
-          if git cat-file -e "$BASE_SHA:$path" 2>/dev/null; then
-            git show "$BASE_SHA:$path" > "$RUNNER_TEMP/claude-review-publish.py"
-          else
-            git show "$GITHUB_SHA:$path" > "$RUNNER_TEMP/claude-review-publish.py"
+          if ! git cat-file -e "$BASE_SHA:$path" 2>/dev/null; then
+            echo "::error::$path is not on the base branch yet; merge the review setup before it publishes"
+            exit 1
           fi
+          git show "$BASE_SHA:$path" > "$RUNNER_TEMP/claude-review-publish.py"
           git diff "$BASE_SHA...$HEAD_SHA" > "$RUNNER_TEMP/claude-review.diff"
 
       # Carries out the reconciled review: the reconcile step's thread actions
