@@ -11,6 +11,7 @@ This script writes, and holds both to hard rules whatever they said:
 
 - only this workflow's own threads are replied to, resolved or reopened;
 - a thread a person resolved is never reopened; only an open one is resolved;
+- a matched open thread is resolved only when its latest reply is a person's (a dispute);
 - a thread this workflow resolved is reopened when a finding matches it, and an open thread no
   finding matches is resolved, whatever the reconcile step chose for it; a matched thread it
   resolved by accepting a dispute is kept or reopened as the reconcile step judged (with no
@@ -157,11 +158,15 @@ def own_threads():
     """This workflow's review threads: their root comment is the bot's and carries the marker."""
     owner, name = REPO.split("/")
     # Every reply, from the paginated REST list: a thread's comments in GraphQL stop at a page.
+    replies = [comment for comment in paged(f"{API}/comments") if comment.get("in_reply_to_id")]
     accepted_roots = {
-        comment["in_reply_to_id"] for comment in paged(f"{API}/comments")
-        if comment.get("in_reply_to_id") and (comment.get("user") or {}).get("login") in BOT_LOGINS
-        and ACCEPTED_MARKER in (comment.get("body") or "")
+        comment["in_reply_to_id"] for comment in replies
+        if (comment.get("user") or {}).get("login") in BOT_LOGINS and ACCEPTED_MARKER in (comment.get("body") or "")
     }
+    # Who wrote each root's latest reply: a dispute is a person's reply, never this workflow's.
+    latest_author = {}
+    for comment in sorted(replies, key=lambda comment: comment.get("created_at") or ""):
+        latest_author[comment["in_reply_to_id"]] = (comment.get("user") or {}).get("login")
     threads, cursor = [], None
     while True:
         extra = {"endCursor": cursor} if cursor else {}
@@ -174,6 +179,8 @@ def own_threads():
             if roots and author in BOT_LOGINS and MARKER in roots[0]["body"]:
                 thread["root"] = roots[0]
                 thread["accepted"] = roots[0]["databaseId"] in accepted_roots
+                author_of_latest = latest_author.get(roots[0]["databaseId"])
+                thread["disputed"] = author_of_latest is not None and author_of_latest not in BOT_LOGINS
                 thread["lenses"] = lenses(roots[0]["body"])
                 line = thread["line"] or thread["originalLine"] or 0
                 thread["places"] = {(thread["path"], line)}
@@ -249,6 +256,10 @@ def main():
                 action = "reopen"
         elif not matched and not thread["isResolved"]:
             action = "resolve"
+        elif matched and not thread["isResolved"] and action == "resolve" and not thread["disputed"]:
+            # A matched open thread is resolved only by accepting a person's dispute.
+            print(f"kept {where}: resolving a present finding needs a person's reply to accept")
+            action, decision = "keep", {**decision, "reply": ""}
         accepting = matched and action == "resolve" and not thread["isResolved"]
         if action == "resolve" and not thread["isResolved"]:
             resolve(thread)
