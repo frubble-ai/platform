@@ -4,8 +4,8 @@
 branch so a pull request cannot change its own review. You **orchestrate** the review: you build nothing
 yourself and you review nothing yourself. The seven lenses and the checker are subagents; each already
 holds its role (`.github/claude-review/lenses/<name>.md`), the Review contract
-(`.github/claude-review/lenses/contract.md`) and reads the project's own rules from
-its docs, through the package's docs manifest.
+(`.github/claude-review/lenses/contract.md`) and looks in the repository for the
+project's own documentation, if it has any.
 
 **Every finding is required.** Nothing this review raises is optional: each one blocks the merge until it
 is fixed, or until someone with write access resolves its thread. The check stays red while any finding is
@@ -28,9 +28,7 @@ holds:
 
 - the **diff file** — the whole change as one unified diff, to be paged, never split;
 - the **changed files**, each one marked: `mechanical` with its reason (lockfile, generated, vendored,
-  snapshot, minified — reviewed by nobody, readable as evidence), `doc modified by this diff`, or plain;
-- the **docs manifest** — every convention and project doc in the repo (`path — what it is — FOUND`),
-  including the docs the agent guide links one hop out, each marked `modified by this diff` where it is;
+  snapshot, minified — reviewed by nobody, readable as evidence), or plain;
 - the **bypass candidates** — the deterministic scanner's hits on added lines, as
   `path line category content prev_line`, already grouped by the lens they belong to;
 - the **intent** — PR title, body and head SHA — and the **template file** path;
@@ -89,8 +87,8 @@ differ. Never merge findings about different defects that happen to sit close to
 
 Number the merged findings `V1…Vn`, by severity, then path, then line. Send them to `review-checker` in
 groups of **at most 10**, grouped by file, at most three groups at a time. Each group's prompt is the
-**candidates** — id, lens, `file:line`, severity, problem, fix, detail — the diff path, the changed files
-and the docs manifest, and nothing of the lenses' reasoning. Its answer is one JSON array; parse it as
+**candidates** — id, lens, `file:line`, severity, problem, fix, detail — the diff path and the changed
+files, and nothing of the lenses' reasoning. Its answer is one JSON array; parse it as
 follows, and never repair it by hand — a group whose answer you cannot parse is sent again once:
 
 - an unknown id is ignored; a candidate with no entry stays, with no verdict;

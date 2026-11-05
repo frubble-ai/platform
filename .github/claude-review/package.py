@@ -5,7 +5,6 @@ rules. Everything here is deterministic: the review gets facts, already gathered
 judgement. It writes, into $RUNNER_TEMP:
 
 - claude-review.diff        the whole change, one unified diff
-- claude-review-package.md  the package: changed files with their marks, the docs manifest, the bypass
                             candidates by lens, the intent and commits, and other reviewers' comments
 
 The review never sees this workflow's own earlier comments: it is blind to them on purpose.
@@ -81,34 +80,6 @@ def mechanical(path, attrs):
 
 
 attrs = attributes(changed)
-
-# --- the docs manifest -----------------------------------------------------------------------------
-
-DOC_PATTERNS = [
-    ("agent guide", ["AGENTS.md", "CLAUDE.md", "GEMINI.md", "*/AGENTS.md", "*/CLAUDE.md"]),
-    ("readme", ["README*", "*/README*"]),
-    ("project doc", ["docs/*", "doc/*"]),
-    ("project skill", [".agents/skills/*/SKILL.md", ".claude/skills/*/SKILL.md"]),
-    ("editor rules", [".cursor/rules/*", ".cursorrules", ".github/copilot-instructions.md"]),
-    ("contributing", ["CONTRIBUTING*", ".github/pull_request_template.md", ".github/CODEOWNERS"]),
-    ("ci workflow", [".github/workflows/*"]),
-    ("linter config", ["biome.json", "eslint.config.*", ".eslintrc*", ".tflint.hcl", ".yamllint*",
-                       ".trivyignore*", "lefthook.yml", "commitlint.config.*", "tsconfig.json"]),
-]
-tracked = run("git", "ls-files").splitlines()
-manifest = {}
-for kind, patterns in DOC_PATTERNS:
-    for path in tracked:
-        if path not in manifest and any(fnmatch.fnmatch(path, pattern) for pattern in patterns):
-            manifest[path] = kind
-
-# One hop out of the agent guides: the local docs they link to.
-for guide in [path for path, kind in manifest.items() if kind == "agent guide"]:
-    text = open(guide, encoding="utf-8", errors="replace").read()
-    for target in re.findall(r"\]\((?!https?:|#|mailto:)([^)#\s]+)", text):
-        resolved = os.path.normpath(os.path.join(os.path.dirname(guide), target))
-        if resolved in tracked and resolved not in manifest:
-            manifest[resolved] = f"linked from {guide}"
 
 # --- the bypass candidates -------------------------------------------------------------------------
 
@@ -187,14 +158,7 @@ for path in changed:
         marks.append(f"mechanical: {reason} — not reviewed, readable as evidence")
     if path in deleted:
         marks.append("deleted")
-    if path in manifest:
-        marks.append("doc modified by this diff")
     lines.append(f"- `{path}`" + (f" — {'; '.join(marks)}" if marks else ""))
-
-lines += ["", "## Docs manifest", ""]
-for path, kind in sorted(manifest.items()):
-    note = " — modified by this diff" if path in changed else ""
-    lines.append(f"- `{path}` — {kind} — FOUND{note}")
 
 lines += ["", "## Bypass candidates", "",
           "From the deterministic scanner, on added lines only: candidates, never findings. No candidates never",
@@ -224,5 +188,5 @@ if not external:
 
 with open(f"{TEMP}/claude-review-package.md", "w", encoding="utf-8") as out:
     out.write("\n".join(lines) + "\n")
-print(f"package: {len(changed)} changed file(s), {len(manifest)} doc(s), {len(candidates)} bypass candidate(s), "
+print(f"package: {len(changed)} changed file(s), {len(candidates)} bypass candidate(s), "
       f"{len(external)} external comment(s)")

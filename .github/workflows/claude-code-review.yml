@@ -4,7 +4,9 @@ on:
   # Any base branch: a stacked pull request is reviewed against the branch it
   # targets, with the rules taken from that branch.
   pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
+    # edited: the review judges the description too, so a new title or body is
+    # reviewed again; an edit to anything else (the base branch) is skipped.
+    types: [opened, synchronize, ready_for_review, reopened, edited]
 
 # No id-token: this workflow never needs a cloud identity, so it cannot ask
 # for one.
@@ -21,7 +23,9 @@ jobs:
   # alive. Only older runs (lower ids): a late run never cancels a newer one.
   cancel-stale:
     name: Review — Cancel stale runs
-    if: github.event_name == 'pull_request'
+    if: >-
+      github.event_name == 'pull_request'
+      && (github.event.action != 'edited' || github.event.changes.title || github.event.changes.body)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -64,7 +68,9 @@ jobs:
   # manual run skips the author check: whoever ran it has write access already.
   gate:
     name: Review — Gate
-    if: vars.CLAUDE_REVIEW_ENABLED == 'true'
+    if: >-
+      vars.CLAUDE_REVIEW_ENABLED == 'true'
+      && (github.event.action != 'edited' || github.event.changes.title || github.event.changes.body)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
