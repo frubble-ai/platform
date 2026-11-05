@@ -34,6 +34,11 @@ resource "google_sql_database" "osiris" {
   project  = var.project_id
   instance = module.database.instance_name
   name     = "osiris"
+
+  # Once the grant job has run, the osiris user owns this database. A role
+  # that still owns something cannot be dropped, so the database has to be
+  # destroyed before the user.
+  depends_on = [google_sql_user.osiris]
 }
 
 resource "google_sql_user" "osiris" {
@@ -44,14 +49,20 @@ resource "google_sql_user" "osiris" {
   password_wo_version = var.secrets_version
 }
 
-# Holds cloudsqlsuperuser so it can revoke CONNECT. The osiris and
-# application users do not use this password.
+# Holds cloudsqlsuperuser so it can revoke CONNECT, and is made a member of the
+# osiris role here, through the API, so that it may hand the osiris database
+# to that role. A plain GRANT from this user could be refused, because it did
+# not create the role. The osiris and application users do not use this
+# password.
 resource "google_sql_user" "grants" {
   project             = var.project_id
   instance            = module.database.instance_name
   name                = "grants"
+  database_roles      = ["cloudsqlsuperuser", "osiris"]
   password_wo         = local.generated_values["database_grants_password"]
   password_wo_version = var.secrets_version
+
+  depends_on = [google_sql_user.osiris]
 }
 
 locals {
