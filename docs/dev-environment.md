@@ -210,14 +210,17 @@ After the first dev apply, and again whenever stg is rebuilt:
    This step is required: until it has run, `CONNECT` is open to every database user
    and `osiris` is still in `cloudsqlsuperuser`, so the two databases are not isolated.
    It revokes `CONNECT` between the `frubble` and `osiris` databases. The
-   application user keeps `CONNECT` on its own database. It also makes the
-   `osiris` user the owner of the `osiris` database, so its migrations can create
-   tables, and then removes both `osiris` and `frubble` from `cloudsqlsuperuser`, so
-   neither can reach the other's database. If the application's migrations need what
-   that role gave, reset the database.
+   application user keeps `CONNECT` on its own database. It also makes each user the
+   owner of its own database, so migrations can still create tables, and then removes
+   both `osiris` and `frubble` from `cloudsqlsuperuser`, so neither can reach the
+   other's database.
    `gcloud run jobs execute frubble-dev-db-grants --project "$PROJECT" --region us-central1 --wait`
    with `PROJECT` from `GCP_PROJECT_DEV` (`frubble-stg-db-grants` and `GCP_PROJECT_STG` for stg). If it fails, the
-   transaction rolls back and `CONNECT` is unchanged.
+   transaction rolls back and nothing is changed. Afterwards, check it worked: connect as
+   an administrator and run
+   `SELECT r.rolname FROM pg_auth_members m JOIN pg_roles r ON r.oid = m.member WHERE m.roleid = 'cloudsqlsuperuser'::regrole;`
+   (neither `osiris` nor `frubble` should be listed) and `\l` (each database is owned
+   by its user).
 2. On the dev GitHub, Linear and Slack apps, set the OAuth callback to
    `https://osiris.dev.frubble.ai/oauth/callback` (stg: `https://osiris.stg.frubble.ai/oauth/callback`).
 3. Read the admin key with the command in secrets.md. It is not in CI.
