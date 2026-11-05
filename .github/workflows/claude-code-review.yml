@@ -192,7 +192,7 @@ jobs:
 
       # The review package, gathered deterministically so the review spends its
       # turns on judgement: the whole diff, the changed files with their marks,
-      # the docs manifest, the bypass candidates by lens, the intent and the
+      # the bypass candidates by lens, the intent and the
       # commits, and other reviewers' comments. Never this workflow's own.
       - name: Build the review package
         shell: bash
