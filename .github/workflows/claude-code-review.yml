@@ -314,7 +314,7 @@ jobs:
                   problems.append(f"{name} gave no usable answer")
           checker = [call for call in calls if call.get("input", {}).get("subagent_type") == "review-checker"]
           print(f"review-checker: {len(checker)} dispatch(es); candidates: {result.get('candidates', 0)}")
-          if result.get("candidates", 0) and not checker:
+          if (result.get("candidates", 0) or result.get("findings")) and not checker:
               problems.append("review-checker did not run")
           if result.get("partial"):
               problems.append(f"partial review: {', '.join(result['partial'])}")

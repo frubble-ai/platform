@@ -13,8 +13,8 @@ This script writes, and holds both to hard rules whatever they said:
 - a thread a person resolved is never reopened; only an open one is resolved;
 - a thread this workflow resolved is reopened when a finding matches it, and an open thread no
   finding matches is resolved, whatever the reconcile step chose for it; a matched thread it
-  resolved by accepting a dispute is kept or reopened as the reconcile step judged, and every
-  accepted dispute gets a marked reply;
+  resolved by accepting a dispute is kept or reopened as the reconcile step judged (with no
+  judgement, nothing is published), and every accepted dispute gets a marked reply;
 - a finding the reconcile step matched is never posted; every other one is, all in one review,
   except one on the exact line of a thread that stays open, sharing a lens with it;
 - a finding on a line the diff does not carry moves to the nearest one it does; one with no line
@@ -206,6 +206,14 @@ def main():
 
     # Each thread's action, held to what that thread allows.
     actions = {item.get("thread"): item for item in decisions.get("threads", [])}
+    # A matched thread resolved by accepting a dispute needs the reconcile step's judgement, never
+    # a default: checked before anything is written.
+    for thread in threads:
+        by_person = thread["isResolved"] and (thread["resolvedBy"] or {}).get("login") not in BOT_LOGINS
+        if (thread["id"] in matched_thread and thread["isResolved"] and not by_person and thread["accepted"]
+                and actions.get(thread["id"], {}).get("action") not in ("keep", "reopen")):
+            sys.exit(f"the reconcile step gave no keep or reopen for accepted thread {thread['id']} "
+                     f"({thread['path']}); nothing was published")
     for thread in threads:
         where = f"{thread['path']}:{thread['line'] or thread['originalLine']}"
         decision = actions.get(thread["id"], {})
@@ -220,8 +228,6 @@ def main():
         if matched and thread["isResolved"] and not by_person:
             if not thread["accepted"]:
                 action = "reopen"
-            elif action not in ("keep", "reopen"):
-                action = "keep"
         elif not matched and not thread["isResolved"]:
             action = "resolve"
         accepting = matched and action == "resolve" and not thread["isResolved"]
