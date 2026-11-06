@@ -7,12 +7,9 @@ data "google_project" "this" {
 }
 
 locals {
-  # Two instances, two connections each, for serve and for the worker: eight
-  # connections at the ceiling, and two more while the migrate job runs, on
-  # osiris's own database instance.
-  osiris_max_instances   = 2
-  osiris_max_connections = 2
-  osiris_worker_url      = "https://${local.name}-osiris-worker-${data.google_project.this.number}.${var.region}.run.app"
+  # Serve and the worker each scale to this many instances.
+  osiris_max_instances = 2
+  osiris_worker_url    = "https://${local.name}-osiris-worker-${data.google_project.this.number}.${var.region}.run.app"
   osiris_database_env = !var.enabled ? {} : {
     DB_HOST   = module.osiris_database.private_ip
     DB_PORT   = "5432"
@@ -24,17 +21,16 @@ locals {
     DB_PASSWORD = { secret = module.secrets["osiris_database_password"].secret_id }
   }
   osiris_runtime_env = !var.enabled ? {} : {
-    LOG_FORMAT                        = "json"
-    OSIRIS_PUBLIC_URL                 = "https://${module.shared.osiris_hostname}"
-    OSIRIS_WORKER_URL                 = local.osiris_worker_url
-    OSIRIS_TASKS                      = "cloud_tasks"
-    CLOUD_TASKS_PROJECT               = var.project_id
-    CLOUD_TASKS_LOCATION              = var.region
-    CLOUD_TASKS_QUEUE                 = google_cloud_tasks_queue.osiris.name
-    CLOUD_TASKS_SERVICE_ACCOUNT       = local.setup.osiris_tasks_service_account
-    PUBSUB_PROJECT                    = var.project_id
-    OSIRIS_EVENTS_TOPIC               = google_pubsub_topic.osiris_events.name
-    OSIRIS__DATABASE__MAX_CONNECTIONS = tostring(local.osiris_max_connections)
+    LOG_FORMAT                  = "json"
+    OSIRIS_PUBLIC_URL           = "https://${module.shared.osiris_hostname}"
+    OSIRIS_WORKER_URL           = local.osiris_worker_url
+    OSIRIS_TASKS                = "cloud_tasks"
+    CLOUD_TASKS_PROJECT         = var.project_id
+    CLOUD_TASKS_LOCATION        = var.region
+    CLOUD_TASKS_QUEUE           = google_cloud_tasks_queue.osiris.name
+    CLOUD_TASKS_SERVICE_ACCOUNT = local.setup.osiris_tasks_service_account
+    PUBSUB_PROJECT              = var.project_id
+    OSIRIS_EVENTS_TOPIC         = google_pubsub_topic.osiris_events.name
   }
   osiris_task_identities = toset([
     local.setup.osiris_service_account,
@@ -83,9 +79,8 @@ module "osiris_worker_service" {
   service_account_email = local.setup.osiris_worker_service_account
   image                 = var.api_bootstrap_image
   env = merge(local.osiris_database_env, local.osiris_runtime_env, {
-    OSIRIS_PROCESS                = "worker"
-    OSIRIS_ENV                    = module.shared.environment
-    OSIRIS__TASKS__MAX_CONCURRENT = tostring(local.osiris_max_connections)
+    OSIRIS_PROCESS = "worker"
+    OSIRIS_ENV     = module.shared.environment
   })
   secret_env = merge(local.osiris_database_secret_env, {
     OSIRIS_ENCRYPTION_KEY = { secret = module.secrets["osiris_encryption_key"].secret_id }
@@ -98,7 +93,6 @@ module "osiris_worker_service" {
   ingress              = "INGRESS_TRAFFIC_INTERNAL_ONLY"
   invoker_iam_disabled = false
   max_instances        = local.osiris_max_instances
-  concurrency          = local.osiris_max_connections
   deletion_protection  = module.shared.environment == "prd"
   labels               = merge(local.labels, { component = "osiris" })
 
@@ -133,10 +127,9 @@ module "osiris_migrate_job" {
   service_account_email = local.setup.osiris_service_account
   image                 = var.api_bootstrap_image
   env = merge(local.osiris_database_env, {
-    OSIRIS_PROCESS                    = "migrate"
-    OSIRIS_ENV                        = module.shared.environment
-    LOG_FORMAT                        = "json"
-    OSIRIS__DATABASE__MAX_CONNECTIONS = tostring(local.osiris_max_connections)
+    OSIRIS_PROCESS = "migrate"
+    OSIRIS_ENV     = module.shared.environment
+    LOG_FORMAT     = "json"
   })
   secret_env          = local.osiris_database_secret_env
   vpc                 = local.vpc
