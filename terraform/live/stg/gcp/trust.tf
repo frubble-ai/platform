@@ -22,9 +22,11 @@ locals {
     "${local.repos.backend}|${local.repos.backend}/.github/workflows/app-cd.yml|app-stg|refs/heads/stg",
   ] : []
 
-  # osiris-cd.yml in osiris-stg, from the stg branch only.
+  # osiris-cd.yml and db-reset.yml in osiris-stg, from the stg branch only.
+  # The reset runs the migration job in osiris-stg.
   osiris_deploy_entries = module.shared.environment == "stg" ? [
     "${local.repos.osiris}|${local.repos.osiris}/.github/workflows/osiris-cd.yml|osiris-stg|refs/heads/stg",
+    "${local.repos.osiris}|${local.repos.osiris}/.github/workflows/db-reset.yml|osiris-stg|refs/heads/stg",
   ] : []
 }
 

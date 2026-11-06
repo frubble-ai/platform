@@ -173,14 +173,15 @@ The application (frubble-ai/app), not this repository
 
 Osiris (frubble-ai/osiris) deploys the way the application does. `dev/gcp/trust.tf`
 expects `osiris-cd.yml` in an `osiris-dev` environment from any branch, by one of
-`dev_deployers`, and `stg/gcp/trust.tf` expects the same file in `osiris-stg` from
+`dev_deployers`, and `db-reset.yml` in `osiris-dev` from the `dev` branch only.
+`stg/gcp/trust.tf` expects `osiris-cd.yml` and `db-reset.yml` in `osiris-stg` from
 the `stg` branch only. `osiris-dev` accepts deployments from all branches;
 `osiris-stg` from `stg` only. The workflow keeps a run from `stg` out of
 `osiris-dev`. A tag or a pull request's merge ref is never trusted.
 
 On frubble-ai/app, the Actions policy that refuses a re-run by anyone but the
 listed members covers `backend-cd.yml`, `app-cd.yml` and `db-reset.yml`. Osiris
-needs the same policy on `osiris-cd.yml`, with the same ids (`dev_deployers`), and
+needs the same policy on `osiris-cd.yml` and `db-reset.yml`, with the same ids (`dev_deployers`), and
 when a member joins or leaves it is changed together with the other two (step 18).
 
 Each environment's variables, from this repository's outputs, using the names

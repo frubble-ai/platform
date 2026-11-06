@@ -36,7 +36,7 @@ locals {
   # organization's members run deploys" closes that: on backend-cd.yml,
   # app-cd.yml and db-reset.yml, GitHub refuses any run or re-run whose
   # starter it does not list. It lists the same ids as this, and so does
-  # the policy on osiris-cd.yml in frubble-ai/osiris; change all three
+  # the policy on osiris-cd.yml and db-reset.yml in frubble-ai/osiris; change all three
   # (docs/dev-environment.md, step 18).
   dev_deployers = {
     drn1996          = 53837062
@@ -69,6 +69,13 @@ locals {
       values(local.dev_deployers),
     ) : "${pair[0]}|branch|${pair[1]}"
   ]
+
+  # The database reset is not a deploy: it stays on the `dev` branch only,
+  # matched on apply_entry, exact ref included. It runs the migration job in
+  # osiris-dev.
+  osiris_deploy_entries = [
+    "${local.repos.osiris}|${local.repos.osiris}/.github/workflows/db-reset.yml|osiris-dev|refs/heads/dev",
+  ]
 }
 
 # Authoritative: this root is the only owner of the hub's members since
@@ -99,8 +106,14 @@ resource "google_service_account_iam_binding" "backend_deploy_trust" {
 resource "google_service_account_iam_binding" "osiris_deploy_trust" {
   service_account_id = local.setup.osiris_deploy_hub_name
   role               = "roles/iam.workloadIdentityUser"
-  members = [
-    for entry in local.osiris_deploy_branch_entries :
-    "principalSet://iam.googleapis.com/${local.pool}/attribute.deploy_entry/${entry}"
-  ]
+  members = concat(
+    [
+      for entry in local.osiris_deploy_branch_entries :
+      "principalSet://iam.googleapis.com/${local.pool}/attribute.deploy_entry/${entry}"
+    ],
+    [
+      for entry in local.osiris_deploy_entries :
+      "principalSet://iam.googleapis.com/${local.pool}/attribute.apply_entry/${entry}"
+    ],
+  )
 }

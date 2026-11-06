@@ -10,8 +10,8 @@ never matches, the repository, workflow file and environment still must, and the
 one of the organization members `dev/gcp/trust.tf` lists by GitHub id (`dev_deployers`, kept in
 step with the organization by hand), so an outside collaborator or a bot cannot deploy to dev. A
 re-run keeps its first run's actor, so frubble-ai/app's Actions policy on its deploy workflows,
-and the same policy on frubble-ai/osiris's `osiris-cd.yml`,
-lists the same members and refuses a run or re-run anyone else starts (dev-environment.md). Dev's `db-reset.yml` and everything of stg's and prd's, osiris's `osiris-stg` included, stay on
+and the same policy on frubble-ai/osiris's `osiris-cd.yml` and `db-reset.yml`,
+lists the same members and refuses a run or re-run anyone else starts (dev-environment.md). Dev's `db-reset.yml` and everything of stg's and prd's, osiris's `osiris-stg` and osiris's `db-reset.yml` included, stay on
 `apply_entry`, exact branch included. Osiris signs in through its own deploy hub and spoke, not the application's. The rules for CI's own plan and apply hubs live in
 `org/gcp/_setup`; the rules for an environment's deploy identities (the app deploy) live in
 that environment's workload root, so a renamed workflow is a planned, CI-applied change. The `_setup` roots are the one exception to the hub and spoke
