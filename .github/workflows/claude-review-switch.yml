@@ -1,0 +1,38 @@
+name: Claude Review Switch
+
+# Turns the Claude Code Review workflow on or off in this repository. Only drn1996 can use
+# it: for anyone else the job is skipped and nothing changes.
+on:
+  workflow_dispatch:
+    inputs:
+      state:
+        description: Turn the Claude Code Review workflow on or off
+        required: true
+        type: choice
+        options: ["on", "off"]
+
+permissions:
+  actions: write
+
+jobs:
+  switch:
+    name: Switch the Claude review
+    if: github.actor == 'drn1996' && github.triggering_actor == 'drn1996'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Turn the Claude Code Review workflow ${{ inputs.state }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATE: ${{ inputs.state }}
+        run: |
+          set -euo pipefail
+          case "$STATE" in
+            on) action=enable ;;
+            off) action=disable ;;
+            *) echo "::error::state must be on or off"; exit 1 ;;
+          esac
+          gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/claude-code-review.yml/$action"
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/claude-code-review.yml" \
+            --jq '"Claude Code Review is now \(.state)"'
