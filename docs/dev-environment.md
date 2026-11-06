@@ -159,8 +159,8 @@ The application (frubble-ai/app), not this repository
     leaves frubble-ai, change all three: `dev_deployers` here
     (`gh api orgs/frubble-ai/members --jq '.[] | "\(.login) \(.id)"'`), the policy's
     `allowed_actors` on frubble-ai/app (`gh api repos/frubble-ai/app/actions/policies`,
-    then `PUT` its `/actions/policies/<id>`), and the same policy on `osiris-cd.yml` in
-    frubble-ai/osiris (see Osiris, below).
+    then `PUT` its `/actions/policies/<id>`), and the same policy on `osiris-cd.yml` and
+    `db-reset.yml` in frubble-ai/osiris (see Osiris, below).
     The app repository needs those environments (variables from the dev outputs, as
     `backend-stg` and `app-stg` have; `GCP_DEPLOY_HUB` is the full email from
     org/gcp/_setup's `backend_deploy_hubs["dev"]` output,
