@@ -28,6 +28,28 @@ module "database" {
   depends_on = [module.network]
 }
 
+# Osiris's own instance, beside the application's on the same network. Two
+# small instances keep the databases apart without any grants between them. The
+# module's default machine type is the smallest Cloud SQL sells.
+module "osiris_database" {
+  source = "../../../modules/gcp/cloud-sql-postgres"
+
+  project_id            = var.project_id
+  name                  = "${local.name}-osiris-postgres"
+  region                = var.region
+  network_id            = module.network.network_id
+  high_availability     = module.shared.environment == "prd"
+  backup_retention_days = module.shared.environment == "prd" ? 30 : 7
+  database_name         = "osiris"
+  user_name             = "osiris"
+  password_wo           = local.generated_values["osiris_database_password"]
+  password_wo_version   = var.secrets_version
+  deletion_protection   = module.shared.environment == "prd"
+  labels                = merge(local.labels, { component = "osiris-database" })
+
+  depends_on = [module.network]
+}
+
 locals {
   # What every workload that opens the database needs. The password comes
   # from Secret Manager, below, never from here.

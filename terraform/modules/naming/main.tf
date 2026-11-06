@@ -30,6 +30,11 @@ output "app_hostname" {
   value       = "app.${local.host_prefix}${var.zone}"
 }
 
+output "osiris_hostname" {
+  description = "Public hostname of osiris: `osiris.dev.frubble.ai`, `osiris.stg.frubble.ai`, `osiris.frubble.ai`."
+  value       = "osiris.${local.host_prefix}${var.zone}"
+}
+
 output "sending_domain" {
   description = "Domain the worker sends from. A subdomain, never the apex, whose mail belongs to the people at it: `dev.frubble.ai`, `stg.frubble.ai`, `mail.frubble.ai`. Each environment its own, so dev never sends as stg."
   value       = var.environment == "prd" ? "mail.${var.zone}" : "${var.environment}.${var.zone}"

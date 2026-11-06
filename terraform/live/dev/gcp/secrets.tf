@@ -6,14 +6,22 @@
 # it. Each workload reads only the secrets it needs, bound per secret below.
 locals {
   secrets = {
-    database_password = { domain = "database", name = "password", generated = true }
-    auth_secret       = { domain = "auth", name = "secret", generated = true }
-    email_api_key     = { domain = "email", name = "api-key", generated = false }
-    composio_api_key  = { domain = "composio", name = "api-key", generated = false }
+    database_password        = { domain = "database", name = "password", generated = true, version = var.secrets_version }
+    auth_secret              = { domain = "auth", name = "secret", generated = true, version = var.secrets_version }
+    email_api_key            = { domain = "email", name = "api-key", generated = false, version = var.secrets_version }
+    composio_api_key         = { domain = "composio", name = "api-key", generated = false, version = var.secrets_version }
+    osiris_database_password = { domain = "osiris", name = "database-password", generated = true, version = var.secrets_version }
+    osiris_api_key           = { domain = "osiris", name = "api-key", generated = true, version = var.secrets_version }
+    osiris_admin_key         = { domain = "osiris", name = "admin-key", generated = true, version = var.secrets_version }
+    # Not secrets_version: rotating the master key without re-wrapping the
+    # data keys makes every stored token unreadable.
+    osiris_encryption_key = { domain = "osiris", name = "encryption-key", generated = true, version = var.osiris_encryption_key_version }
   }
 
-  api_secrets    = ["database_password", "auth_secret", "composio_api_key"]
-  worker_secrets = ["email_api_key"]
+  api_secrets           = ["database_password", "auth_secret", "composio_api_key"]
+  worker_secrets        = ["email_api_key"]
+  osiris_secrets        = ["osiris_database_password", "osiris_encryption_key", "osiris_api_key", "osiris_admin_key"]
+  osiris_worker_secrets = ["osiris_database_password", "osiris_encryption_key"]
 }
 
 # Made fresh on every run and recorded nowhere; only the version number is.
@@ -28,10 +36,34 @@ ephemeral "random_password" "auth_secret" {
   special = false
 }
 
+ephemeral "random_password" "osiris_database" {
+  length  = 40
+  special = false
+}
+
+ephemeral "random_password" "osiris_api_key" {
+  length  = 64
+  special = false
+}
+
+ephemeral "random_password" "osiris_admin_key" {
+  length  = 64
+  special = false
+}
+
+ephemeral "random_password" "osiris_encryption_key" {
+  length  = 64
+  special = false
+}
+
 locals {
   generated_values = {
-    database_password = ephemeral.random_password.database.result
-    auth_secret       = ephemeral.random_password.auth_secret.result
+    database_password        = ephemeral.random_password.database.result
+    auth_secret              = ephemeral.random_password.auth_secret.result
+    osiris_database_password = ephemeral.random_password.osiris_database.result
+    osiris_api_key           = ephemeral.random_password.osiris_api_key.result
+    osiris_admin_key         = ephemeral.random_password.osiris_admin_key.result
+    osiris_encryption_key    = ephemeral.random_password.osiris_encryption_key.result
   }
 }
 
@@ -48,7 +80,7 @@ module "secrets" {
   labels           = merge(local.labels, { component = each.value.domain })
   generated        = each.value.generated
   value_wo         = each.value.generated ? local.generated_values[each.key] : null
-  value_wo_version = var.secrets_version
+  value_wo_version = each.value.version
 }
 
 resource "google_secret_manager_secret_iam_member" "api_reads" {
@@ -67,6 +99,24 @@ resource "google_secret_manager_secret_iam_member" "worker_reads" {
   secret_id = module.secrets[each.key].secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${local.setup.worker_service_account}"
+}
+
+resource "google_secret_manager_secret_iam_member" "osiris_reads" {
+  for_each = toset(local.osiris_secrets)
+
+  project   = var.project_id
+  secret_id = module.secrets[each.key].secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${local.setup.osiris_service_account}"
+}
+
+resource "google_secret_manager_secret_iam_member" "osiris_worker_reads" {
+  for_each = toset(local.osiris_worker_secrets)
+
+  project   = var.project_id
+  secret_id = module.secrets[each.key].secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${local.setup.osiris_worker_service_account}"
 }
 
 # The Mailgun sending key is minted by this environment's own mailgun root, in

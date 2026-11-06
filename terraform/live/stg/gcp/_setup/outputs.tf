@@ -60,11 +60,6 @@ output "osiris_tasks_service_account" {
   value       = google_service_account.osiris_tasks.email
 }
 
-output "database_grants_service_account" {
-  description = "Identity the database grant job runs as."
-  value       = google_service_account.database_grants.email
-}
-
 output "osiris_deploy_spoke" {
   description = "Identity osiris deploys as."
   value       = module.osiris_deploy_spoke.email

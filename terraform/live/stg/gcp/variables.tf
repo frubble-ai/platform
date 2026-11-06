@@ -33,7 +33,13 @@ variable "alert_email" {
 }
 
 variable "secrets_version" {
-  description = "Pins the generated secret values (the database password, the auth secret). Bump it to rotate them: the next apply generates new values and writes them to Secret Manager and the database; the services pick them up on their next revision."
+  description = "Pins the generated secret values (the database password, the auth secret, osiris's database password, API key and admin key). Bump it to rotate them: the next apply generates new values and writes them to Secret Manager and the database; the services pick them up on their next revision. Does not rotate osiris's encryption key."
+  type        = number
+  default     = 1
+}
+
+variable "osiris_encryption_key_version" {
+  description = "Pins OSIRIS_ENCRYPTION_KEY only. Bumping secrets_version does not rotate it: the key wraps every tenant data key, and a new value makes the stored tokens unreadable. Bump this only when the data keys are re-wrapped in the same change."
   type        = number
   default     = 1
 }
@@ -60,6 +66,12 @@ variable "enabled" {
   type        = bool
   default     = true
   nullable    = false
+}
+
+variable "queue_name_suffix" {
+  description = "Appended to the osiris Cloud Tasks queue's name. Cloud Tasks keeps a deleted queue's name for up to 3 days, so rebuilding stg sooner than that after switching it off needs a new name here, e.g. \"-2\" (docs/stg-switch.md). Changing it on a running stg replaces the queue and drops its pending tasks."
+  type        = string
+  default     = ""
 }
 
 variable "database_instance_suffix" {

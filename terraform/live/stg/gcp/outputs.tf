@@ -44,3 +44,28 @@ output "emails_dead_letter_subscription" {
 output "app_service_name" {
   value = try(module.app_service.name, null)
 }
+
+output "osiris_service_name" {
+  value = try(module.osiris_service.name, null)
+}
+
+output "osiris_worker_service_name" {
+  value = try(module.osiris_worker_service.name, null)
+}
+
+output "osiris_worker_uri" {
+  description = "Worker URL Cloud Tasks calls. OSIRIS_WORKER_URL is this shape; compare after the first apply."
+  value       = try(module.osiris_worker_service.uri, null)
+}
+
+output "osiris_migrate_job_name" {
+  value = try(module.osiris_migrate_job.name, null)
+}
+
+output "osiris_events_topic" {
+  value = try(google_pubsub_topic.osiris_events.name, null)
+}
+
+output "osiris_tasks_queue" {
+  value = try(google_cloud_tasks_queue.osiris.name, null)
+}

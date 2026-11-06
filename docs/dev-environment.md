@@ -95,8 +95,7 @@ PR 2, then
 8. Merge. `setup-cd` applies
    `dev/gcp/_setup` after a reviewer approves: the `frubble-dev-tfstate` bucket, the
    state and secrets keys, the plan, apply and deploy spokes, the API, app, worker and
-   push identities, the osiris runtime identities (serve, worker, the Cloud Tasks caller
-   and the database grant job), the osiris deploy spoke, and the deny policies. The apply
+   push identities, the osiris runtime identities (serve, worker and the Cloud Tasks caller), the osiris deploy spoke, and the deny policies. The apply
    spoke gains `roles/cloudtasks.admin`, and the plan spoke gains the
    `frubbleCloudTasksPolicyViewer` custom role (`cloudtasks.queues.getIamPolicy` only). The hand path
    (`terraform.tfvars.example` there) is the fallback. Then add `Plan dev setup / plan`
@@ -157,10 +156,11 @@ The application (frubble-ai/app), not this repository
     the app repository's Actions policy "Only the organization's members run deploys"
     lists the same ids: on `backend-cd.yml`, `app-cd.yml` and `db-reset.yml`, GitHub refuses
     a run or a re-run started by anyone else, a GitHub App included. When someone joins or
-    leaves frubble-ai, change both: `dev_deployers` here
-    (`gh api orgs/frubble-ai/members --jq '.[] | "\(.login) \(.id)"'`), and the policy's
-    `allowed_actors` (`gh api repos/frubble-ai/app/actions/policies`, then `PUT` its
-    `/actions/policies/<id>`).
+    leaves frubble-ai, change all three: `dev_deployers` here
+    (`gh api orgs/frubble-ai/members --jq '.[] | "\(.login) \(.id)"'`), the policy's
+    `allowed_actors` on frubble-ai/app (`gh api repos/frubble-ai/app/actions/policies`,
+    then `PUT` its `/actions/policies/<id>`), and the same policy on `osiris-cd.yml` in
+    frubble-ai/osiris (see Osiris, below).
     The app repository needs those environments (variables from the dev outputs, as
     `backend-stg` and `app-stg` have; `GCP_DEPLOY_HUB` is the full email from
     org/gcp/_setup's `backend_deploy_hubs["dev"]` output,
@@ -168,6 +168,50 @@ The application (frubble-ai/app), not this repository
     workflows that deploy `dev` there, its own `COMPOSIO_API_KEY` for dev rather than
     the repository-wide one, and `dev` accepted as an `APP_ENV`. Until then the dev
     services run their placeholder images.
+
+## Osiris
+
+Osiris (frubble-ai/osiris) deploys the way the application does. `dev/gcp/trust.tf`
+expects `osiris-cd.yml` in an `osiris-dev` environment from any branch, by one of
+`dev_deployers`, and `stg/gcp/trust.tf` expects the same file in `osiris-stg` from
+the `stg` branch only. `osiris-dev` accepts deployments from all branches;
+`osiris-stg` from `stg` only. The workflow keeps a run from `stg` out of
+`osiris-dev`. A tag or a pull request's merge ref is never trusted.
+
+On frubble-ai/app, the Actions policy that refuses a re-run by anyone but the
+listed members covers `backend-cd.yml`, `app-cd.yml` and `db-reset.yml`. Osiris
+needs the same policy on `osiris-cd.yml`, with the same ids (`dev_deployers`), and
+when a member joins or leaves it is changed together with the other two (step 18).
+
+Each environment's variables, from this repository's outputs, using the names
+`backend-dev` and `backend-stg` already use:
+
+| Variable | What |
+| --- | --- |
+| `GCP_WIF_PROVIDER` | org/gcp/_setup `apply_provider` |
+| `GCP_WIF_AUDIENCE` | org/gcp/_setup `audience` |
+| `GCP_DEPLOY_HUB` | full email, `osiris_deploy_hubs["dev"]` or `["stg"]` from org/gcp/_setup |
+| `GCP_DEPLOY_SPOKE` | `osiris_deploy_spoke` from the environment's gcp/_setup |
+| `GCP_PROJECT_ID` | the environment project |
+| `GCP_REGION` | `us-central1` |
+| `GCP_REGISTRY` | the workload root's `registry_url` |
+| `GCP_RUN_SERVICE` | `osiris_service_name` (serve) |
+| `GCP_RUN_SERVICE_WORKER` | `osiris_worker_service_name` |
+| `GCP_RUN_JOB_MIGRATE` | `osiris_migrate_job_name` |
+
+The image is built with `--build-arg OSIRIS_COMMIT=<commit>`. The workflow pushes
+that image, executes the migrate job, then rolls serve and the worker. It does
+not set a command or arguments: the services read `OSIRIS_PROCESS`.
+
+After the first dev apply:
+
+1. On the dev GitHub, Linear and Slack apps, set the OAuth callback to
+   `https://osiris.dev.frubble.ai/oauth/callback` (stg: `https://osiris.stg.frubble.ai/oauth/callback`).
+2. Read the admin key with the command in secrets.md. It is not in CI.
+
+The hostname's A record is published on the apply after the certificate is
+issued, same as `app.dev` (crossing-roots.md). Until the first osiris deploy,
+serve and the worker run the placeholder image.
 
 ## Rolling back
 

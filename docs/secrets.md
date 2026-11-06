@@ -12,6 +12,26 @@ writes the real version the same write-only way (`stg/mailgun` and `dev/mailgun`
 environments, `org/mailgun/_setup` for prd, email.md). Each
 service reads only the secrets bound to its identity, per secret.
 
+`secrets_version` does not rotate osiris's encryption key. That key wraps every
+tenant's data key; a new value makes the stored tokens unreadable. It has its own
+pin, `osiris_encryption_key_version`, bumped only in a change that re-wraps the
+data keys. The other generated osiris values (its database password, API key and
+admin key) move with `secrets_version`, same as the application's.
+
+The osiris API key is generated here for the serve process. The application's API
+reads it later; nothing in the application is bound to it yet. The admin key is
+the operator key. Read it as the administrator (the plan identity is denied every
+secret value):
+
+```sh
+ENV=dev  # or stg
+PROJECT="$(gh variable get "GCP_PROJECT_$(echo "$ENV" | tr a-z A-Z)")"
+gcloud secrets versions access latest --secret "frubble_${ENV}_osiris_admin-key" --project "$PROJECT"
+```
+
+The id is `frubble_<env>_osiris_admin-key` (the secret module joins the path with
+underscores). `frubble_<env>_osiris_api-key` is the client key.
+
 Composio's project API key has no root that writes it: after the apply, add the value by hand,
 then roll the API so its next revision reads it.
 

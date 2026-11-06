@@ -62,18 +62,3 @@ resource "google_service_account_iam_member" "osiris_schedules_tasks" {
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${each.value}"
 }
-
-# Runs the job that revokes cross-database CONNECT. It reads only that
-# job's password, and nothing deploys it.
-resource "google_service_account" "database_grants" {
-  account_id   = "frubble-${var.environment}-db-grants"
-  project      = var.project_id
-  display_name = "frubble ${var.environment} database grants"
-  description  = "Runs the database grant job."
-}
-
-resource "google_service_account_iam_member" "apply_attaches_database_grants" {
-  service_account_id = google_service_account.database_grants.name
-  role               = "roles/iam.serviceAccountUser"
-  member             = module.apply_spoke.member
-}

@@ -27,14 +27,14 @@ features are switched on. The exception is `_setup` outputs copied once at boots
 any pipeline exists to carry them.
 
 The GCP workload root hands the Cloudflare root two values. `certificate_dns_authorizations`,
-one CNAME per hostname (the API's, `api.`, and the web app's, `app.`): the Cloudflare root
+one CNAME per hostname (the API's, `api.`, the web app's, `app.`, and osiris's, `osiris.`): the Cloudflare root
 publishes each, DNS-only, and Certificate Manager issues that hostname's certificate against it;
 the records are permanent, since renewals reuse them. A certificate per hostname, so adding one
 never replaces the certificate another is serving with. `load_balancer_ip`: the hostnames' A
 records, DNS-only too, since proxied every client would arrive from Cloudflare's addresses and
 Cloud Armor's per-IP limit would be one budget for all of them. Both arrive in one object, with
-`published_hosts`: the hostnames whose A records the Cloudflare root publishes, for the API and
-the app alike. A hostname joins once it serves TLS, its certificate issued and its certificate-map
+`published_hosts`: the hostnames whose A records the Cloudflare root publishes, for the API, the app and
+osiris alike. A hostname joins once it serves TLS, its certificate issued and its certificate-map
 entry active, and stays: the GCP root keeps the previous handoff's list, so a renewal that shows a
 certificate as provisioning again never takes a record down. A new hostname's certificate issues
 against its authorization, which the same run publishes, so its A record follows on the next
