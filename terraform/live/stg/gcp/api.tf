@@ -16,10 +16,17 @@ module "api_service" {
     # Where invitation links and the post-connect redirect land.
     APP_URL                  = "https://${module.shared.app_hostname}"
     COMPOSIO_AUTH_CONFIG_IDS = var.composio_auth_config_ids
+    # The broker new connections go through: this environment's osiris (osiris.tf).
+    OSIRIS_URL             = "https://${module.shared.osiris_hostname}"
+    OSIRIS_AUTH_CONFIG_IDS = var.osiris_auth_config_ids
+    # This environment's GitHub App, github.com/apps/<slug>: the install link opens it, and a
+    # connection lists only its installations.
+    GITHUB_APP_SLUG = "frubble-ai"
   })
   secret_env = merge(local.database_secret_env, {
     BETTER_AUTH_SECRET = { secret = module.secrets["auth_secret"].secret_id }
     COMPOSIO_API_KEY   = { secret = module.secrets["composio_api_key"].secret_id }
+    OSIRIS_API_KEY     = { secret = module.secrets["osiris_api_key"].secret_id }
   })
   vpc = local.vpc
   # In prd a rollback takes one apply more: set this to false and apply, then
