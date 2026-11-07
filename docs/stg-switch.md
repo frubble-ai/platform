@@ -71,6 +71,13 @@ repository's `stg` branch) have nothing to deploy to and fail.
    runs the migrations. Until then the services run the placeholder image.
    Osiris is the same: its `osiris-cd` on the `stg` branch. The rebuilt
    databases are empty and the encryption key is a new one.
+5. Recreate the API's auth configs on the rebuilt osiris. Switching off destroyed
+   osiris's database and the auth configs in it, but `OSIRIS_AUTH_CONFIG_IDS_STG`
+   is a repository variable and still holds the old ids, so the API would send ids
+   that no longer exist and new connections fail. Create them again with
+   `POST /v1/auth-configs` and the admin key, set the variable to the new
+   `provider=id` pairs (`gh variable set OSIRIS_AUTH_CONFIG_IDS_STG --body '...' --repo frubble-ai/platform`),
+   and run `stg-cd` again so the API receives them.
 
 Cloud SQL keeps a deleted instance's name for up to a week. To switch on sooner
 than that after switching off, set `database_instance_suffix` (it names both instances) in
