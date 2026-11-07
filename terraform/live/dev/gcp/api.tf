@@ -19,6 +19,9 @@ module "api_service" {
     # The broker new connections go through: this environment's osiris (osiris.tf).
     OSIRIS_URL             = "https://${module.shared.osiris_hostname}"
     OSIRIS_AUTH_CONFIG_IDS = var.osiris_auth_config_ids
+    # This environment's GitHub App, github.com/apps/<slug>: the install link opens it, and a
+    # connection lists only its installations.
+    GITHUB_APP_SLUG = "frubble-ai-dev"
   })
   secret_env = merge(local.database_secret_env, {
     BETTER_AUTH_SECRET = { secret = module.secrets["auth_secret"].secret_id }
