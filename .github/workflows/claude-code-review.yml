@@ -17,7 +17,8 @@ permissions:
 jobs:
   review:
     name: Claude
-    if: vars.CLAUDE_REVIEW_ENABLED == 'true'
+    # Dependabot pull requests are not reviewed: they cannot read this repository's Actions secrets.
+    if: vars.CLAUDE_REVIEW_ENABLED == 'true' && github.event.pull_request.user.login != 'dependabot[bot]'
     uses: frubble-platform/claude-review/.github/workflows/review.yml@main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
