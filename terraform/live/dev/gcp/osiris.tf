@@ -83,6 +83,7 @@ module "osiris_worker_service" {
   default_uri_disabled = false
   ingress              = "INGRESS_TRAFFIC_INTERNAL_ONLY"
   invoker_iam_disabled = false
+  vpc                  = local.vpc
   max_instances        = local.osiris_max_instances
   deletion_protection  = module.shared.environment == "prd"
   labels               = merge(local.labels, { component = "osiris" })
