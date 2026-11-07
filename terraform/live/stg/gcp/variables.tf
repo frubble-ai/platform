@@ -61,6 +61,11 @@ variable "composio_auth_config_ids" {
   type        = string
 }
 
+variable "osiris_auth_config_ids" {
+  description = "The API's osiris auth configs as `provider=id` pairs separated by commas, from the OSIRIS_AUTH_CONFIG_IDS_<ENV> repository variable."
+  type        = string
+}
+
 variable "enabled" {
   description = "Whether stg's running resources exist: the database, the services, the queue, the load balancer and what hangs off them. False destroys them on the next apply, true rebuilds them from this code. From the STG_ENABLED repository variable (docs/stg-switch.md)."
   type        = bool

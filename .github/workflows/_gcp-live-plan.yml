@@ -46,6 +46,11 @@ on:
         required: false
         type: string
         default: ""
+      osiris_auth_config_ids:
+        description: The API's osiris auth configs, `provider=id` pairs separated by commas.
+        required: false
+        type: string
+        default: ""
       stack_switch:
         description: >-
           Raw value of the stack's on/off repository variable (STG_ENABLED), passed through
@@ -153,6 +158,7 @@ jobs:
           TF_VAR_management_state_bucket: ${{ inputs.management_state_bucket }}
           TF_VAR_spoke_service_account: ${{ inputs.spoke_service_account }}
           TF_VAR_composio_auth_config_ids: ${{ inputs.composio_auth_config_ids }}
+          TF_VAR_osiris_auth_config_ids: ${{ inputs.osiris_auth_config_ids }}
         # Raw output to plan.txt only; summary.txt feeds the log and comment.
         run: |
           # Resolved here, case-sensitively, not in an expression: Actions

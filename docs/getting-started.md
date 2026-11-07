@@ -33,6 +33,11 @@ The workload roots read one of their own: `COMPOSIO_AUTH_CONFIG_IDS_STG`, `_DEV`
 commas (`github=ac_…,linear=ac_…`). A new provider is one more pair; a variable change starts
 no workflow, so run the environment's CD by hand after editing it.
 
+Dev and stg also read `OSIRIS_AUTH_CONFIG_IDS_DEV` and `_STG` (`osiris_auth_config_ids`), the
+API's auth configs on that environment's osiris, in the same `provider=id` form. Osiris makes the
+ids when an auth config is created on it (`POST /v1/auth-configs` with the admin key). They are not
+Composio's.
+
 1. Create the management project and the developer Google Group.
 2. Apply `org/gcp/_setup` without a backend, then migrate its state into the bucket it
    created.
