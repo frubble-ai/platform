@@ -9,7 +9,7 @@ terraform {
     # Only the handoff objects (handoff.tf).
     google = {
       source  = "hashicorp/google"
-      version = "~> 6.0"
+      version = "~> 8.10"
     }
   }
 
